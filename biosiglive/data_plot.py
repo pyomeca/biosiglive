@@ -8,7 +8,6 @@ from PyQt5.QtCore import *
 
 try:
     from optim_funct import markers_fun
-
     biorbd_module = True
 except ModuleNotFoundError:
     biorbd_module = False
@@ -201,70 +200,76 @@ def init_plot_q(nb_q, dof_names=None):
     return rplt, layout, app_q, box
 
 
-def init_plot_force(nb_mus):
+def init_plot_force(nb_mus, plot_type="progress_bar"):
     """
-            Initialize pyqtgraph for force data
-            ----------
-            nb_mus: int
-                number of muscle
+    Initialize pyqtgraph for force data
+    ----------
+    nb_mus: int
+        number of muscle
 
-            Returns
-            ----------
-                Init pyqtgraph for update function
+    Returns
+    ----------
+        Init pyqtgraph for update function
     """
-    # --- Curve graph --- #
-    # app = pg.mkQApp("force")
-    # remote = []
-    # layout = pg.LayoutWidget()
-    # layout.resize(800, 800)
-    # label = QtGui.QLabel()
-    # box = []
-    # rplt = []
-    # row_count = 0
-    # col_span = 4 if nb_mus > 8 else 8
-    # for mus in range(nb_mus):
-    #     remote.append(rgv.RemoteGraphicsView())
-    #     remote[mus].pg.setConfigOptions(antialias=True)
-    #     app.aboutToQuit.connect(remote[mus].close)
-    #     box.append(QtGui.QCheckBox(f"muscle_{mus}"))
-    #     if mus >= 8:
-    #         layout.addWidget(box[mus], row=1, col=mus-8)
-    #         layout.addWidget(remote[mus], row=mus - 8 + 2, col=4, colspan=col_span)
-    #     else:
-    #         layout.addWidget(box[mus], row=0, col=mus)
-    #         layout.addWidget(remote[mus], row=mus + 2, col=0, colspan=col_span)
-    #     rplt.append(remote[mus].pg.PlotItem())
-    #     rplt[mus]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
-    #     remote[mus].setCentralItem(rplt[mus])
-    #     layout.addWidget(label)
-    #     layout.show()
-    #     row_count += 1
-    # return rplt, layout, app  , box
 
-    # --- Progress bar graph --- #
-    app = pg.mkQApp("force")
-    layout = pg.LayoutWidget()
-    layout.resize(400, 800)
-    layout.move(0, 0)
-    box = []
-    rplt = []
-    row_count = 0
-    for mus in range(nb_mus):
-        rplt.append(QProgressBar())
-        rplt[mus].setMaximum(1000)
-        layout.addWidget(rplt[mus], row=mus, col=0)
-        layout.show()
-        row_count += 1
-    return rplt, layout, app
+    if plot_type == 'curve':
+        # --- Curve graph --- #
+        app = pg.mkQApp('Muscle forces')
+        remote = []
+        layout = pg.LayoutWidget()
+        layout.resize(800, 800)
+        label = QtGui.QLabel()
+        box = []
+        rplt = []
+        row_count = 0
+        col_span = 4 if nb_mus > 8 else 8
+        for mus in range(nb_mus):
+            remote.append(rgv.RemoteGraphicsView())
+            remote[mus].pg.setConfigOptions(antialias=True)
+            app.aboutToQuit.connect(remote[mus].close)
+            box.append(QtGui.QCheckBox(f"muscle_{mus}"))
+            if mus >= 8:
+                layout.addWidget(box[mus], row=1, col=mus-8)
+                layout.addWidget(remote[mus], row=mus - 8 + 2, col=4, colspan=col_span)
+            else:
+                layout.addWidget(box[mus], row=0, col=mus)
+                layout.addWidget(remote[mus], row=mus + 2, col=0, colspan=col_span)
+            rplt.append(remote[mus].pg.PlotItem())
+            rplt[mus]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
+            remote[mus].setCentralItem(rplt[mus])
+            layout.addWidget(label)
+            layout.show()
+            row_count += 1
+        return rplt, layout, app, box
 
-    # --- Bar graph --- #
-    # app = pg.mkQApp()
-    # layout = pg.plot()
-    # layout.resize(800, 800)
-    # rplt = pg.BarGraphItem(x=range(nb_mus), height=np.zeros((nb_mus)), width=0.3, brush='r')
-    # layout.addItem(rplt)
-    # return rplt, layout, app
+    elif plot_type == "progress_bar":
+        # --- Progress bar graph --- #
+        app = pg.mkQApp('Muscle forces')
+        layout = pg.LayoutWidget()
+        layout.resize(400, 800)
+        layout.move(0, 0)
+        rplt = []
+        row_count = 0
+        for mus in range(nb_mus):
+            rplt.append(QProgressBar())
+            rplt[mus].setMaximum(1000)
+            layout.addWidget(rplt[mus], row=mus, col=0)
+            layout.show()
+            row_count += 1
 
+        return rplt, layout, app
+
+    elif plot_type == "bar":
+        # --- Bar graph --- #
+        app = pg.mkQApp('Muscle forces')
+        layout = pg.plot()
+        layout.resize(800, 800)
+        rplt = pg.BarGraphItem(x=range(nb_mus), height=np.zeros((nb_mus)), width=0.3, brush='r')
+        layout.addItem(rplt)
+        return rplt, layout, app
+
+    else:
+        raise RuntimeError("Plot type not allowed")
 
 def update_plot_force(force_est, rplt, app, ratio, muscle_names=None):  # , box):
     """
@@ -284,7 +289,6 @@ def update_plot_force(force_est, rplt, app, ratio, muscle_names=None):  # , box)
     # app.processEvents()
 
     # --- progress bar --- #
-
     for force in range(force_est.shape[0]):
         value = np.mean(force_est[force, -ratio:])
         rplt[force].setValue(int(value))

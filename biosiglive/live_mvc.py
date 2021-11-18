@@ -128,7 +128,8 @@ class ComputeMvc:
                     f" Stream mode can be 'pytrigno', 'viconsdk' or 'server_data."
                 )
         else:
-            self.emg_exp = sio.loadmat("EMG_test.mat")["EMG"][:, :1500]
+            self.emg_exp = np.random.rand(self.n_muscles, 1500)
+            # self.emg_exp = sio.loadmat("EMG_test.mat")["EMG"][:, :1500]
 
     def _process_mvc(self, data, save_final_data=False, save_tmp=False, return_list=False):
         """
@@ -151,7 +152,7 @@ class ComputeMvc:
         windows = self.mvc_windows
         mvc_list_max = np.ndarray((len(self.muscle_names), windows))
         if save_final_data is not True and return_list is not True:
-            mvc_processed = process_emg(data, self.frequency, MA_win=200, pyomec=False, MA=True)
+            mvc_processed = process_emg(data, self.frequency, ma_win=200, pyomeca=False, ma=True)
         else:
             mvc_trials = data
 
@@ -230,7 +231,7 @@ class ComputeMvc:
                     List of MVC and if wanted instance of streaming system.
                 """
         device_info = []
-        if self.try_w_connection is True:
+        if self.test_w_connection is True:
             if self.stream_mode == "vicon":
                 self.vicon_client.GetFrame()
                 device_name = device_name if device_name else self.vicon_client.GetDeviceNames()[2][0]

@@ -1,10 +1,11 @@
 from biosiglive.server import Server
+import numpy as np
 import os
 
 if __name__ == "__main__":
     parent = os.path.dirname(os.getcwd())
-    offline_path = parent + 'test_wt_connection.mat'
-    with_connection = True
+    # offline_path = parent + '/test_wt_connection.mat'
+    with_connection = False
     # IP_server = '192.168.1.211'
     IP_server = "localhost"
     device_ip = "192.168.1.211"
@@ -20,7 +21,7 @@ if __name__ == "__main__":
 
     # Run streaming data
     muscles_idx = (0, n_electrode - 1)
-    MVC_list = [0, 0, 2]
+    mvc_list = np.random.rand(n_electrode, 1)
     server = Server(
         IP=IP_server,
         server_ports=server_port,
@@ -31,7 +32,7 @@ if __name__ == "__main__":
         acquisition_rate=read_freq,
         output_dir=output_dir,
         output_file=output_file,
-        offline_file_path=offline_path
+        # offline_file_path=offline_path
     )
 
     server.run(
@@ -39,8 +40,8 @@ if __name__ == "__main__":
         stream_markers=False,
         stream_imu=True,
         optim=True,
-        plot_emg=False,
+        plot_emg=True,
         norm_emg=True,
         test_with_connection=with_connection,
-        mvc_list=MVC_list,
+        mvc_list=mvc_list,
     )

@@ -1,5 +1,8 @@
 import socket
-import pytrigno
+try:
+    import pytrigno
+except ModuleNotFoundError:
+    pass
 import sys
 from time import time, sleep, strftime
 import scipy.io as sio
@@ -56,6 +59,7 @@ class Server:
         output_dir=None,
         save_data=True,
         offline_file_path=None,
+        smooth_markers=True
     ):
 
         # problem variables
@@ -88,6 +92,7 @@ class Server:
         self.device = device
         self.device_host_ip = device_host_ip
         self.offline_file_path = offline_file_path
+        self.smooth_markers = smooth_markers
         current_time = strftime("%Y%m%d-%H%M")
         output_file = output_file if output_file else f"data_streaming_{current_time}"
 
@@ -117,6 +122,8 @@ class Server:
         self.nb_of_data_to_export = self.nb_frame_of_interest
         self.emg_empty, self.markers_empty = (), ()
         self.nb_emg, self.nb_marks = 0, 0
+        if not muscle_range:
+            muscle_range = (0, 16)
         self.nb_electrodes = muscle_range[1] - muscle_range[0] + 1
         self.emg_sample = 0
         self.imu_sample = 0
@@ -126,6 +133,7 @@ class Server:
         self.imu_output_names = ()
         self.emg_names = None
         self.imu_names = None
+        self.offline_time = 3
 
         # Multiprocess stuff
         manager = mp.Manager()
@@ -178,8 +186,19 @@ class Server:
         self.plot_emg = plot_emg
         self.mvc_list = mvc_list
         self.norm_emg = norm_emg
+        shape_mvc = None
         if self.norm_emg is True and self.mvc_list is None:
             raise RuntimeError("Please define a mvc list to normalize emg signals or turn 'norm_emg' to False")
+        if self.norm_emg and self.mvc_list is not None:
+            if isinstance(mvc_list, list):
+                if len(self.mvc_list) != self.nb_electrodes:
+                    shape_mvc = len(self.mvc_list)
+            else:
+                if self.mvc_list.shape[0] != self.nb_electrodes:
+                    shape_mvc = self.mvc_list.shape[0]
+            if shape_mvc:
+                raise RuntimeError("Number of MVC data have to be the same than number of electrodes. "
+                                   f"You have {shape_mvc} and {self.nb_electrodes}.")
         self.optim = optim
         self.stream_emg = stream_emg
         self.stream_markers = stream_markers
@@ -206,25 +225,32 @@ class Server:
 
         self.imu_sample = int(self.imu_rate / self.acquisition_rate)
         if self.try_w_connection is not True:
-            data_exp = sio.loadmat(self.offline_file_path)
+            # data_exp = sio.loadmat(self.offline_file_path)
             if self.stream_imu:
-                self.IM_exp = np.concatenate(
-                    (
-                        data_exp["raw_accel"][: self.nb_electrodes, :, :],
-                        data_exp["raw_gyro"][: self.nb_electrodes, :, :],
-                    ),
-                    axis=1,
-                )
+                # self.IM_exp = np.concatenate(
+                #     (
+                #         data_exp["raw_accel"][: self.nb_electrodes, :, :],
+                #         data_exp["raw_gyro"][: self.nb_electrodes, :, :],
+                #     ),
+                #     axis=1,
+                # )
+                self.IM_exp = np.random.rand(self.nb_electrodes, 6, int(self.imu_rate * self.offline_time))
                 self.imu_sample = int(self.imu_rate / self.acquisition_rate)
             if self.stream_emg:
                 self.emg_sample = int(self.emg_rate / self.acquisition_rate)
-                self.emg_exp = data_exp["emg"][: self.nb_electrodes, :]
+                # self.emg_exp = data_exp["raw_"][: self.nb_electrodes, :]
+                self.emg_exp = np.random.rand(self.nb_electrodes,  int(self.emg_rate * self.offline_time))
 
-            if "markers" in data_exp.keys():
-                self.markers_exp = data_exp["markers"]
-                self.markers_exp = np.nan_to_num(self.markers_exp)
+            if stream_markers:
+                # self.markers_exp = data_exp["markers"]
+                if self.model_path:
+                    bio_mod = biorbd.Model(self.model_path)
+                    self.nb_marks = bio_mod.nbMarkers()
+                else:
+                    self.nb_marks = self.nb_electrodes
+                self.markers_exp = np.random.rand(3, self.nb_marks, int(self.markers_rate * self.offline_time))
             self.init_frame = 0
-            self.last_frame = self.markers_exp.shape[2]
+            self.last_frame = self.markers_rate * self.offline_time
             self.m = self.init_frame
             self.c = self.init_frame * 20
             self.marker_names = []
@@ -626,16 +652,18 @@ class Server:
                 states = markers_data["states"]
                 if self.try_w_connection:
                     markers_tmp, self.marker_names, occluded = self.get_markers()
-                    if self.iter > 0:
-                        for i in range(markers_tmp.shape[1]):
-                            if occluded[i] is True:
-                                markers_tmp[:, i, :] = markers[:, i, -1:]
+                    if self.smooth_markers:
+                        if self.iter > 0:
+                            for i in range(markers_tmp.shape[1]):
+                                if occluded[i] is True:
+                                    markers_tmp[:, i, :] = markers[:, i, -1:]
                 else:
                     markers_tmp = self.markers_exp[:, :, self.m : self.m + 1]
                     self.m = self.m + 1 if self.m < self.last_frame else self.init_frame
-                    for i in range(markers_tmp.shape[1]):
-                        if np.product(markers_tmp[:, i, :]) == 0:
-                            markers_tmp[:, i, :] = markers[:, i, -1:]
+                    if self.smooth_markers:
+                        for i in range(markers_tmp.shape[1]):
+                            if np.product(markers_tmp[:, i, :]) == 0:
+                                markers_tmp[:, i, :] = markers[:, i, -1:]
 
                 if len(markers) == 0:
                     markers = markers_tmp
