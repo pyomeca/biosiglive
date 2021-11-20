@@ -7,6 +7,10 @@ from biosiglive.data_plot import init_plot_emg, update_plot_emg
 import matplotlib.pyplot as plt
 import scipy.io as sio
 from math import ceil
+try:
+    from vicon_dssdk import ViconDataStream as VDS
+except:
+    pass
 import pytrigno
 
 
@@ -303,10 +307,10 @@ class ComputeMvc:
                             client = Client(self.server_ip, self.server_port)
                             data_tmp = client.get_data(
                                 ["emg"],
-                                Nmhe=self.acquisition_rate,
-                                nb_of_data=1,
-                                exp_freq=self.acquisition_rate,
-                                EMG_wind=2000,
+                                nb_frame_of_interest=self.sample,
+                                nb_of_data_to_export=self.sample,
+                                read_frequency=self.acquisition_rate,
+                                emg_wind=2000,
                                 get_names=False,
                                 raw=True,
                                 norm_emg=False,

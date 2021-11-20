@@ -1,7 +1,8 @@
 import socket, pickle
 import json
+import struct
 
-Buff_size = 1000000
+Buff_size = 4096
 
 
 class Message:
@@ -9,7 +10,7 @@ class Message:
         self.command = []
         self.dic = {}
         self.dic["command"] = []
-        self.dic["nb_data_of_interest"] = 7
+        self.dic["nb_frame_of_interest"] = 7
         self.dic["read_frequency"] = 33  # frequency at which the ocp should run
         self.dic["emg_windows"] = 2000
         self.dic["get_names"] = False
@@ -41,6 +42,18 @@ class Client:
             return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     # TODO: add possibility to ask for some index
+    def recv_all(self, buff_size):
+        msg_len = self.client.recv(4)
+        msg_len = struct.unpack('>I', msg_len)[0]
+        data = []
+        l = 0
+        while l < msg_len:
+            chunk = self.client.recv(buff_size)
+            l += len(chunk)
+            data.append(chunk)
+        data = b"".join(data)
+        data = json.loads(data)
+        return data
 
     def get_data(
         self,
@@ -59,7 +72,6 @@ class Client:
 
         message = Message()
         message.dic["get_names"] = get_names
-        # norm_EMG = True if MVC is not None and norm_EMG is None else False
         message.dic["norm_emg"] = norm_emg
         message.dic["mvc_list"] = mvc_list
         message.dic["kalman"] = get_kalman
@@ -77,9 +89,6 @@ class Client:
                 "Please turn norm_EMG to True tu normalize your data."
             )
 
-        # message.dic["EMG_unit"] = EMG_unit
-        # if len(data) == 0:
-        #     raise RuntimeError("Please set at least one data to get.")
         message.dic["command"] = []
         for i in data:
             message.dic["command"].append(i)
@@ -87,8 +96,7 @@ class Client:
                 raise RuntimeError(f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' ")
 
         Client.send(self, json.dumps(message.dic).encode(), type="all")
-        data = json.loads(self.client.recv(buff))
-        return data
+        return self.recv_all(buff)
 
     def send(self, data, type=None, IP=None, port=None):
         data = pickle.dumps(data) if not isinstance(data, bytes) else data

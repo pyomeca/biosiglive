@@ -1,4 +1,6 @@
 import socket
+import struct
+
 try:
     import pytrigno
 except ModuleNotFoundError:
@@ -49,7 +51,7 @@ class Server:
         proc_emg=True,
         proc_imu=True,
         markers_dec=4,
-        emg_dec=8,
+        emg_dec=10,
         timeout=None,
         buff_size=Buff_size,
         device="vicon",  # 'vicon' or 'pytrigno',
@@ -242,10 +244,10 @@ class Server:
                 self.emg_exp = np.random.rand(self.nb_electrodes,  int(self.emg_rate * self.offline_time))
 
             if stream_markers:
-                # self.markers_exp = data_exp["markers"]
                 if self.model_path:
-                    bio_mod = biorbd.Model(self.model_path)
-                    self.nb_marks = bio_mod.nbMarkers()
+                    if self.recons_kalman:
+                        biomod = biorbd.Model(self.model_path)
+                        self.nb_marks = biomod.nbMarkers()
                 else:
                     self.nb_marks = self.nb_electrodes
                 self.markers_exp = np.random.rand(3, self.nb_marks, int(self.markers_rate * self.offline_time))
@@ -404,9 +406,9 @@ class Server:
                             print("Sending data to client...")
                             print(f"data sended : {dic_to_send}")
                         encoded_data = json.dumps(dic_to_send).encode()
-
+                        encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
                         try:
-                            connection.send(encoded_data)
+                            connection.sendall(encoded_data)
                         except:
                             pass
 
@@ -639,7 +641,8 @@ class Server:
                 self.event_imu.set()
 
     def recons_kin(self):
-        model = biorbd.Model(self.model_path)
+        if self.recons_kalman:
+            model = biorbd.Model(self.model_path)
         while True:
             try:
                 markers_data = self.kin_queue_in.get_nowait()
@@ -651,12 +654,13 @@ class Server:
                 markers = markers_data["markers"]
                 states = markers_data["states"]
                 if self.try_w_connection:
-                    markers_tmp, self.marker_names, occluded = self.get_markers()
-                    if self.smooth_markers:
-                        if self.iter > 0:
-                            for i in range(markers_tmp.shape[1]):
-                                if occluded[i] is True:
-                                    markers_tmp[:, i, :] = markers[:, i, -1:]
+                    markers_tmp = markers_data["markers_tmp"]
+                    # markers_tmp, self.marker_names, occluded = self.get_markers()
+                    # if self.smooth_markers:
+                    #     if self.iter > 0:
+                    #         for i in range(markers_tmp.shape[1]):
+                    #             if occluded[i] is True:
+                    #                 markers_tmp[:, i, :] = markers[:, i, -1:]
                 else:
                     markers_tmp = self.markers_exp[:, :, self.m : self.m + 1]
                     self.m = self.m + 1 if self.m < self.last_frame else self.init_frame
@@ -673,7 +677,7 @@ class Server:
                     else:
                         markers = np.append(markers[:, :, 1:], markers_tmp[:, :, -1:], axis=2)
 
-                if self.recons_kalman is True:
+                if self.recons_kalman:
                     states_tmp = self.kalman_func(markers[:, :, -1:], model, return_q_dot=False)
                     if len(states) == 0:
                         states = states_tmp
@@ -758,8 +762,8 @@ class Server:
                     self.event_emg.clear()
                     raw_emg, emg_proc = emg_data["raw_emg"], emg_data["emg_proc"]
                     dic_to_put["emg_names"] = emg_names
-                    dic_to_put["raw_emg"] = raw_emg
-                    dic_to_put["emg_proc"] = emg_proc
+                    dic_to_put["raw_emg"] = np.around(raw_emg, decimals=emg_dec)
+                    dic_to_put["emg_proc"] = np.around(emg_proc, decimals=emg_dec)
 
                 if self.stream_markers:
                     self.event_kin.wait()
