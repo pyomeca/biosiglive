@@ -643,6 +643,7 @@ class Server:
     def recons_kin(self):
         if self.recons_kalman:
             model = biorbd.Model(self.model_path)
+        markers_from_kalman = np.ndarray((3, model.nbMarkers(), 1))
         while True:
             try:
                 markers_data = self.kin_queue_in.get_nowait()
@@ -664,7 +665,14 @@ class Server:
                 else:
                     markers_tmp = self.markers_exp[:, :, self.m : self.m + 1]
                     self.m = self.m + 1 if self.m < self.last_frame else self.init_frame
-                    if self.smooth_markers:
+
+                if self.smooth_markers:
+                    if self.recons_kalman:
+                        markers_from_kalman = np.array([mark.to_array() for mark in model.markers(states[:model.nbQ(), -1:])]).T
+                        for i in range(markers_tmp.shape[1]):
+                            if np.product(markers_tmp[:, i, :]) == 0:
+                                markers_tmp[:, i, :] = markers_from_kalman[:, i]
+                    else:
                         for i in range(markers_tmp.shape[1]):
                             if np.product(markers_tmp[:, i, :]) == 0:
                                 markers_tmp[:, i, :] = markers[:, i, -1:]
@@ -966,6 +974,8 @@ class Server:
             kalman.reconstructFrame(model, targetMarkers, q, q_dot, qd_dot)
             q_recons[:, i] = q.to_array()
             q_dot_recons[:, i] = q_dot.to_array()
+
+        # comput markers from
         if return_q_dot:
             return q_recons, q_dot_recons
         else:
