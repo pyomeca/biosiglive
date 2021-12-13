@@ -271,7 +271,7 @@ def init_plot_force(nb_mus, plot_type="progress_bar"):
     else:
         raise RuntimeError("Plot type not allowed")
 
-def update_plot_force(force_est, rplt, app, ratio, muscle_names=None):  # , box):
+def update_plot_force(force_est, rplt, app, ratio, box=None, muscle_names=None, plot_type="progress_bar"):  # , box):
     """
             update force plot
             ----------
@@ -282,26 +282,28 @@ def update_plot_force(force_est, rplt, app, ratio, muscle_names=None):  # , box)
             Returns
             ----------
     """
-    # --- curve --- #
-    # for force in range(force_est.shape[0]):
-    #     if box[force].isChecked() is True:
-    #         rplt[force].plot(force_est[force, :], clear=True, _callSync='off')
-    # app.processEvents()
+    if plot_type == "curve":
+        # --- curve --- #
+        for force in range(force_est.shape[0]):
+            if box[force].isChecked() is True:
+                rplt[force].plot(force_est[force, :], clear=True, _callSync='off')
 
-    # --- progress bar --- #
-    for force in range(force_est.shape[0]):
-        value = np.mean(force_est[force, -ratio:])
-        rplt[force].setValue(int(value))
-        names = muscle_names[force] if muscle_names else f"muscle_{force}"
-        rplt[force].setFormat(f"{names}: {int(value)} N")
+    elif plot_type == "progress_bar":
+        # --- progress bar --- #
+        for force in range(force_est.shape[0]):
+            value = np.mean(force_est[force, -ratio:])
+            rplt[force].setValue(int(value))
+            names = muscle_names[force] if muscle_names else f"muscle_{force}"
+            rplt[force].setFormat(f"{names}: {int(value)} N")
+
+    elif plot_type == "bar":
+        # --- bar --- #
+        y = []
+        for force in range(force_est.shape[0]):
+            y.append(np.mean(force_est[force, -ratio:]))
+        rplt.setOpts(height=y)
+
     app.processEvents()
-
-    # --- bar --- #
-    # y = []
-    # for force in range(force_est.shape[0]):
-    #     y.append(np.mean(force_est[force, -ratio:]))
-    # rplt.setOpts(height=y)
-    # app.processEvents()
 
 
 def update_plot_q(q_est, rplt, app, box):

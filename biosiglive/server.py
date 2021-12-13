@@ -127,15 +127,16 @@ class Server:
         if not muscle_range:
             muscle_range = (0, 16)
         self.nb_electrodes = muscle_range[1] - muscle_range[0] + 1
-        self.emg_sample = 0
-        self.imu_sample = 0
+        self.emg_sample = int(self.emg_rate / self.acquisition_rate)
+        self.imu_sample = int(self.imu_rate / self.acquisition_rate)
         self.muscle_range = muscle_range if muscle_range else (0, 15)
         self.imu_range = (self.muscle_range[0], self.muscle_range[0] + (self.nb_electrodes * 9))
         self.output_names = ()
         self.imu_output_names = ()
         self.emg_names = None
         self.imu_names = None
-        self.offline_time = 3
+        if not self.offline_file_path:
+            self.offline_time = 3
 
         # Multiprocess stuff
         manager = mp.Manager()
@@ -215,6 +216,9 @@ class Server:
         if self.try_w_connection is not True:
             print("[Warning] Debug mode without connection.")
 
+        if self.offline_file_path:
+            data_exp = sio.loadmat(self.offline_file_path)
+
         data_type = []
         if self.stream_emg:
             data_type.append("emg")
@@ -227,7 +231,6 @@ class Server:
 
         self.imu_sample = int(self.imu_rate / self.acquisition_rate)
         if self.try_w_connection is not True:
-            # data_exp = sio.loadmat(self.offline_file_path)
             if self.stream_imu:
                 # self.IM_exp = np.concatenate(
                 #     (
@@ -241,7 +244,11 @@ class Server:
             if self.stream_emg:
                 self.emg_sample = int(self.emg_rate / self.acquisition_rate)
                 # self.emg_exp = data_exp["raw_"][: self.nb_electrodes, :]
-                self.emg_exp = np.random.rand(self.nb_electrodes,  int(self.emg_rate * self.offline_time))
+                if self.offline_file_path and "emg" in data_exp.keys():
+                    self.emg_exp = data_exp["emg"]
+                    self.nb_electrodes = self.emg_exp.shape[0]
+                else:
+                    self.emg_exp = np.random.rand(self.nb_electrodes,  int(self.emg_rate * self.offline_time))
 
             if stream_markers:
                 if self.model_path:
@@ -250,9 +257,17 @@ class Server:
                         self.nb_marks = biomod.nbMarkers()
                 else:
                     self.nb_marks = self.nb_electrodes
-                self.markers_exp = np.random.rand(3, self.nb_marks, int(self.markers_rate * self.offline_time))
+                if self.offline_file_path and "markers" in data_exp.keys():
+                    self.markers_exp = data_exp["markers"][:3, :, :]
+                    self.nb_marks = self.markers_exp.shape[0]
+                else:
+                    self.markers_exp = np.random.rand(3, self.nb_marks, int(self.markers_rate * self.offline_time))
+
             self.init_frame = 0
-            self.last_frame = self.markers_rate * self.offline_time
+            if not self.offline_file_path:
+                self.last_frame = self.markers_rate * self.offline_time
+            else:
+                self.last_frame = min(self.markers_exp.shape[2], self.emg_exp.shape[1])
             self.m = self.init_frame
             self.c = self.init_frame * 20
             self.marker_names = []
@@ -643,7 +658,10 @@ class Server:
     def recons_kin(self):
         if self.recons_kalman:
             model = biorbd.Model(self.model_path)
-        markers_from_kalman = np.ndarray((3, model.nbMarkers(), 1))
+            freq = 100  # Hz
+            params = biorbd.KalmanParam(freq)
+            kalman = biorbd.KalmanReconsMarkers(model, params)
+
         while True:
             try:
                 markers_data = self.kin_queue_in.get_nowait()
@@ -656,37 +674,14 @@ class Server:
                 states = markers_data["states"]
                 if self.try_w_connection:
                     markers_tmp = markers_data["markers_tmp"]
-                    # markers_tmp, self.marker_names, occluded = self.get_markers()
-                    # if self.smooth_markers:
-                    #     if self.iter > 0:
-                    #         for i in range(markers_tmp.shape[1]):
-                    #             if occluded[i] is True:
-                    #                 markers_tmp[:, i, :] = markers[:, i, -1:]
                 else:
                     markers_tmp = self.markers_exp[:, :, self.m : self.m + 1]
                     self.m = self.m + 1 if self.m < self.last_frame else self.init_frame
 
-                if self.smooth_markers:
-                    if self.recons_kalman:
-                        markers_from_kalman = np.array([mark.to_array() for mark in model.markers(states[:model.nbQ(), -1:])]).T
-                        for i in range(markers_tmp.shape[1]):
-                            if np.product(markers_tmp[:, i, :]) == 0:
-                                markers_tmp[:, i, :] = markers_from_kalman[:, i]
-                    else:
-                        for i in range(markers_tmp.shape[1]):
-                            if np.product(markers_tmp[:, i, :]) == 0:
-                                markers_tmp[:, i, :] = markers[:, i, -1:]
-
-                if len(markers) == 0:
-                    markers = markers_tmp
-                else:
-                    if markers.shape[2] < self.markers_windows:
-                        markers = np.append(markers, markers_tmp, axis=2)
-                    else:
-                        markers = np.append(markers[:, :, 1:], markers_tmp[:, :, -1:], axis=2)
-
+                markers_tmp = markers_tmp * 0.001
                 if self.recons_kalman:
-                    states_tmp = self.kalman_func(markers[:, :, -1:], model, return_q_dot=False)
+                    states_tmp = self.kalman_func(markers_tmp, model, return_q_dot=False, kalman=kalman)
+
                     if len(states) == 0:
                         states = states_tmp
                     else:
@@ -695,6 +690,25 @@ class Server:
                         else:
                             states = np.append(states[:, 1:], states_tmp, axis=1)
 
+                if len(markers) != 0:
+                    if self.smooth_markers:
+                        # if self.recons_kalman:
+                        #     markers_from_kalman = np.array(
+                        #         [mark.to_array() for mark in model.markers(states[:model.nbQ(), -1])]).T
+                        #     for i in range(markers_tmp.shape[1]):
+                        #         if np.product(markers_tmp[:, i, :]) == 0:
+                        #             markers_tmp[:, i, 0] = markers_from_kalman[:, i]
+                        # else:
+                        for i in range(markers_tmp.shape[1]):
+                            if np.product(markers_tmp[:, i, :]) == 0:
+                                markers_tmp[:, i, :] = markers[:, i, -1:]
+                if len(markers) == 0:
+                    markers = markers_tmp
+                else:
+                    if markers.shape[2] < self.markers_windows:
+                        markers = np.append(markers, markers_tmp, axis=2)
+                    else:
+                        markers = np.append(markers[:, :, 1:], markers_tmp[:, :, -1:], axis=2)
                 self.kin_queue_out.put({"states": states, "markers": markers})
                 self.event_kin.set()
 
@@ -743,10 +757,6 @@ class Server:
                 if self.stream_markers:
                     if self.try_w_connection:
                         markers_tmp, self.marker_names, occluded = self.get_markers()
-                        if self.iter > 0:
-                            for i in range(markers_tmp.shape[1]):
-                                if occluded[i] is True:
-                                    markers_tmp[:, i, :] = markers[:, i, -1:]
                     else:
                         markers_tmp = []
                     self.kin_queue_in.put_nowait(
@@ -815,11 +825,17 @@ class Server:
                     "IM_freq": self.imu_rate,
                     "acquisition_freq": self.acquisition_rate,
                 }
-                if self.stream_emg is True:
+                if self.stream_emg:
                     data_to_save["emg_proc"] = emg_proc[:, -1:]
                     data_to_save["raw_emg"] = raw_emg[:, -self.emg_sample :]
 
-                if self.stream_imu is True:
+                if self.stream_markers:
+                    data_to_save["markers"] = markers[:3, :, -1:]
+
+                if self.recons_kalman:
+                    data_to_save["kalman"] = states[:, -1:]
+
+                if self.stream_imu:
                     if imu_proc.shape == 3:
                         data_to_save["accel_proc"] = imu_proc[:, 0:3, -1:]
                         data_to_save["raw_accel"] = raw_imu[:, 0:3, -self.imu_sample :]
@@ -832,18 +848,11 @@ class Server:
                         data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample :]
 
                 add_data_to_pickle(data_to_save, self.data_path)
+
+            # current_time = time() - tic
+            # if 1 / current_time > self.acquisition_rate:
+            #     sleep((1 / self.acquisition_rate) - current_time)
             delta, delta_tmp = self._loop_sleep(delta_tmp, delta, tic)
-
-    @staticmethod
-    def init_kalman(model):
-        freq = 100  # Hz
-        params = biorbd.KalmanParam(freq)
-        kalman = biorbd.KalmanReconsMarkers(model, params)
-
-        Q = biorbd.GeneralizedCoordinates(model)
-        Qdot = biorbd.GeneralizedVelocity(model)
-        Qddot = biorbd.GeneralizedAcceleration(model)
-        return kalman, Q, Qdot, Qddot
 
     def get_markers(self, markers_names=()):
         occluded = []
@@ -861,7 +870,7 @@ class Server:
                 )
                 marker_names[i] = marker_names[i][0]
             occluded.append(occluded_tmp)
-        return markers * 0.001, marker_names, occluded
+        return markers, marker_names, occluded
 
     @staticmethod
     def get_force_plate(vicon_client):
@@ -940,10 +949,6 @@ class Server:
                 imu_tmp, occluded = self.vicon_client.GetDeviceOutputValues(self.imu_device_name, output_name, imu_name)
                 if imu_names is None:
                     names.append(imu_name)
-                # for i in range(self.nb_electrodes):
-                #     imu_tmp, occluded = self.vicon_client.GetDeviceOutputValues(
-                #         self.imu_device_name, output_names[i], imu_names[i]
-                #     )
                 imu[count, :] = imu_tmp[-self.imu_sample :]
                 count += 1
 
@@ -956,11 +961,12 @@ class Server:
         return imu, names
 
     @staticmethod
-    def kalman_func(markers, model, return_q_dot=True):
+    def kalman_func(markers, model, return_q_dot=True, kalman=None):
         markers_over_frames = []
-        freq = 100  # Hz
-        params = biorbd.KalmanParam(freq)
-        kalman = biorbd.KalmanReconsMarkers(model, params)
+        if not kalman:
+            freq = 100  # Hz
+            params = biorbd.KalmanParam(freq)
+            kalman = biorbd.KalmanReconsMarkers(model, params)
 
         q = biorbd.GeneralizedCoordinates(model)
         q_dot = biorbd.GeneralizedVelocity(model)
@@ -975,7 +981,7 @@ class Server:
             q_recons[:, i] = q.to_array()
             q_dot_recons[:, i] = q_dot.to_array()
 
-        # comput markers from
+        # compute markers from
         if return_q_dot:
             return q_recons, q_dot_recons
         else:
