@@ -6,7 +6,8 @@ try:
 except ModuleNotFoundError:
     pass
 import sys
-from time import time, sleep, strftime
+from time import time, sleep, strftime, localtime
+import datetime
 import scipy.io as sio
 import numpy as np
 from math import ceil
@@ -341,6 +342,7 @@ class Server:
                         self.nb_frame_of_interest = message["nb_frame_of_interest"]
                         self.read_frequency = message["read_frequency"]
                         self.raw_data = message["raw_data"]
+                        absolute_time_frame = data_queue["absolute_time_frame"]
                         norm_emg = message["norm_emg"]
                         mvc_list = message["mvc_list"]
                         self.nb_of_data_to_export = (
@@ -416,7 +418,7 @@ class Server:
                         if message["get_names"] is True:
                             dic_to_send["marker_names"] = data_queue["marker_names"]
                             dic_to_send["emg_names"] = data_queue["emg_names"]
-
+                        dic_to_send["absolute_time_frame"] = absolute_time_frame
                         if self.optim is not True:
                             print("Sending data to client...")
                             print(f"data sended : {dic_to_send}")
@@ -721,7 +723,9 @@ class Server:
         emg_proc = []
         markers = []
         states = []
-
+        vicon_delay = 0
+        initial_time = 0
+        absolute_time_frame = 0
         if self.try_w_connection:
             if self.device == "vicon":
                 self._init_vicon_client()
@@ -733,19 +737,33 @@ class Server:
         self.iter = 0
         dic_to_put = {}
         frame = False
-        self.initial_time = time()
+
         while True:
             tic = time()
+            if self.iter == 0:
+                initial_time = time() - tic
+                print("Data start streaming")
+
             if self.try_w_connection:
                 if self.device == "vicon":
                     frame = self.vicon_client.GetFrame()
+                    absolute_time_frame = datetime.datetime.now()  # time at wich data are received
                     if frame is not True:
                         print("A problem occurred, no frame available.")
+
                 elif self.device == "pytrigno":
                     frame = True
+                    absolute_time_frame = datetime.datetime.now()
             else:
                 frame = True
+                absolute_time_frame = datetime.datetime.now()
 
+            absolute_time_frame_dic = {"day": absolute_time_frame.day,
+                                       "hour": absolute_time_frame.hour,
+                                       "minute": absolute_time_frame.minute,
+                                       "second": absolute_time_frame.second,
+                                       "millisecond": int(absolute_time_frame.microsecond/1000),
+                                       }
             if frame:
                 if self.stream_emg:
                     if self.try_w_connection:
@@ -801,7 +819,8 @@ class Server:
                     dic_to_put["raw_imu"] = raw_imu
                     dic_to_put["imu_proc"] = imu_proc
             dic_to_put["acquisition_rate"] = self.acquisition_rate
-
+            dic_to_put["absolute_time_frame"] = absolute_time_frame_dic
+            process_time = time() - tic  # time to process all data + time to get data
             for i in range(len(self.ports)):
                 try:
                     self.server_queue[i].get_nowait()
@@ -812,15 +831,14 @@ class Server:
             if self.plot_emg:
                 update_plot_emg(raw_emg, p, app, box)
 
-            if self.iter == 0:
-                initial_time = time()
-                print("Data start streaming")
             self.iter += 1
 
             # Save data
             if self.save_data is True:
                 data_to_save = {
-                    "Time": time() - initial_time,
+                    "process_delay": process_time,
+                    "absolute_time_frame": absolute_time_frame_dic,
+                    "initial_time": initial_time,
                     "emg_freq": self.emg_rate,
                     "IM_freq": self.imu_rate,
                     "acquisition_freq": self.acquisition_rate,
@@ -838,21 +856,21 @@ class Server:
                 if self.stream_imu:
                     if imu_proc.shape == 3:
                         data_to_save["accel_proc"] = imu_proc[:, 0:3, -1:]
-                        data_to_save["raw_accel"] = raw_imu[:, 0:3, -self.imu_sample :]
+                        data_to_save["raw_accel"] = raw_imu[:, 0:3, -self.imu_sample:]
                         data_to_save["gyro_proc"] = imu_proc[:, 3:6, -1:]
-                        data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample :]
+                        data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample:]
                     else:
                         data_to_save["accel_proc"] = imu_proc[: self.nb_electrodes, -1:]
-                        data_to_save["raw_accel"] = raw_imu[:, 0:3, -self.imu_sample :]
-                        data_to_save["gyro_proc"] = imu_proc[self.nb_electrodes :, -1:]
-                        data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample :]
+                        data_to_save["raw_accel"] = raw_imu[:, 0:3, -self.imu_sample:]
+                        data_to_save["gyro_proc"] = imu_proc[self.nb_electrodes:, -1:]
+                        data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample:]
 
                 add_data_to_pickle(data_to_save, self.data_path)
 
-            # current_time = time() - tic
-            # if 1 / current_time > self.acquisition_rate:
-            #     sleep((1 / self.acquisition_rate) - current_time)
-            delta, delta_tmp = self._loop_sleep(delta_tmp, delta, tic)
+            duration = time() - tic
+            if 1 / duration > self.acquisition_rate:
+                sleep((1 / self.acquisition_rate) - duration)
+            # delta, delta_tmp = self._loop_sleep(delta_tmp, delta, tic)
 
     def get_markers(self, markers_names=()):
         occluded = []

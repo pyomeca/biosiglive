@@ -1,3 +1,5 @@
+import datetime
+
 import numpy as np
 from scipy.signal import butter, lfilter, filtfilt, convolve
 import pickle
@@ -197,13 +199,13 @@ def read_data(filename):
                 data_tmp = pickle.load(file)
                 for key in data_tmp.keys():
                     if count == 0:
-                        if isinstance(data_tmp[key], (int, float, str)) is True:
+                        if isinstance(data_tmp[key], (int, float, str, dict)) is True:
                             data[key] = [data_tmp[key]]
                         else:
                             data[key] = data_tmp[key]
                     else:
-                        if isinstance(data_tmp[key], (int, float, str)) is True:
-                            if key != "nb_data_of_interest" and key != "init_w_kalman" and key != "read_freq":
+                        if isinstance(data_tmp[key], (int, float, str, dict)) is True:
+                            if key != "nb_data_of_interest" and key != "init_w_kalman" and key != "read_freq" and key != "solver_options":
                                 data[key].append(data_tmp[key])
                         elif len(data_tmp[key].shape) == 2:
                             data[key] = np.append(data[key], data_tmp[key], axis=1)
