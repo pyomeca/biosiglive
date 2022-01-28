@@ -10,6 +10,7 @@ if __name__ == "__main__":
     IP_server = "localhost"
     device_ip = "192.168.1.211"
     server_port = [50000, 50001]
+    osc_port = [50002, 50003]
 
     # Set program variables
     read_freq = 100
@@ -25,6 +26,7 @@ if __name__ == "__main__":
     server = Server(
         IP=IP_server,
         server_ports=server_port,
+        osc_ports=osc_port,
         device="vicon",
         type="TCP",
         muscle_range=muscles_idx,

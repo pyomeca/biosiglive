@@ -1,12 +1,17 @@
 import socket
 import struct
+try:
+    from pythonosc.udp_client import SimpleUDPClient
+    osc_package = True
+except ModuleNotFoundError:
+    osc_package = False
 
 try:
     import pytrigno
 except ModuleNotFoundError:
     pass
 import sys
-from time import time, sleep, strftime, localtime
+from time import time, sleep, strftime
 import datetime
 import scipy.io as sio
 import numpy as np
@@ -36,7 +41,8 @@ class Server:
     def __init__(
         self,
         IP,
-        server_ports,
+        server_ports=[],
+        osc_ports=[],
         type=None,
         acquisition_rate=100,
         emg_rate=2000,
@@ -71,6 +77,13 @@ class Server:
             self.ports = server_ports
         else:
             self.ports = [server_ports]
+        if isinstance(osc_ports, list):
+            self.osc_ports = osc_ports
+        else:
+            self.osc_ports = [osc_ports]
+        if len(self.osc_ports) == 0 and len(self.ports) == 0:
+            raise RuntimeError("Please define at least one port for either osc streaming or server streaming.")
+        
         self.type = type if type is not None else "TCP"
         self.timeout = timeout if timeout else 10000
         self.read_frequency = read_frequency if read_frequency else acquisition_rate
@@ -142,7 +155,7 @@ class Server:
         # Multiprocess stuff
         manager = mp.Manager()
         self.server_queue = []
-        for i in range(len(self.ports)):
+        for i in range(len(self.ports) + len(self.osc_ports)):
             self.server_queue.append(manager.Queue())
         self.emg_queue_in = manager.Queue()
         self.emg_queue_out = manager.Queue()
@@ -156,7 +169,9 @@ class Server:
         self.event_vicon = mp.Event()
         self.process = mp.Process
         self.servers = []
+        self.osc_clients = []
         self.count_server = 0
+        self.count_osc = 0
 
     @staticmethod
     def __server_sock(type):
@@ -293,6 +308,13 @@ class Server:
             except ConnectionError:
                 raise RuntimeError("Unknown error. Server is not listening.")
 
+        for i in range(len(self.osc_ports)):
+            try:
+                self.osc_clients.append(SimpleUDPClient(self.IP, self.osc_ports[i]))
+                print(f"Streaming OSC {i} activated on '{self.IP}:{self.osc_ports[i]}")
+            except ConnectionError:
+                raise RuntimeError("Unknown error. OSC client not open.")
+
         if self.try_w_connection:
             if self.device == "pytrigno":
                 self._init_pytrigno()
@@ -300,7 +322,8 @@ class Server:
         processes = [self.process(name="reader", target=Server.save_streamed_data, args=(self,))]
         for i in range(len(self.ports)):
             processes.append(self.process(name="listen" + f"_{i}", target=Server.open_server, args=(self,)))
-
+        for i in range(len(self.osc_ports)):
+            processes.append(self.process(name="osc_listen" + f"_{i}", target=Server.open_server, args=(self, True)))
         if self.stream_emg:
             processes.append(self.process(name="process_emg", target=Server.emg_processing, args=(self,)))
         if self.stream_imu:
@@ -311,37 +334,48 @@ class Server:
             p.start()
             if p.name.startswith("listen"):
                 self.count_server += 1
+            if p.name.startswith("osc"):
+                self.count_osc += 1
         for p in processes:
             p.join()
 
-    def open_server(self):
-        server_idx = self.count_server
-        print(
-            f"{self.type} server {server_idx} is listening on '{self.IP}:{self.ports[server_idx]}' "
-            f"and waiting for a client."
-        )
-        while 1:
-            connection, ad = self.servers[server_idx].accept()
-            if self.optim is not True:
-                print(f"new connection from {ad}")
-            if self.type == "TCP":
-                message = json.loads(connection.recv(self.buff_size))
-                if self.optim is not True:
-                    print(f"client sended {message}")
-                data_queue = {}
+    def open_server(self, osc_type=False):
+        server_idx = 0
+        osc_idx = 0
+        if not osc_type:
+            server_idx = self.count_server
+            print(
+                f"{self.type} server {server_idx} is listening on '{self.IP}:{self.ports[server_idx]}' "
+                f"and waiting for a client."
+            )
+        else:
+            osc_idx = self.count_osc
 
-                while len(data_queue) == 0:
-                    try:
-                        data_queue = self.server_queue[server_idx].get_nowait()
-                        is_working = True
-                    except:
-                        is_working = False
-                        pass
-                    if is_working:
+        if osc_type:
+            server_idx = osc_idx
+        while 1:
+            if not osc_type:
+                connection, ad = self.servers[server_idx].accept()
+                if self.optim is not True:
+                    print(f"new connection from {ad}")
+                if self.type == "TCP":
+                    message = json.loads(connection.recv(self.buff_size))
+                    if self.optim is not True:
+                        print(f"client sended {message}")
+            data_queue = {}
+
+            while len(data_queue) == 0:
+                try:
+                    data_queue = self.server_queue[server_idx].get_nowait()
+                    is_working = True
+                except:
+                    is_working = False
+                    pass
+                if is_working:
+                    if not osc_type:
+                        for key in message:
+                            self.__dict__[key] = message[key]
                         self.acquisition_rate = data_queue["acquisition_rate"]
-                        self.nb_frame_of_interest = message["nb_frame_of_interest"]
-                        self.read_frequency = message["read_frequency"]
-                        self.raw_data = message["raw_data"]
                         absolute_time_frame = data_queue["absolute_time_frame"]
                         norm_emg = message["norm_emg"]
                         mvc_list = message["mvc_list"]
@@ -431,6 +465,18 @@ class Server:
 
                         if self.optim is not True:
                             print(f"Data of size {sys.getsizeof(dic_to_send)} sent to the client.")
+
+                    elif osc_type:
+                        emg_proc = np.array(data_queue["emg_proc"])[:, -1:]
+                        imu = np.array(data_queue["imu_proc"])
+                        accel_proc = imu[:, :3, :]
+                        gyro_proc = imu[:, 3:6, :]
+                        if self.stream_emg:
+                            self.osc_clients[osc_idx].send_message("/emg/processed/", emg_proc.tolist())
+                        if self.stream_imu is True:
+                            self.osc_clients[osc_idx].send_message("/imu/", imu.tolist())
+                            self.osc_clients[osc_idx].send_message("/accel/", accel_proc.tolist())
+                            self.osc_clients[osc_idx].send_message("/gyro/", gyro_proc.tolist())
 
     def prepare_data(self, data_to_prep, nb_data_with_ratio, ratio):
         for key in data_to_prep.keys():
@@ -631,7 +677,7 @@ class Server:
                     accel=True,
                     norm_min_bound=self.norm_min_accel_value,
                     norm_max_bound=self.norm_max_accel_value,
-                    squared=True,
+                    squared=False,
                 )
                 raw_gyro, gyro_proc = process_imu(
                     gyro_proc,
@@ -642,7 +688,7 @@ class Server:
                     ma_win=30,
                     norm_min_bound=self.norm_min_gyro_value,
                     norm_max_bound=self.norm_max_gyro_value,
-                    squared=True,
+                    squared=False,
                 )
                 if len(accel_proc.shape) == 3:
                     raw_imu, imu_proc = (
@@ -760,9 +806,12 @@ class Server:
 
             absolute_time_frame_dic = {"day": absolute_time_frame.day,
                                        "hour": absolute_time_frame.hour,
+                                       "hour_s": absolute_time_frame.hour * 3600,
                                        "minute": absolute_time_frame.minute,
+                                       "minute_s": absolute_time_frame.minute * 60,
                                        "second": absolute_time_frame.second,
                                        "millisecond": int(absolute_time_frame.microsecond/1000),
+                                       "millisecond_s": int(absolute_time_frame.microsecond / 1000) * 0.001,
                                        }
             if frame:
                 if self.stream_emg:
@@ -818,10 +867,11 @@ class Server:
                     dic_to_put["imu_names"] = imu_names
                     dic_to_put["raw_imu"] = raw_imu
                     dic_to_put["imu_proc"] = imu_proc
+
             dic_to_put["acquisition_rate"] = self.acquisition_rate
             dic_to_put["absolute_time_frame"] = absolute_time_frame_dic
             process_time = time() - tic  # time to process all data + time to get data
-            for i in range(len(self.ports)):
+            for i in range(len(self.ports) + len(self.osc_ports)):
                 try:
                     self.server_queue[i].get_nowait()
                 except:
