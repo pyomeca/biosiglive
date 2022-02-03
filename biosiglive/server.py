@@ -468,7 +468,7 @@ class Server:
 
                     elif osc_type:
                         emg_proc = np.array(data_queue["emg_proc"])[:, -1:]
-                        imu = np.array(data_queue["imu_proc"])
+                        imu = np.array(data_queue["imu_proc"])[:, :, -1:]
                         accel_proc = imu[:, :3, :]
                         gyro_proc = imu[:, 3:6, :]
                         if self.stream_emg:

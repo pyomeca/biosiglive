@@ -180,7 +180,7 @@ def process_emg_rt(raw_emg, emg_proc, emg_tmp, mvc_list, ma_win, emg_win=2000, e
             emg_proc = np.append(emg_proc[:, emg_sample:], emg_lpf_tmp[:, -emg_sample:], axis=1)
 
         else:
-            average = np.mean(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
+            average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
             emg_proc = np.append(emg_proc[:, 1:], average / quot, axis=1)
     return raw_emg, emg_proc
 

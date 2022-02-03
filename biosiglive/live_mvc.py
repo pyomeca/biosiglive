@@ -181,7 +181,7 @@ class ComputeMvc:
                 else:
                     mvc_list_max = np.concatenate((mvc_list_max, mvc_temp[:, :windows]), axis=1)
             mvc_list_max = -np.sort(-mvc_list_max, axis=1)[:, :windows]
-            mvc_list_max = np.mean(mvc_list_max, axis=1)
+            mvc_list_max = np.median(mvc_list_max, axis=1)
             mat_content = sio.loadmat(file_name)
             mat_content["MVC_list_max"] = mvc_list_max
 
