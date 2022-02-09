@@ -190,11 +190,12 @@ def add_data_to_pickle(data_dict, data_path):
         pickle.dump(data_dict, outf, pickle.HIGHEST_PROTOCOL)
 
 
-def read_data(filename):
+def read_data(filename, number_of_line=None):
     data = {}
+    limit = 2 if not number_of_line else number_of_line
     with open(filename, "rb") as file:
         count = 0
-        while True:
+        while count < limit:
             try:
                 data_tmp = pickle.load(file)
                 for key in data_tmp.keys():
@@ -204,15 +205,17 @@ def read_data(filename):
                         else:
                             data[key] = data_tmp[key]
                     else:
-                        if isinstance(data_tmp[key], (int, float, str, dict)) is True:
+                        if isinstance(data_tmp[key], (int, float, str, dict, list)) is True:
                             if key != "nb_data_of_interest" and key != "init_w_kalman" and key != "read_freq" and key != "solver_options":
                                 data[key].append(data_tmp[key])
                         elif len(data_tmp[key].shape) == 2:
                             data[key] = np.append(data[key], data_tmp[key], axis=1)
                         elif len(data_tmp[key].shape) == 3:
                             data[key] = np.append(data[key], data_tmp[key], axis=2)
-                if count == 0:
+                if number_of_line:
                     count += 1
+                else:
+                    count = 1
             except EOFError:
                 break
     return data

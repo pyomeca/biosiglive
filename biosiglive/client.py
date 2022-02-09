@@ -2,7 +2,7 @@ import socket, pickle
 import json
 import struct
 
-Buff_size = 4096
+Buff_size = 32767
 
 
 class Message:
@@ -58,8 +58,8 @@ class Client:
     def get_data(
         self,
         data,
-        nb_frame_of_interest=7,
-        read_frequency=33,
+        nb_frame_of_interest=100,
+        read_frequency=100,
         emg_wind=2000,
         nb_of_data_to_export=None,
         buff=Buff_size,

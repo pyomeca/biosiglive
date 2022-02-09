@@ -769,7 +769,7 @@ class Server:
         emg_proc = []
         markers = []
         states = []
-        vicon_delay = 0
+        vicon_latency_total = 0
         initial_time = 0
         absolute_time_frame = 0
         if self.try_w_connection:
@@ -794,6 +794,7 @@ class Server:
                 if self.device == "vicon":
                     frame = self.vicon_client.GetFrame()
                     absolute_time_frame = datetime.datetime.now()  # time at wich data are received
+                    vicon_latency_total = self.vicon_client.GetLatencyTotal()
                     if frame is not True:
                         print("A problem occurred, no frame available.")
 
@@ -870,6 +871,8 @@ class Server:
 
             dic_to_put["acquisition_rate"] = self.acquisition_rate
             dic_to_put["absolute_time_frame"] = absolute_time_frame_dic
+            if self.device == "vicon":
+                dic_to_put["vicon_latency"] = vicon_latency_total
             process_time = time() - tic  # time to process all data + time to get data
             for i in range(len(self.ports) + len(self.osc_ports)):
                 try:
