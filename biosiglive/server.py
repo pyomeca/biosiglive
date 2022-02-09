@@ -891,6 +891,7 @@ class Server:
                 data_to_save = {
                     "process_delay": process_time,
                     "absolute_time_frame": absolute_time_frame_dic,
+                    "vicon_latency_total": vicon_latency_total,
                     "initial_time": initial_time,
                     "emg_freq": self.emg_rate,
                     "IM_freq": self.imu_rate,
