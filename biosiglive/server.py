@@ -10,6 +10,7 @@ try:
     import pytrigno
 except ModuleNotFoundError:
     pass
+
 import sys
 from time import time, sleep, strftime
 import datetime
@@ -457,6 +458,7 @@ class Server:
                             print("Sending data to client...")
                             print(f"data sended : {dic_to_send}")
                         encoded_data = json.dumps(dic_to_send).encode()
+                        print(len(encoded_data))
                         encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
                         try:
                             connection.sendall(encoded_data)
