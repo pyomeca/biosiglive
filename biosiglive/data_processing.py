@@ -199,7 +199,7 @@ def read_data(filename, number_of_line=None):
             try:
                 data_tmp = pickle.load(file)
                 for key in data_tmp.keys():
-                    if count == 0:
+                    if count == 0 or key not in data.keys():
                         if isinstance(data_tmp[key], (int, float, str, dict)) is True:
                             data[key] = [data_tmp[key]]
                         else:
