@@ -190,6 +190,31 @@ def add_data_to_pickle(data_dict, data_path):
         pickle.dump(data_dict, outf, pickle.HIGHEST_PROTOCOL)
 
 
+# def _read_file(file):
+#     return pickle.load(file)
+#     # for key in data_tmp.keys():
+#         # try:
+#         #     data[key] = np.append(data[key], data_tmp[key], axis=len(data[key].shape) - 1)
+#         # except:
+#         #     if isinstance(data_tmp[key], (int, float, str, dict)) is True:
+#         #         data[key] = [data_tmp[key]]
+#         #     else:
+#         #         data[key] = data_tmp[key]
+#
+#
+#
+# def read_data(filename, number_of_line=None, multi=False):
+#
+#     if multi:
+#         from multiprocessing import Pool
+#         import os
+#         pool = Pool(os.cpu_count())
+#         with open(filename, "rb") as file:
+#             data_tmp = pool.map(_read_file, file, 8)
+#         print(data_tmp)
+#
+#     return data_tmp
+
 def read_data(filename, number_of_line=None):
     data = {}
     limit = 2 if not number_of_line else number_of_line
@@ -199,19 +224,16 @@ def read_data(filename, number_of_line=None):
             try:
                 data_tmp = pickle.load(file)
                 for key in data_tmp.keys():
-                    if count == 0 or key not in data.keys():
+                    try:
+                        if isinstance(data[key], list) is True:
+                            data[key].append(data_tmp[key])
+                        else:
+                            data[key] = np.append(data[key], data_tmp[key], axis=len(data[key].shape) - 1)
+                    except:
                         if isinstance(data_tmp[key], (int, float, str, dict)) is True:
                             data[key] = [data_tmp[key]]
                         else:
                             data[key] = data_tmp[key]
-                    else:
-                        if isinstance(data_tmp[key], (int, float, str, dict, list)) is True:
-                            if key != "nb_data_of_interest" and key != "init_w_kalman" and key != "read_freq" and key != "solver_options":
-                                data[key].append(data_tmp[key])
-                        elif len(data_tmp[key].shape) == 2:
-                            data[key] = np.append(data[key], data_tmp[key], axis=1)
-                        elif len(data_tmp[key].shape) == 3:
-                            data[key] = np.append(data[key], data_tmp[key], axis=2)
                 if number_of_line:
                     count += 1
                 else:

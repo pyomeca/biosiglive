@@ -469,13 +469,16 @@ class Server:
                             print(f"Data of size {sys.getsizeof(dic_to_send)} sent to the client.")
 
                     elif osc_type:
-                        emg_proc = np.array(data_queue["emg_proc"])[:, -1:]
-                        imu = np.array(data_queue["imu_proc"])[:, :, -1:]
-                        accel_proc = imu[:, :3, :]
-                        gyro_proc = imu[:, 3:6, :]
                         if self.stream_emg:
+                            emg_proc = np.array(data_queue["emg_proc"])[:, -1:]
+                            emg_proc = emg_proc.reshape(emg_proc.shape[0])
                             self.osc_clients[osc_idx].send_message("/emg/processed/", emg_proc.tolist())
-                        if self.stream_imu is True:
+                        if self.stream_imu:
+                            imu = np.array(data_queue["imu_proc"])[:, :, -1:]
+                            accel_proc = imu[:, :3, :]
+                            accel_proc = accel_proc.reshape(accel_proc.shape[0])
+                            gyro_proc = imu[:, 3:6, :]
+                            gyro_proc = gyro_proc.reshape(gyro_proc.shape[0])
                             self.osc_clients[osc_idx].send_message("/imu/", imu.tolist())
                             self.osc_clients[osc_idx].send_message("/accel/", accel_proc.tolist())
                             self.osc_clients[osc_idx].send_message("/gyro/", gyro_proc.tolist())

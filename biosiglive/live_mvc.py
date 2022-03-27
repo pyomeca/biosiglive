@@ -9,9 +9,12 @@ import scipy.io as sio
 from math import ceil
 try:
     from vicon_dssdk import ViconDataStream as VDS
-except:
+except ModuleNotFoundError:
     pass
-import pytrigno
+try:
+    import pytrigno
+except ModuleNotFoundError:
+    pass
 
 
 class ComputeMvc:

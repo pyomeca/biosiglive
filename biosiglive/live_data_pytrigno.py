@@ -1,4 +1,7 @@
-import pytrigno
+try:
+    import pytrigno
+except ModuleNotFoundError:
+    pass
 from biosiglive.data_plot import init_plot_emg, update_plot_emg
 from biosiglive.data_processing import process_emg_rt, process_imu, add_data_to_pickle
 from time import sleep, time, strftime
