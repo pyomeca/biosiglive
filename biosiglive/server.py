@@ -249,18 +249,10 @@ class Server:
         self.imu_sample = int(self.imu_rate / self.acquisition_rate)
         if self.try_w_connection is not True:
             if self.stream_imu:
-                # self.IM_exp = np.concatenate(
-                #     (
-                #         data_exp["raw_accel"][: self.nb_electrodes, :, :],
-                #         data_exp["raw_gyro"][: self.nb_electrodes, :, :],
-                #     ),
-                #     axis=1,
-                # )
                 self.IM_exp = np.random.rand(self.nb_electrodes, 6, int(self.imu_rate * self.offline_time))
                 self.imu_sample = int(self.imu_rate / self.acquisition_rate)
             if self.stream_emg:
                 self.emg_sample = int(self.emg_rate / self.acquisition_rate)
-                # self.emg_exp = data_exp["raw_"][: self.nb_electrodes, :]
                 if self.offline_file_path and "emg" in data_exp.keys():
                     self.emg_exp = data_exp["emg"]
                     self.nb_electrodes = self.emg_exp.shape[0]
@@ -380,16 +372,11 @@ class Server:
                         absolute_time_frame = data_queue["absolute_time_frame"]
                         norm_emg = message["norm_emg"]
                         mvc_list = message["mvc_list"]
-                        self.nb_of_data_to_export = (
-                            message["nb_of_data_to_export"]
-                            if message["nb_of_data_to_export"] is not None
-                            else self.nb_of_data_to_export
-                        )
+                        self.nb_of_data_to_export = message["nb_of_data_to_export"] if message["nb_of_data_to_export"] else 1
                         if self.acquisition_rate < self.read_frequency:
                             ratio = 1
                         else:
                             ratio = int(self.acquisition_rate / self.read_frequency)
-                        nb_data_with_ratio = int(ratio * (self.nb_frame_of_interest + 1))
                         data_to_prepare = {}
 
                         if len(message["command"]) != 0:
@@ -448,7 +435,7 @@ class Server:
                                 )
 
                         # prepare data
-                        dic_to_send = self.prepare_data(data_to_prepare, nb_data_with_ratio, ratio)
+                        dic_to_send = self.prepare_data(data_to_prepare, ratio)
 
                         if message["get_names"] is True:
                             dic_to_send["marker_names"] = data_queue["marker_names"]
@@ -457,8 +444,8 @@ class Server:
                         if self.optim is not True:
                             print("Sending data to client...")
                             print(f"data sended : {dic_to_send}")
+                        print(np.array(dic_to_send["raw_emg"]).shape)
                         encoded_data = json.dumps(dic_to_send).encode()
-                        print(len(encoded_data))
                         encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
                         try:
                             connection.sendall(encoded_data)
@@ -483,22 +470,34 @@ class Server:
                             self.osc_clients[osc_idx].send_message("/accel/", accel_proc.tolist())
                             self.osc_clients[osc_idx].send_message("/gyro/", gyro_proc.tolist())
 
-    def prepare_data(self, data_to_prep, nb_data_with_ratio, ratio):
+    def prepare_data(self, data_to_prep, ratio):
+        """
+        Prepare data to send to the client.
+        Parameters
+        ----------
+        data_to_prep : dict
+            Data to prepare.
+        ratio : int
+            Ratio of data to send.
+        Returns
+        -------
+        dict
+            Data prepared.
+        """
+
         for key in data_to_prep.keys():
             nb_of_data_to_export = self.nb_of_data_to_export
             if len(data_to_prep[key].shape) == 2:
-                data_to_prep[key] = data_to_prep[key][:, -nb_data_with_ratio:]
                 if self.raw_data is not True or key != "raw_emg":
                     data_to_prep[key] = data_to_prep[key][:, ::ratio]
                 if self.raw_data is True and key == "raw_emg":
-                    nb_of_data_to_export = self.emg_sample
+                    nb_of_data_to_export = self.emg_sample * nb_of_data_to_export
                 data_to_prep[key] = data_to_prep[key][:, -nb_of_data_to_export:].tolist()
             elif len(data_to_prep[key].shape) == 3:
-                data_to_prep[key] = data_to_prep[key][:, :, -nb_data_with_ratio:]
                 if self.raw_data is not True or key != "raw_imu":
                     data_to_prep[key] = data_to_prep[key][:, :, ::ratio]
                 if self.raw_data is True and key == "raw_imu":
-                    nb_of_data_to_export = self.imu_sample
+                    nb_of_data_to_export = self.imu_sample * nb_of_data_to_export
                 data_to_prep[key] = data_to_prep[key][:, :, -nb_of_data_to_export:].tolist()
         return data_to_prep
 

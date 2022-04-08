@@ -9,7 +9,7 @@ if __name__ == "__main__":
     # IP_server = '192.168.1.211'
     IP_server = "localhost"
     device_ip = "192.168.1.211"
-    server_port = [50000, 50001]
+    server_port = [50000]
     osc_port = [50002, 50003]
 
     # Set program variables
@@ -40,10 +40,10 @@ if __name__ == "__main__":
     server.run(
         stream_emg=True,
         stream_markers=False,
-        stream_imu=True,
-        optim=True,
-        plot_emg=True,
-        norm_emg=True,
+        stream_imu=False,
+        optim=False,
+        plot_emg=False,
+        norm_emg=False,
         test_with_connection=with_connection,
         mvc_list=mvc_list,
     )

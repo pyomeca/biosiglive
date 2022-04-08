@@ -20,7 +20,7 @@ if __name__ == '__main__':
         # Read data from the mvc result file (*.mat)
         list_mvc = sio.loadmat("MVC_xx_xx_xx22/MVC_xxxx.mat")["MVC_list_max"][0]
     except IOError:
-        list_mvc = np.random.rand(n_electrode, 1)
+        list_mvc = np.random.rand(n_electrode, 1).tolist()
 
     # Set file to save data
     output_file = "stream_data_xxx"
@@ -43,12 +43,13 @@ if __name__ == '__main__':
     while True:
         client = Client(host_ip, host_port, "TCP")
         data = client.get_data(data=type_of_data,
-                               nb_frame_of_interest=read_freq,
                                read_frequency=read_freq,
+                               nb_of_data_to_export=1,
                                raw=True,
                                norm_emg=True,
                                mvc_list=list_mvc
                                )
+        # time.sleep(1)
         if ["emg"] in type_of_data:
             emg = np.array(data['emg'])
             raw_emg = np.array(data['raw_emg'])

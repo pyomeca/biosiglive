@@ -1,4 +1,8 @@
-import socket, pickle
+"""
+This file is part of biosiglive. It allows connecting to a biosiglive server and to receive data from it.
+"""
+
+import socket
 import json
 import struct
 
@@ -7,19 +11,36 @@ Buff_size = 32767
 
 class Message:
     def __init__(self):
+        """
+        Message class
+        """
+
         self.command = []
-        self.dic = {}
-        self.dic["command"] = []
-        self.dic["nb_frame_of_interest"] = 7
-        self.dic["read_frequency"] = 33  # frequency at which the ocp should run
-        self.dic["emg_windows"] = 2000
-        self.dic["get_names"] = False
-        self.dic["nb_of_data_to_export"] = None
-        # self.dic["EMG_unit"] = "V"  # or "mV"
+        self.dic = {
+            "command": [],
+            "read_frequency": 100,
+            "emg_windows": 2000,
+            "get_names": False,
+            "nb_of_data_to_export": 1
+        }
 
 
 class Client:
-    def __init__(self, server_address, port, type="TCP", name=None):
+    def __init__(self, server_address: str, port: int, type: str = "TCP", name: str = None):
+        """
+        Create a client socket.
+        Parameters
+        ----------
+        server_address: str
+            Server address.
+        port: int
+            Server port.
+        type: str
+            Type of the socket.
+        name: str
+            Name of the client.
+        """
+
         self.name = name if name is not None else "Client"
         self.type = type
         self.address = f"{server_address}:{port}"
@@ -31,18 +52,39 @@ class Client:
             raise RuntimeError(f"Invalid type of connexion ({ self.type}). Type must be 'TCP' or 'UDP'.")
         self.client.connect((server_address, port))
 
-    def connect(self, server_address, port):
-        self.client.connect((server_address, port))
-
     @staticmethod
-    def client_sock(type):
+    def client_sock(type: str,):
+        """
+        Create a client socket.
+        Parameters
+        ----------
+        type: str
+            Type of the socket.
+
+        Returns
+        -------
+        client: socket
+            Client socket.
+        """
         if type == "TCP" or type is None:
             return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         elif type == "UDP":
             return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-    # TODO: add possibility to ask for some index
-    def recv_all(self, buff_size):
+    def recv_all(self, buff_size: int = Buff_size):
+        """
+        Receive all data from the server.
+        Parameters
+        ----------
+        buff_size: int
+            Size of the buffer.
+
+        Returns
+        -------
+        data: list
+            List of data received.
+        """
+
         msg_len = self.client.recv(4)
         msg_len = struct.unpack('>I', msg_len)[0]
         data = []
@@ -57,25 +99,53 @@ class Client:
 
     def get_data(
         self,
-        data,
-        nb_frame_of_interest=100,
-        read_frequency=100,
-        emg_wind=2000,
-        nb_of_data_to_export=None,
-        buff=Buff_size,
+        data: list,
+        read_frequency: int = 100,
+        emg_wind: int = 2000,
+        nb_of_data_to_export: int = 1,
+        buff: int = Buff_size,
         get_kalman=False,
         get_names=False,
-        mvc_list=None,
-        norm_emg=None,
-        raw=False,
+        mvc_list: list = None,
+        norm_emg: bool = False,
+        raw: bool = False,
     ):
+        """
+        Get data from the server.
+        Parameters
+        ----------
+        data: list
+            List of data to send.
+        read_frequency: int
+            Frequency of the data.
+        emg_wind: int
+            Size of the EMG window.
+        nb_of_data_to_export: int
+            Number of data to export.
+        buff: int
+            Size of the buffer.
+        get_kalman: bool
+            Get Kalman data.
+        get_names: bool
+            Get names of the channels.
+        mvc_list: list
+            List of MVC.
+        norm_emg: bool
+            Normalize EMG.
+        raw: bool
+            Get raw data.
+
+        Returns
+        -------
+        data: dict
+            Data received.
+        """
 
         message = Message()
         message.dic["get_names"] = get_names
         message.dic["norm_emg"] = norm_emg
         message.dic["mvc_list"] = mvc_list
         message.dic["kalman"] = get_kalman
-        message.dic["nb_frame_of_interest"] = nb_frame_of_interest
         message.dic["read_frequency"] = read_frequency
         message.dic["emg_windows"] = emg_wind
         message.dic["nb_of_data_to_export"] = nb_of_data_to_export
@@ -83,6 +153,7 @@ class Client:
 
         if norm_emg is True and mvc_list is None:
             raise RuntimeError("Define a list of MVC to normalize the EMG data.")
+
         elif mvc_list is not None and norm_emg is not True:
             print(
                 "[WARNING] You have defined a list of MVC but not asked for normalization. "
@@ -95,39 +166,5 @@ class Client:
             if i != "emg" and i != "markers" and i != "imu" and i != "force_plate":
                 raise RuntimeError(f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' ")
 
-        Client.send(self, json.dumps(message.dic).encode(), type="all")
+        self.client.sendall(json.dumps(message.dic).encode())
         return self.recv_all(buff)
-
-    def send(self, data, type=None, IP=None, port=None):
-        data = pickle.dumps(data) if not isinstance(data, bytes) else data
-        if type == None:
-            return self.client.send(data)
-        elif type == "all":
-            return self.client.sendall(data)
-        elif type == "to":
-            return self.client.sendto(data, address=(IP, port))
-
-    def close(self):
-        return self.client.close
-
-
-if __name__ == "__main__":
-    from time import time, sleep
-
-    host_ip = "192.168.1.211"
-    # host_ip = 'localhost'
-    host_port = 50000
-
-    tic = time()
-    client = Client(host_ip, host_port, "TCP")
-    data = client.get_data(
-        data=["markers"],
-        nb_frame_of_interest=7,
-        read_frequency=33,
-        emg_wind=2000,
-        nb_of_data_to_export=8,
-        get_names=True,
-        get_kalman=True,
-    )
-    print(data["kalman"])
-    print(time() - tic)
