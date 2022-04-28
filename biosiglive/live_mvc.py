@@ -70,7 +70,7 @@ class ComputeMvc:
     ):
         self.test_w_connection = test_with_connection
         if self.test_w_connection is not True:
-            print("[Warning] Please note that you are in 'no connection' mode for debug.")
+            print("[Warning] Please note that you are in 'no main' mode for debug.")
 
         self.output_dir = "MVC_data" if output_dir is None else output_dir
         if os.path.isdir(self.output_dir) is not True:
@@ -310,7 +310,6 @@ class ComputeMvc:
                             client = Client(self.server_ip, self.server_port)
                             data_tmp = client.get_data(
                                 ["emg"],
-                                nb_frame_of_interest=self.sample,
                                 nb_of_data_to_export=self.sample,
                                 read_frequency=self.acquisition_rate,
                                 emg_wind=2000,
@@ -392,7 +391,8 @@ class ComputeMvc:
             while task != "c" and task != "r" and task != "q":
                 print(f"Invalid entry ({task}). Please press 'c', 'r', or 'q' (in lowercase).")
                 task = input(
-                    "Press 'c' to do an other MVC trial," " 'r' to do again the MVC trial or 'q' then enter to quit.\n"
+                    "Press 'c' to do an other MVC trial," 
+                    " 'r' to do again the MVC trial or 'q' then enter to quit.\n"
                 )
 
             if task == "c":

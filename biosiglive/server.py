@@ -53,7 +53,6 @@ class Server:
         markers_windows=100,
         imu_windows=100,
         read_frequency=None,
-        nb_frame_of_interest=None,
         recons_kalman=False,
         model_path=None,
         proc_emg=True,
@@ -102,7 +101,6 @@ class Server:
         self.markers_dec = markers_dec
         self.emg_dec = emg_dec
         self.buff_size = buff_size
-        self.nb_frame_of_interest = nb_frame_of_interest if nb_frame_of_interest else acquisition_rate
         self.save_data = save_data
         self.raw_data = False
         self.try_w_connection = True
@@ -136,7 +134,7 @@ class Server:
         self.subject_name, self.device_name = None, None
         self.iter = 0
         self.marker_names = ()
-        self.nb_of_data_to_export = self.nb_frame_of_interest
+        self.nb_of_data_to_export = 1
         self.emg_empty, self.markers_empty = (), ()
         self.nb_emg, self.nb_marks = 0, 0
         if not muscle_range:
@@ -187,6 +185,7 @@ class Server:
         stream_markers=True,
         stream_imu=False,
         stream_force_plate=False,
+        stream_generic_device=False,
         norm_emg=True,
         optim=False,
         plot_emg=False,
@@ -199,9 +198,14 @@ class Server:
         emg_device_name=None,
         imu_device_name=None,
         test_with_connection=True,
+        generic_device_name=None,
     ):
 
-        self.device_name = emg_device_name
+        self.device_name = [emg_device_name]
+        if not isinstance(generic_device_name, list):
+            generic_device_name = [generic_device_name]
+        for i in generic_device_name:
+            self.device_name.append(i)
         self.imu_device_name = imu_device_name
         self.plot_emg = plot_emg
         self.mvc_list = mvc_list
@@ -223,6 +227,7 @@ class Server:
         self.stream_emg = stream_emg
         self.stream_markers = stream_markers
         self.stream_imu = stream_imu
+        self.stream_generic_device = stream_generic_device
         self.stream_force_plate = stream_force_plate
         self.subject_name = subject_name
         self.norm_min_accel_value = norm_min_accel_value
@@ -231,7 +236,7 @@ class Server:
         self.norm_min_gyro_value = norm_min_gyro_value
         self.try_w_connection = test_with_connection
         if self.try_w_connection is not True:
-            print("[Warning] Debug mode without connection.")
+            print("[Warning] Debug mode without main.")
 
         if self.offline_file_path:
             data_exp = sio.loadmat(self.offline_file_path)
@@ -243,6 +248,8 @@ class Server:
             data_type.append("markers")
         if self.stream_imu:
             data_type.append("imu")
+        if self.stream_generic_device:
+            data_type.append("generic_device")
         if self.stream_force_plate:
             raise RuntimeError("Not implemented yet")
 
@@ -350,7 +357,7 @@ class Server:
             if not osc_type:
                 connection, ad = self.servers[server_idx].accept()
                 if self.optim is not True:
-                    print(f"new connection from {ad}")
+                    print(f"new main from {ad}")
                 if self.type == "TCP":
                     message = json.loads(connection.recv(self.buff_size))
                     if self.optim is not True:

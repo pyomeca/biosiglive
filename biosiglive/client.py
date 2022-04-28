@@ -28,7 +28,7 @@ class Message:
 class Client:
     def __init__(self, server_address: str, port: int, type: str = "TCP", name: str = None):
         """
-        Create a client socket.
+        Create a client main.
         Parameters
         ----------
         server_address: str
@@ -36,7 +36,7 @@ class Client:
         port: int
             Server port.
         type: str
-            Type of the socket.
+            Type of the main.
         name: str
             Name of the client.
         """
@@ -55,16 +55,16 @@ class Client:
     @staticmethod
     def client_sock(type: str,):
         """
-        Create a client socket.
+        Create a client main.
         Parameters
         ----------
         type: str
-            Type of the socket.
+            Type of the main.
 
         Returns
         -------
         client: socket
-            Client socket.
+            Client main.
         """
         if type == "TCP" or type is None:
             return socket.socket(socket.AF_INET, socket.SOCK_STREAM)

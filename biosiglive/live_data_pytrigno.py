@@ -102,7 +102,7 @@ def run(
     if len(mvc_list) != 0:
         norm_emg = True
     if test_with_connection is not True:
-        print("[WARNING] Please note that you are in 'no connection' mode for debug.")
+        print("[WARNING] Please note that you are in 'no main' mode for debug.")
 
     if get_emg is False and get_accel is False and get_gyro is False:
         raise RuntimeError("Please define at least one data to read (emg/gyro/accel).")
