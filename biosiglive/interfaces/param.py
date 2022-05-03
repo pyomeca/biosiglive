@@ -1,5 +1,6 @@
 from math import ceil
 
+
 class Type:
     def __init__(self, name: str = None, type: str = None, rate: float = None, system_rate: float = 100):
         self.name = name
@@ -24,9 +25,13 @@ class Device(Type):
     This class is used to store the available devices.
     """
 
-    def __init__(self, name: str = None, type: str = "emg", rate: float = None):
+    def __init__(self, name: str = None, type: str = "emg", rate: float = None, channel_names: list = None):
         super().__init__(name, type, rate)
         self.infos = None
+        self.channel_names = channel_names
+
+    def add_channel_names(self, channel_names: list):
+        self.channel_names = channel_names
 
 
 class Imu(Type):

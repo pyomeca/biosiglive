@@ -8,7 +8,7 @@ class PytrignoClient:
         self.devices = []
         self.imu = []
 
-    def _add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000):
+    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000):
         new_device = Device(name, type, rate)
         device.range = range
         self.devices.append(new_device)
@@ -28,14 +28,14 @@ class PytrignoClient:
         else:
             raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
 
-    def get_device_data(self, device_name: str = None):
+    def get_device_data(self, device_name: str = "all", *args):
         devices = []
         all_device_data = []
 
         if device_name and not isinstance(device_name, list):
             device_name = [device_name]
 
-        if device_name:
+        if device_name != "all":
             for d, device in enumerate(self.devices):
                 if device.name and device.name == device_name[d]:
                     devices.append(device)
@@ -58,9 +58,4 @@ class PytrignoClient:
     def get_force_plate_data(self):
         raise RuntimeError("It's not possible to get force plate data from pytrigno.")
 
-
-if __name__ == '__main__':
-    client = PytrignoClient("")
-    client._add_device(range=(0, 16), type="emg", rate=2000)
-    client._add_device(range=(0, 16), type="imu", rate=148.1)
 

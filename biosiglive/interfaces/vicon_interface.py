@@ -1,5 +1,6 @@
 import numpy as np
 from .param import *
+from typing import Union
 
 try:
     from vicon_dssdk import ViconDataStream as VDS
@@ -35,15 +36,15 @@ class ViconClient:
         self.imu = []
         self.markers = []
 
-    def _add_device(self, name: str, type: str = "emg", rate: int = 2000):
+    def add_device(self, name: str, type: str = "emg", rate: float = 2000):
         device_tmp = Device(name, type, rate)
         device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
         self.devices.append(device_tmp)
 
-    def _add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
+    def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
         self.imu.append(Imu(name, rate, from_emg=from_emg))
 
-    def _add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
+    def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
         markers_tmp = MarkerSet(name, rate, unlabeled)
         markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
         markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
@@ -67,13 +68,13 @@ class ViconClient:
                 print("Failed getting analog channel voltages")
         return forceVectorData
 
-    def get_device_data(self, device_name: str = None, channel_names: str = None):
+    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None, *args):
         devices = []
         all_device_data = []
         if not isinstance(device_name, list):
             device_name = [device_name]
 
-        if device_name:
+        if device_name != "all":
             for d, device in enumerate(self.devices):
                 if device.name == device_name[d]:
                     devices.append(device)
@@ -83,6 +84,7 @@ class ViconClient:
         for device in devices:
             device_data = np.zeros((device.infos[0], device.sample))
             count = 0
+            device_chanel_names = []
             for output_name, chanel_name, unit in device.infos:
                 data_tmp, _ = self.vicon_client.GetDeviceOutputValues(
                     device.name, output_name, chanel_name
@@ -90,8 +92,11 @@ class ViconClient:
                 if channel_names:
                     if chanel_name in channel_names:
                         device_data[count, :] = data_tmp
+                        device_chanel_names.append(chanel_name)
                 else:
                     device_data[count, :] = data_tmp
+                    device_chanel_names.append(chanel_name)
+                device.chanel_names = device_chanel_names
                 count += 1
             all_device_data.append(device_data)
         return all_device_data

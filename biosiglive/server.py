@@ -451,7 +451,6 @@ class Server:
                         if self.optim is not True:
                             print("Sending data to client...")
                             print(f"data sended : {dic_to_send}")
-                        print(np.array(dic_to_send["raw_emg"]).shape)
                         encoded_data = json.dumps(dic_to_send).encode()
                         encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
                         try:

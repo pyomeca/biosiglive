@@ -9,66 +9,53 @@ from math import ceil
 
 
 class Plot:
-    def __init__(self, type: str = "curve"):
-        self.type = None
-        self.channel_names = None
-        self.background_color = None
-        self.figure_name = None
-        self.type = type
-        self.rplt = None
-        self.box = None
-        self.layout = None
-        self.app = None
-
-    def _plot_mvc(self, raw_data: np.ndarray, proc_data: np.ndarray, command: str, col: int = 4):
-        """
-                Plot data
-                ----------
-                raw_data: np.array()
-                    raw data to plot of size (nb_muscles, nb_frames)
-                proc_data : np.array()
-                    processed data to plot of size (nb_muscles, nb_frames)
-                command: str()
-                    command to know which data to plot
-                col: int
-                    number of columns wanted in the plot.
-
-                Returns
-                -------
-                """
-        data = proc_data if command == "p" else raw_data
-        plt.figure(self.try_name)
+    def multi_plot(self, data: Union[list, np.ndarray], x: Union[list, np.ndarray] = None,
+                   nb_column: int = None, y_label: str = None, x_label: str = None,
+                   legend: Union[list, str] = None, subplot_title: Union[str, list] = None, figure_name: str = None):
+        if not isinstance(data, list):
+            data = [data]
+        nb_data = len(data)
+        plt.figure(figure_name)
         size_police = 12
-        col = self.n_muscles if self.n_muscles <= 4 else col
-        line = ceil(self.n_muscles / col)
-        for i in range(self.n_muscles):
+        if nb_column:
+            col = nb_column
+        else:
+            col = data[0].shape[0] if data[0].shape[0] <= 4 else nb_column
+        line = ceil(data[0].shape[0] / col)
+        for i in range(data[0].shape[0]):
             plt.subplot(line, col, i + 1)
-            if i % 4 == 0:
-                plt.ylabel("Activation level", fontsize=size_police)
-            plt.plot(data[i, :], label="raw_data")
-            if command == "b":
-                plt.plot(proc_data[i, :], label="proc_data")
-                plt.legend()
-            plt.title(self.muscle_names[i], fontsize=size_police)
+            if y_label and i % 4 == 0:
+                plt.ylabel(y_label, fontsize=size_police)
+            if x_label:
+                plt.xlabel(x_label, fontsize=size_police)
+            for j in range(nb_data):
+                x = x if x is not None else np.linspace(0, data[j].shape[1], data[j].shape[1])
+                plt.plot(x, data[j][i, :], label=legend[j])
+            plt.legend()
+            if subplot_title:
+                plt.title(subplot_title[i], fontsize=size_police)
+        # plt.tight_layout()
         plt.show()
 
 
 class LivePlot:
-    def __init__(self):
-        self.multi_process = None
+    def __init__(self, multi_process: bool = False):
+        self.multi_process = multi_process
         self.check_box = True
         self.plot = []
         self.resize = (800, 800)
         self.move = (0, 0)
         self.progress_bar_max = 1000
+        self.type = "curve"
 
-    def add_new_plot(self, plot_name: str = "qt_app", plot_type="curve", channel_names: str = None):
-        plot = Plot(type=plot_type)
+    def add_new_plot(self, plot_name: str = "qt_app", plot_type="curve", channel_names: Union[str, list] = None):
+        plot = LivePlot()
+        plot.type = plot_type
         plot.channel_names = channel_names
         plot.figure_name = plot_name
         self.plot.append(plot)
 
-    def init_plot_window(self, plot: Plot, use_checkbox: bool = True, remote: bool = True):
+    def init_plot_window(self, plot, use_checkbox: bool = True, remote: bool = True):
         if plot.type == "curve":
             rplt, layout, app, box = self._init_curve(plot.figure_name,
                                                       plot.channel_names,
@@ -82,11 +69,11 @@ class LivePlot:
         else:
             raise ValueError(f"The plot type ({plot.type}) is not supported.")
 
-    def update_plot_window(self, plot: Plot, data: np.ndarray, app, rplt, box):
+    def update_plot_window(self, plot, data: np.ndarray, app, rplt, box):
         if plot.type == "progress_bar":
             self._update_progress_bar(data, app, rplt, box)
         elif plot.type == "curve":
-            self._update_curve(data, app, self.plot, plot.channel_names)
+            self._update_curve(data, app, rplt, box)
         else:
             raise ValueError(f"The plot type ({plot.type}) is not supported.")
 

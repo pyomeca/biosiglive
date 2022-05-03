@@ -1,6 +1,11 @@
+"""
+This file is part of biosiglive. it contains the functions for data processing (offline and in real-time).
+"""
+
 from scipy.signal import butter, lfilter, filtfilt, convolve
 import numpy as np
 import scipy.io as sio
+import os
 
 try:
     from pyomeca import Analogs
@@ -11,6 +16,9 @@ except ModuleNotFoundError:
 
 class GenericProcessing:
     def __init__(self):
+        """
+        Initialize the class.
+        """
         self.bpf_lcut = 10
         self.bpf_hcut = 425
         self.lpf_lcut = 5
@@ -44,13 +52,29 @@ class GenericProcessing:
         return y
 
     @staticmethod
-    def _moving_average(data, w, empty_ma):
+    def _moving_average(data: np.ndarray, w, empty_ma):
         for i in range(data.shape[0]):
             empty_ma[i, :] = convolve(data[i, :], w, mode="same", method="fft")
         return empty_ma
 
     @staticmethod
-    def normalize_emg(emg_data, mvc_list):
+    def normalize_emg(emg_data: np.ndarray, mvc_list: list):
+        """
+        Normalize EMG data.
+
+        Parameters
+        ----------
+        emg_data : numpy.ndarray
+            EMG data.
+        mvc_list : list
+            List of MVC values.
+
+        Returns
+        -------
+        numpy.ndarray
+            Normalized EMG data.
+        """
+
         if len(mvc_list) == 0:
             raise RuntimeError("Please give a list of mvc to normalize the emg signal.")
         norm_emg = np.zeros((emg_data.shape[0], emg_data.shape[1]))
@@ -61,6 +85,9 @@ class GenericProcessing:
 
 class RealTimeProcessing(GenericProcessing):
     def __init__(self):
+        """
+        Initialize the class for real time processing.
+        """
         self.emg_rate = 2000
         self.emg_win = 200
         self.ma_win = 20
@@ -72,7 +99,28 @@ class RealTimeProcessing(GenericProcessing):
                        mvc_list: list,
                        norm_emg: bool = True,
                        lpf: bool = False):
+        """
+        Process EMG data in real-time.
+        Parameters
+        ----------
+        raw_emg : numpy.ndarray
+            Raw EMG data. (nb_emg, emg_win * emg_sample)
+        emg_proc : numpy.ndarray
+            Last processed EMG data. (nb_emg, emg_win)
+        emg_tmp : numpy.ndarray
+            Temporary EMG data (nb_emg, emg_sample).
+        mvc_list : list
+            MVC values.
+        norm_emg : bool
+            Normalize EMG data.
+        lpf : bool
+            Apply low-pass filter.
+        Returns
+        -------
+        tuple
+            raw and processed EMG data.
 
+        """
         if self.ma_win > self.emg_win:
             raise RuntimeError(f"Moving average windows ({self.ma_win}) higher than emg windows ({self.emg_win}).")
         emg_sample = emg_tmp.shape[1]
@@ -122,6 +170,36 @@ class RealTimeProcessing(GenericProcessing):
             norm_min_bound=None,
             norm_max_bound=None,
     ):
+        """
+        Process IMU data in real-time.
+        Parameters
+        ----------
+        im_proc : numpy.ndarray
+            Last processed IMU data. (nb_imu, im_win)
+        raw_im : numpy.ndarray
+            Raw IMU data. (nb_imu, im_win * im_sample)
+        im_tmp : numpy.ndarray
+            Temporary IMU data (nb_imu, im_sample).
+        im_win : int
+            IMU window size.
+        im_sample : int
+            IMU sample size.
+        ma_win : int
+            Moving average window size.
+        accel : bool
+            If current data is acceleration data to adapt the processing.
+        squared : bool
+            Apply squared.
+        norm_min_bound : float
+            Normalization minimum bound.
+        norm_max_bound : float
+            Normalization maximum bound.
+
+        Returns
+        -------
+        tuple
+            raw and processed IMU data.
+        """
 
         if len(raw_im) == 0:
             if squared is not True:
@@ -176,9 +254,29 @@ class RealTimeProcessing(GenericProcessing):
 
 class OfflineProcessing(GenericProcessing):
     def __init__(self):
+        """
+        Offline processing.
+        """
         super().__init__()
 
     def process_emg(self, data, frequency, pyomeca=False, ma=False):
+        """
+        Process EMG data.
+        Parameters
+        ----------
+        data : numpy.ndarray
+            EMG data.
+        frequency : int
+            EMG data frequency.
+        pyomeca : bool
+            If true, use low pass filter from pyomeca.
+        ma : bool
+            If true, apply moving average.
+        Returns
+        -------
+        numpy.ndarray
+            Processed EMG data.
+        """
         if pyomeca is True:
             if pyomeca_module is False:
                 raise RuntimeError("Pyomeca module not found.")
@@ -207,7 +305,38 @@ class OfflineProcessing(GenericProcessing):
         return funct(raw_data, *args, **kwargs)
 
     @staticmethod
-    def compute_mvc(nb_muscles: int, mvc_trials: np.ndarray, window_size: int, file_name: str, mvc_list_max: np.ndarray):
+    def compute_mvc(nb_muscles: int,
+                    mvc_trials: np.ndarray,
+                    window_size: int,
+                    mvc_list_max: np.ndarray,
+                    tmp_file: str = None,
+                    output_file: str = None,
+                    save: bool = False):
+        """
+        Compute MVC from several mvc_trials.
+
+        Parameters
+        ----------
+        nb_muscles : int
+            Number of muscles.
+        mvc_trials : numpy.ndarray
+            EMG data for all trials.
+        window_size : int
+            Size of the window.
+        mvc_list_max : numpy.ndarray
+            List of maximum MVC for each muscle.
+        tmp_file : str
+            Name of the temporary file.
+        output_file : str
+            Name of the output file.
+        save : bool
+            If true, save the results.
+        Returns
+        -------
+        list
+            MVC for each muscle.
+
+        """
         for i in range(nb_muscles):
             mvc_temp = -np.sort(-mvc_trials, axis=1)
             if i == 0:
@@ -216,9 +345,14 @@ class OfflineProcessing(GenericProcessing):
                 mvc_list_max = np.concatenate((mvc_list_max, mvc_temp[:, :window_size]), axis=1)
         mvc_list_max = -np.sort(-mvc_list_max, axis=1)[:, :window_size]
         mvc_list_max = np.median(mvc_list_max, axis=1)
-        mat_content = sio.loadmat(file_name)
-        mat_content["MVC_list_max"] = mvc_list_max
 
+        if tmp_file:
+            mat_content = sio.loadmat(tmp_file)
+            mat_content["MVC_list_max"] = mvc_list_max
+        else:
+            mat_content = {"MVC_list_max": mvc_list_max, "MVC_trials": mvc_trials}
 
-if __name__ == '__main__':
-    pass
+        if save:
+            sio.savemat(output_file, mat_content)
+        os.remove(tmp_file)
+        return mvc_list_max

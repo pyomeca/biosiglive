@@ -357,6 +357,7 @@ class ComputeMvc:
                     break
 
             mvc_processed = self._process_mvc(data, save_tmp=True)
+
             n_p = 0
             plot_comm = "y"
             print(f"Trial {try_name} terminated. ")
