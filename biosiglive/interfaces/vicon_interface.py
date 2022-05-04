@@ -1,3 +1,7 @@
+"""
+This file is part of biosiglive. It contains a wrapper for the Vicon SDK for Python.
+"""
+
 import numpy as np
 from .param import *
 from typing import Union
@@ -13,6 +17,15 @@ class ViconClient:
     Class for interfacing with the Vicon system.
     """
     def __init__(self, ip: str = None, port: int = 801):
+        """
+        Initialize the ViconClient class.
+        Parameters
+        ----------
+        ip: str
+            IP address of the Vicon system.
+        port: int
+            Port of the Vicon system.
+        """
         ip = ip if ip else "127.0.0.1"
         address = f"{ip}:{port}"
         print(f"Connection to ViconDataStreamSDK at : {address} ...")
@@ -37,6 +50,17 @@ class ViconClient:
         self.markers = []
 
     def add_device(self, name: str, type: str = "emg", rate: float = 2000):
+        """
+        Add a device to the Vicon system.
+        Parameters
+        ----------
+        name: str
+            Name of the device.
+        type: str
+            Type of the device.
+        rate: float
+            Rate of the device.
+        """
         device_tmp = Device(name, type, rate)
         device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
         self.devices.append(device_tmp)
@@ -45,6 +69,19 @@ class ViconClient:
         self.imu.append(Imu(name, rate, from_emg=from_emg))
 
     def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
+        """
+        Add markers set to stream from the Vicon system.
+        Parameters
+        ----------
+        name: str
+            Name of the markers set.
+        rate: int
+            Rate of the markers set.
+        unlabeled: bool
+            Whether the markers set is unlabeled.
+        subject_name: str
+            Name of the subject. If None, the subject will be the first one in Nexus.
+        """
         markers_tmp = MarkerSet(name, rate, unlabeled)
         markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
         markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
@@ -69,6 +106,20 @@ class ViconClient:
         return forceVectorData
 
     def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None, *args):
+        """
+        Get the device data from Vicon.
+        Parameters
+        ----------
+        device_name: str or list
+            Name of the device or list of devices names.
+        channel_names: str
+            Name of the channel.
+
+        Returns
+        -------
+        device_data: list
+            All asked device data.
+        """
         devices = []
         all_device_data = []
         if not isinstance(device_name, list):
@@ -102,6 +153,20 @@ class ViconClient:
         return all_device_data
 
     def get_markers_data(self, marker_names: list = None, subject_name: str = None):
+        """
+        Get the markers data from Vicon.
+        Parameters
+        ----------
+        marker_names: list
+            List of markers names.
+        subject_name: str
+            Name of the subject. If None, the subject will be the first one in Nexus.
+
+        Returns
+        -------
+        markers_data: list
+            All asked markers data.
+        """
         markers_set = []
         occluded = []
         all_markers_data = []

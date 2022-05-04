@@ -1,3 +1,7 @@
+"""
+This file is part of biosiglive. It is used to plot the data in live or offline mode.
+"""
+
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui
 import pyqtgraph.widgets.RemoteGraphicsView as rgv
@@ -9,9 +13,34 @@ from math import ceil
 
 
 class Plot:
+    """
+    This class is used to plot the data offline.
+    """
     def multi_plot(self, data: Union[list, np.ndarray], x: Union[list, np.ndarray] = None,
                    nb_column: int = None, y_label: str = None, x_label: str = None,
                    legend: Union[list, str] = None, subplot_title: Union[str, list] = None, figure_name: str = None):
+        """
+        This function is used to plot multiple data in one figure.
+        Parameters
+        ----------
+        data: list or np.ndarray
+            The data to plot.
+        x: list or np.ndarray
+            The x-axis data.
+        nb_column: int
+            The number of columns in the figure.
+        y_label: str
+            The y-axis label.
+        x_label: str
+            The x-axis label.
+        legend: list or str
+            The legend of the data.
+        subplot_title: str or list
+            The title of the subplot.
+        figure_name: str
+            The name of the figure.
+        """
+
         if not isinstance(data, list):
             data = [data]
         nb_data = len(data)
@@ -39,7 +68,17 @@ class Plot:
 
 
 class LivePlot:
+    """
+    This class is used to plot the data in live mode.
+    """
     def __init__(self, multi_process: bool = False):
+        """
+        This function is used to initialize the LivePlot class.
+        Parameters
+        ----------
+        multi_process: bool
+            If True, the plot is done in a separate process.
+        """
         self.multi_process = multi_process
         self.check_box = True
         self.plot = []
@@ -49,6 +88,18 @@ class LivePlot:
         self.type = "curve"
 
     def add_new_plot(self, plot_name: str = "qt_app", plot_type="curve", channel_names: Union[str, list] = None):
+        """
+        This function is used to add a new plot.
+        Parameters
+        ----------
+        plot_name: str
+            The name of the plot.
+        plot_type: str
+            The type of the plot.
+        channel_names: str or list
+            The name of the channels.
+        """
+
         plot = LivePlot()
         plot.type = plot_type
         plot.channel_names = channel_names
@@ -56,6 +107,28 @@ class LivePlot:
         self.plot.append(plot)
 
     def init_plot_window(self, plot, use_checkbox: bool = True, remote: bool = True):
+        """
+        This function is used to initialize the qt app.
+        Parameters
+        ----------
+        plot: method
+            The plot to initialize.
+        use_checkbox: bool
+            If True, the checkbox is used.
+        remote: bool
+            If True, the plot is done in a separate process.
+
+        Returns
+        -------
+        app: QApplication
+            The qt app.
+        rplt: Plot
+            The plot.
+        layout: QVBoxLayout
+            The layout of the qt app.
+        box: QCheckBox
+            The checkbox.
+        """
         if plot.type == "curve":
             rplt, layout, app, box = self._init_curve(plot.figure_name,
                                                       plot.channel_names,
@@ -70,6 +143,22 @@ class LivePlot:
             raise ValueError(f"The plot type ({plot.type}) is not supported.")
 
     def update_plot_window(self, plot, data: np.ndarray, app, rplt, box):
+        """
+        This function is used to update the qt app.
+        Parameters
+        ----------
+        plot: method
+            The plot to update.
+        data: np.ndarray
+            The data to plot.
+        app: QApplication
+            The qt app.
+        rplt: method
+            qt rplt.
+        box: QCheckBox
+            The checkbox.
+        """
+
         if plot.type == "progress_bar":
             self._update_progress_bar(data, app, rplt, box)
         elif plot.type == "curve":
@@ -82,6 +171,32 @@ class LivePlot:
                     nb_subplot: int = None,
                     checkbox: bool = True,
                     remote: bool = True):
+        """
+        This function is used to initialize the curve plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        subplot_label: str or list
+            The label of the subplot.
+        nb_subplot: int
+            The number of subplot.
+        checkbox: bool
+            If True, the checkbox is used.
+        remote: bool
+            If True, the plot is done in a separate process.
+
+        Returns
+        -------
+        app: QApplication
+            The qt app.
+        rplt: method
+            The plot.
+        layout:
+            The layout of the qt app.
+        box: QCheckBox
+            The checkbox.
+        """
         # TODO add remote statement
         # --- Curve graph --- #
         resize = self.resize
@@ -125,6 +240,24 @@ class LivePlot:
         return rplt, layout, app, box
 
     def _init_progress_bar(self, figure_name: str = "Figure", nb_subplot: int = None):
+        """
+        This function is used to initialize the curve plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        nb_subplot: int
+            The number of subplot.
+
+        Returns
+        -------
+        app: QApplication
+            The qt app.
+        rplt: Plot
+            The plot.
+        layout: pg.LayoutWidget
+            The layout of the qt app.
+        """
         # --- Progress bar graph --- #
         layout, app = LivePlot._init_layout(figure_name, resize=self.resize, move=self.move)
         rplt = []
@@ -140,6 +273,23 @@ class LivePlot:
 
     @staticmethod
     def _update_curve(data: np.ndarray, app, rplt: list, box: list):
+        """
+        This function is used to update the curve plot.
+        Parameters
+        ----------
+        data: np.ndarray
+            The data to plot.
+        app: QApplication
+            The qt app.
+        rplt: list
+            The plot.
+        box: QCheckBox
+            The checkbox.
+
+        Returns
+        -------
+
+        """
         for i in range(data.shape[0]):
             if len(box) != 0:
                 if box[i].isChecked() is True:
@@ -156,6 +306,21 @@ class LivePlot:
 
     @staticmethod
     def _update_progress_bar(data: np.ndarray, app, rplt: list, subplot_label: list, unit: str = ""):
+        """
+        This function is used to update the progress bar plot.
+        Parameters
+        ----------
+        data: np.ndarray
+            The data to plot.
+        app: QApplication
+            The qt app.
+        rplt: list
+            The plot.
+        subplot_label: list
+            The subplot label.
+        unit: str
+            The unit of the data to plot.
+        """
         for i in range(data.shape[0]):
             value = np.mean(data[i, :])
             rplt[i].setValue(int(value))
@@ -165,6 +330,25 @@ class LivePlot:
 
     @staticmethod
     def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
+        """
+        This function is used to initialize the qt app layout.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        resize: tuple
+            The size of the figure.
+        move: tuple
+            The position of the figure.
+
+        Returns
+        -------
+        layout: QVBoxLayout
+            The layout of the qt app.
+        app: QApplication
+            The qt app.
+
+        """
         app = pg.mkQApp(figure_name)
         layout = pg.LayoutWidget()
         layout.resize(resize[0], resize[1])

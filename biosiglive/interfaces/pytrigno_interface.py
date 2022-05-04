@@ -7,21 +7,36 @@ class PytrignoClient:
         self.address = "127.0.0.1" if not ip else ip
         self.devices = []
         self.imu = []
+        self.emg_client, self.imu_client = None, None
 
     def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000):
+        """
+        Add a device to the Pytrigno client.
+        Parameters
+        ----------
+        name : str
+            Name of the device.
+        range : tuple
+            Range of the electrodes.
+        type : str
+            Type of the device. (emg or imu)
+        rate : float
+            Rate of the device.
+
+        """
         new_device = Device(name, type, rate)
-        device.range = range
+        new_device.range = range
         self.devices.append(new_device)
-        if device.type == "emg":
+        if type == "emg":
             self.emg_client = pytrigno.TrignoEMG(
-                channel_range=device.range, samples_per_read=device.sample, host=self.address
+                channel_range=new_device.range, samples_per_read=new_device.sample, host=self.address
             )
             self.emg_client.start()
 
-        elif device.type == "imu":
-            imu_range = (device.range[0] * 9, device.range[1] * 9)
+        elif new_device.type == "imu":
+            imu_range = (new_device.range[0] * 9, new_device.range[1] * 9)
             self.imu_client = pytrigno.TrignoIM(
-                channel_range=imu_range, samples_per_read=device.sample, host=self.address
+                channel_range=imu_range, samples_per_read=new_device.sample, host=self.address
             )
             self.imu_client.start()
 
@@ -29,6 +44,20 @@ class PytrignoClient:
             raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
 
     def get_device_data(self, device_name: str = "all", *args):
+        """
+        Get data from the device.
+        Parameters
+        ----------
+        device_name : str
+            Name of the device.
+        *args
+            Additional argument.
+
+        Returns
+        -------
+        data : list
+            Data from the device.
+        """
         devices = []
         all_device_data = []
 

@@ -1,3 +1,7 @@
+"""
+This file is part of biosiglive. It contains a wrapper to use a client more easily.
+"""
+
 import numpy as np
 from .param import Device, MarkerSet
 from ..streaming.client import Client
@@ -10,9 +14,23 @@ except ModuleNotFoundError:
 
 class TcpClient(Client):
     """
-    Class for interfacing with the Vicon system.
+    Class for interfacing with the client.
     """
     def __init__(self, ip: str = None, port: int = 801, type: str = "TCP", read_frequency: int = 100):
+        """
+        Initialize the client.
+        Parameters
+        ----------
+        ip: str
+            IP address of the server.
+        port: int
+            Port of the server.
+        type: str
+            Type of the server.
+        read_frequency: int
+            Frequency of the reading of the data.
+        """
+
         ip = ip if ip else "127.0.0.1"
         self.devices = []
         self.imu = []
@@ -24,6 +42,17 @@ class TcpClient(Client):
                                  get_kalman=False, get_names=False, mvc_list=None, norm_emg=False, raw=True)
 
     def add_device(self, name: str, type: str = "emg", rate: float = 2000):
+        """
+        Add a device to the client.
+        Parameters
+        ----------
+        name: str
+            Name of the device.
+        type: str
+            Type of the device. (emg, imu, etc.)
+        rate: float
+            Frequency of the device.
+        """
         device_tmp = Device(name, type, rate)
         self.devices.append(device_tmp)
 
@@ -31,12 +60,32 @@ class TcpClient(Client):
     #     self.imu.append(Imu(name, rate, from_emg=from_emg))
 
     def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
+        """
+        Add a marker set to the client.
+        Parameters
+        ----------
+        name: str
+            Name of the marker set.
+        rate: int
+            Frequency of the marker set.
+        unlabeled: bool
+            If the marker set is unlabeled.
+        subject_name: str
+            Name of the subject.
+        """
         markers_tmp = MarkerSet(name, rate, unlabeled)
         markers_tmp.subject_name = subject_name
         markers_tmp.markers_names = name
         self.markers.append(markers_tmp)
 
     def get_data_from_server(self):
+        """
+        Get the data from the server.
+        Returns
+        -------
+        data: list
+            ALL the data asked from the server.
+        """
         all_data = []
         if len(self.data_to_stream) == 0:
             raise ValueError("No data to stream")
@@ -49,6 +98,22 @@ class TcpClient(Client):
         return all_data
 
     def get_device_data(self, device_name: str = "all", stream_now: bool = False, get_names: bool = False, *args):
+        """
+        Get the data from a device.
+        Parameters
+        ----------
+        device_name: str
+            Name of the device. all for all the devices.
+        stream_now: bool
+            If the data should be streamed now. if false, the data will be added to the data to stream.
+        get_names: bool
+            If the names of the devices should be returned.
+
+        Returns
+        -------
+        data: list
+            The data asked from the server.
+        """
         devices = []
         all_device_data = []
         if not isinstance(device_name, list):
@@ -77,6 +142,21 @@ class TcpClient(Client):
             return None
 
     def get_markers_data(self, stream_now: bool = False, get_names: bool = False):
+        """
+        Get the data from the markers.
+
+        Parameters
+        ----------
+        stream_now: bool
+            If the data should be streamed now. if false, the data will be added to the data to stream.
+        get_names: bool
+            If the names of the markers should be returned.
+
+        Returns
+        -------
+        data: list
+            The data asked from the server.
+        """
         if stream_now:
             self.client.update_command(name="get_names", value=get_names)
             self.client.update_command(name="command", value="markers")

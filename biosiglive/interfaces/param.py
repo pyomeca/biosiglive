@@ -1,8 +1,26 @@
+"""
+This file is part of biosiglive. It contains the Parameter class and introduce the device and markers classes.
+"""
 from math import ceil
 
 
 class Type:
     def __init__(self, name: str = None, type: str = None, rate: float = None, system_rate: float = 100):
+        """
+        initialize the parameter class
+
+        Parameters
+        ----------
+        name : str
+            name of the parameter
+        type : str
+            type of the parameter (emg, imu, markers, ...)
+        rate : float
+            rate of the parameter
+        system_rate : float
+            rate of the system
+        """
+
         self.name = name
         self.type = type
         self.rate = rate
@@ -31,6 +49,13 @@ class Device(Type):
         self.channel_names = channel_names
 
     def add_channel_names(self, channel_names: list):
+        """
+        add the channel names to the device
+        Parameters
+        ----------
+        channel_names: list
+            list of channel names
+        """
         self.channel_names = channel_names
 
 
@@ -52,9 +77,3 @@ class MarkerSet(Type):
         super().__init__(name, type, rate)
         self.markers_names = name
         self.subject_name = None
-
-
-
-if __name__ == '__main__':
-    device = Imu("test", 145.1, True)
-    print(device.sample)

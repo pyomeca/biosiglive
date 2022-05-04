@@ -1,15 +1,32 @@
+"""
+This file is part of biosiglive. It contains biorbd specific functions for musculoskeletal analysis.
+"""
 try:
     import biorbd
 except ModuleNotFoundError:
     pass
-# try:
-#     from casadi import MX, Function, horzcat
-# except ModuleNotFoundError:
-#     pass
 import numpy as np
 
 
 def kalman_func(markers, model, return_q_dot=True, kalman=None):
+    """
+    Function to apply the Kalman filter to the markers.
+    Parameters
+    ----------
+    markers : numpy.array
+        The experimental markers.
+    model : biorbd.Model
+        The model used to compute the kinematics.
+    return_q_dot : bool
+        If True, the function will return the q_dot.
+    kalman : biorbd.Kalman
+        The Kalman filter to use.
+
+    Returns
+    -------
+    numpy.array or tuple
+        The joint angle and (if asked) velocity. .
+    """
     markers_over_frames = []
     if not kalman:
         freq = 100  # Hz
