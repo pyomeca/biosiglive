@@ -172,7 +172,7 @@ class Server(Connection):
     """
     Class to create a server.
     """
-    def __init__(self, ip: str = "127.0.0.1", ports: list = 50000, type: str = "TCP"):
+    def __init__(self, ip: str = "127.0.0.1", port: int = 50000, type: str = "TCP"):
         """
         Parameters
         ----------
@@ -184,61 +184,50 @@ class Server(Connection):
             The type of the server.
         """
         self.ip = ip
-        self.ports = [ports] if not isinstance(ports, list) else ports
+        self.port = port
         self.type = type
-        self.servers = []
+        self.server = None
         self.inputs = None
         self.outputs = None
         self.buff_size = 100000
-        super().__init__(ip=ip, ports=ports)
+        super().__init__(ip=ip, ports=port)
 
     def start(self):
         """
         Start the server.
         """
-        for i, port in enumerate(self.ports):
-            if self.type == "TCP":
-                self.servers.append(socket.socket(socket.AF_INET, socket.SOCK_STREAM))
-            elif self.type == "UDP":
-                raise RuntimeError(f"UDP server not implemented yet.")
-                # self.servers.append(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
-            else:
-                raise RuntimeError(f"Invalid type of connexion ({type}). Type must be 'TCP' or 'UDP'.")
-            try:
-                self.servers[i].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                self.servers[i].bind((self.ip, port))
-                if self.type != "UDP":
-                    self.servers[i].listen(10)
-                    self.inputs = [self.servers[i]]
-                    self.outputs = []
-                    self.message_queues = {}
-            except ConnectionError:
-                raise RuntimeError("Unknown error. Server is not listening.")
+        # for i, port in enumerate(self.ports):
+        if self.type == "TCP":
+            self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        elif self.type == "UDP":
+            raise RuntimeError(f"UDP server not implemented yet.")
+            # self.servers.append(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
+        else:
+            raise RuntimeError(f"Invalid type of connexion ({type}). Type must be 'TCP' or 'UDP'.")
+        try:
+            self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.server.bind((self.ip, self.port))
+            if self.type != "UDP":
+                self.server.listen(10)
+                self.inputs = [self.server]
+                self.outputs = []
+                self.message_queues = {}
+        except ConnectionError:
+            raise RuntimeError("Unknown error. Server is not listening.")
 
-    def client_listening(self, server: socket.socket, server_queue: mp.Queue):
+    def client_listening(self, data: dict):
         """
         Listen to the client.
 
         Parameters
         ----------
-        server : socket.socket
-            The server to listen to.
-        server_queue : mp.Queue
-            The queue to send the data to.
+        data : dict
+            Data to send to the client function of message
         """
-        connection, ad = server.accept()
+        connection, ad = self.server.accept()
         message = json.loads(connection.recv(self.buff_size))
-        data_queue = {}
-        while len(data_queue) == 0:
-            try:
-                data_queue = server_queue.get_nowait()
-                is_working = True
-            except mp.Queue().empty():
-                is_working = False
-                pass
-            if is_working:
-                data_to_send = self._prepare_data(message, data_queue)
-                self._send_data(data_to_send, connection)
+        data_to_send = self._prepare_data(message, data)
+        self._send_data(data_to_send, connection)
 
     @staticmethod
     def _send_data(data, connection):

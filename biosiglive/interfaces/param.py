@@ -2,10 +2,11 @@
 This file is part of biosiglive. It contains the Parameter class and introduce the device and markers classes.
 """
 from math import ceil
+from ..processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
 
 
 class Type:
-    def __init__(self, name: str = None, type: str = None, rate: float = None, system_rate: float = 100):
+    def __init__(self, name: str = None, type: str = None, rate: float = None, system_rate: float = 100, real_time: bool = False):
         """
         initialize the parameter class
 
@@ -19,6 +20,8 @@ class Type:
             rate of the parameter
         system_rate : float
             rate of the system
+        real_time : bool
+            If true device wil be use in real time application
         """
 
         self.name = name
@@ -27,6 +30,8 @@ class Type:
         self.system_rate = system_rate
         self.sample = ceil(rate / self.system_rate)
         self.range = None
+        self.process_method = None
+        self._set_process_method(real_time)
 
     def set_name(self, name: str):
         self.name = name
@@ -37,14 +42,20 @@ class Type:
     def set_rate(self, rate: int):
         self.rate = rate
 
+    def get_process_method(self):
+        return self.process_method
+
+    def _set_process_method(self, real_time=False):
+        self.process_method = RealTimeProcessing() if real_time else OfflineProcessing()
+
 
 class Device(Type):
     """
     This class is used to store the available devices.
     """
 
-    def __init__(self, name: str = None, type: str = "emg", rate: float = None, channel_names: list = None):
-        super().__init__(name, type, rate)
+    def __init__(self, name: str = None, type: str = "emg", rate: float = None, system_rate: float = 100, channel_names: list = None, real_time:bool = False):
+        super().__init__(name, type, rate, system_rate, real_time)
         self.infos = None
         self.channel_names = channel_names
 
@@ -59,13 +70,13 @@ class Device(Type):
         self.channel_names = channel_names
 
 
-class Imu(Type):
-    """
-    This class is used to store the available IMU devices.
-    """
-    def __init__(self, name: str = None, rate: float = None, from_emg: bool = False):
-        type = "imu" if not from_emg else "imu_from_emg"
-        super().__init__(name, type, rate)
+# class Imu(Type):
+#     """
+#     This class is used to store the available IMU devices.
+#     """
+#     def __init__(self, name: str = None, rate: float = None, from_emg: bool = False):
+#         type = "imu" if not from_emg else "imu_from_emg"
+#         super().__init__(name, type, rate)
 
 
 class MarkerSet(Type):

@@ -6,6 +6,7 @@ from scipy.signal import butter, lfilter, filtfilt, convolve
 import numpy as np
 import scipy.io as sio
 import os
+from typing import Union
 
 try:
     from pyomeca import Analogs
@@ -90,15 +91,16 @@ class RealTimeProcessing(GenericProcessing):
         """
         self.emg_rate = 2000
         self.emg_win = 200
-        self.ma_win = 20
+        self.ma_win = 200
         super().__init__()
 
-    def process_emg_rt(self, raw_emg: np.ndarray,
-                       emg_proc: np.ndarray,
-                       emg_tmp: np.ndarray,
-                       mvc_list: list,
-                       norm_emg: bool = True,
-                       lpf: bool = False):
+    def process_emg(self,
+                    raw_emg: np.ndarray,
+                    emg_proc: np.ndarray,
+                    emg_tmp: np.ndarray,
+                    mvc_list: Union[list, tuple],
+                    norm_emg: bool = True,
+                    lpf: bool = False):
         """
         Process EMG data in real-time.
         Parameters
@@ -190,9 +192,9 @@ class RealTimeProcessing(GenericProcessing):
             If current data is acceleration data to adapt the processing.
         squared : bool
             Apply squared.
-        norm_min_bound : float
+        norm_min_bound : tuple
             Normalization minimum bound.
-        norm_max_bound : float
+        norm_max_bound : tuple
             Normalization maximum bound.
 
         Returns
@@ -246,6 +248,62 @@ class RealTimeProcessing(GenericProcessing):
                 im_proc = np.append(im_proc[:, 1:], average, axis=1)
 
         return raw_im, im_proc
+
+    @staticmethod
+    def get_peaks(new_sample: np.ndarray,
+                  signal: np.ndarray,
+                  signal_proc: np.ndarray,
+                  threshold: float,
+                  chanel_idx: Union[int, list] = None,
+                  window_len: float = 200,
+                  ):
+        """
+        Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
+        Parameters
+        ----------
+        new_sample
+        signal
+        threshold
+        chanel
+        window_len
+        rate
+
+        Returns
+        -------
+
+        """
+        nb_peaks = []
+        is_one = False
+        sample_proc = np.copy(signal)
+        for i in range(new_sample.shape[0]):
+            for j in range(new_sample.shape[1]):
+                if new_sample[i, j] < threshold:
+                    sample_proc[i, j] = 0
+                    is_one = False
+                elif new_sample[i, j] > threshold and not is_one:
+                    sample_proc[i, j] = 1
+                    is_one = True
+
+        if len(signal) == 0:
+            signal = new_sample
+            signal_proc = sample_proc
+
+        elif signal.shape[1] < window_len + new_sample.shape[1]:
+            signal = np.append(signal, new_sample, axis=1)
+            signal_proc = np.append(signal_proc, sample_proc, axis=1)
+
+        else:
+            signal = np.append(signal[:, -window_len + new_sample:], new_sample, axis=1)
+            signal_proc = np.append(signal_proc[:, -window_len + sample_proc:], sample_proc, axis=1)
+
+        if chanel_idx:
+            signal = signal[chanel_idx, :]
+            signal_proc = signal_proc[chanel_idx, :]
+
+        for i in range(sample_proc.shape[0]):
+            if i in chanel_idx:
+                nb_peaks.append(np.count_nonzero(signal_proc[i, :] == 1))
+        return nb_peaks, signal_proc, signal
 
     @staticmethod
     def custom_processing(funct, raw_data, data_proc, data_tmp, *args, **kwargs):

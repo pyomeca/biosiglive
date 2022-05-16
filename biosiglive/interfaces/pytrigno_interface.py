@@ -1,5 +1,8 @@
 from .param import *
-import pytrigno
+try:
+    import pytrigno
+except ModuleNotFoundError:
+    pass
 
 
 class PytrignoClient:
@@ -9,7 +12,7 @@ class PytrignoClient:
         self.imu = []
         self.emg_client, self.imu_client = None, None
 
-    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000):
+    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000, real_time: bool = False):
         """
         Add a device to the Pytrigno client.
         Parameters
@@ -22,9 +25,10 @@ class PytrignoClient:
             Type of the device. (emg or imu)
         rate : float
             Rate of the device.
-
+        real_time : bool
+            If true device  will be used in real time application
         """
-        new_device = Device(name, type, rate)
+        new_device = Device(name, type, rate, real_time=real_time)
         new_device.range = range
         self.devices.append(new_device)
         if type == "emg":
@@ -87,4 +91,15 @@ class PytrignoClient:
     def get_force_plate_data(self):
         raise RuntimeError("It's not possible to get force plate data from pytrigno.")
 
+    @staticmethod
+    def init_client():
+        pass
+
+    @staticmethod
+    def get_latency():
+        return 0
+
+    @staticmethod
+    def get_frame():
+        return True
 

@@ -16,7 +16,7 @@ class ViconClient:
     """
     Class for interfacing with the Vicon system.
     """
-    def __init__(self, ip: str = None, port: int = 801):
+    def __init__(self, ip: str = None, port: int = 801, init_now=True):
         """
         Initialize the ViconClient class.
         Parameters
@@ -27,10 +27,22 @@ class ViconClient:
             Port of the Vicon system.
         """
         ip = ip if ip else "127.0.0.1"
-        address = f"{ip}:{port}"
-        print(f"Connection to ViconDataStreamSDK at : {address} ...")
+        self.address = f"{ip}:{port}"
+
+        self.vicon_client = None
+        self.acquisition_rate = None
+
+        if init_now:
+            self.init_client()
+
+        self.devices = []
+        self.imu = []
+        self.markers = []
+
+    def init_client(self):
+        print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
         self.vicon_client = VDS.Client()
-        self.vicon_client.Connect(address)
+        self.vicon_client.Connect(self.address)
         print("Connected to Vicon.")
 
         # Enable some different data types
@@ -45,11 +57,7 @@ class ViconClient:
 
         self.acquisition_rate = self.vicon_client.GetFrameRate()
 
-        self.devices = []
-        self.imu = []
-        self.markers = []
-
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000):
+    def add_device(self, name: str, type: str = "emg", rate: float = 2000, real_time: bool = False):
         """
         Add a device to the Vicon system.
         Parameters
@@ -60,13 +68,18 @@ class ViconClient:
             Type of the device.
         rate: float
             Rate of the device.
+        real_time : bool
+            If true device will be use in real time application
         """
-        device_tmp = Device(name, type, rate)
-        device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
+        device_tmp = Device(name, type, rate, real_time=real_time)
+        if self.vicon_client:
+            device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
+        else:
+            device_tmp.info = None
         self.devices.append(device_tmp)
 
-    def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
-        self.imu.append(Imu(name, rate, from_emg=from_emg))
+    # def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
+    #     self.imu.append(Imu(name, rate, from_emg=from_emg))
 
     def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
         """
@@ -83,8 +96,12 @@ class ViconClient:
             Name of the subject. If None, the subject will be the first one in Nexus.
         """
         markers_tmp = MarkerSet(name, rate, unlabeled)
-        markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
-        markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
+        if self.vicon_client:
+            markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
+            markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
+        else:
+            markers_tmp.subject_name = subject_name
+            markers_tmp.markers_names = name
         self.markers.append(markers_tmp)
 
     @staticmethod
@@ -229,5 +246,11 @@ class ViconClient:
     #         imu = imu.reshape(self.nb_electrodes, 9, -1)
     #
     #     return imu, names
+
+    def get_latency(self):
+        return self.vicon_client.GetLatencyTotal()
+
+    def get_frame(self):
+        return self.vicon_client.GetFrame()
 
 
