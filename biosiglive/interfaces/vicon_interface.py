@@ -56,7 +56,7 @@ class ViconClient:
 
         self.acquisition_rate = self.vicon_client.GetFrameRate()
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000, real_time: bool = False):
+    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100):
         """
         Add a device to the Vicon system.
         Parameters
@@ -67,14 +67,17 @@ class ViconClient:
             Type of the device.
         rate: float
             Rate of the device.
-        real_time : bool
-            If true device will be use in real time application
+        system_rate : float
+            Rate of the system interface.
         """
-        device_tmp = Device(name, type, rate, real_time=real_time)
+        device_tmp = Device(name, type, rate, system_rate)
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
+            if rate != self.vicon_client.GetFrameRate:
+                device_tmp.rate = self.vicon_client.GetFrameRate
         else:
             device_tmp.info = None
+
         self.devices.append(device_tmp)
 
     # def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
@@ -136,6 +139,7 @@ class ViconClient:
         device_data: list
             All asked device data.
         """
+        self.get_frame()
         devices = []
         all_device_data = []
         if not isinstance(device_name, list):
@@ -149,7 +153,9 @@ class ViconClient:
             devices = self.devices
 
         for device in devices:
-            device_data = np.zeros((device.infos[0], device.sample))
+            if not device.infos:
+                device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
+            device_data = np.zeros((len(device.infos), device.sample))
             count = 0
             device_chanel_names = []
             for output_name, chanel_name, unit in device.infos:
@@ -183,6 +189,7 @@ class ViconClient:
         markers_data: list
             All asked markers data.
         """
+        self.get_frame()
         markers_set = []
         occluded = []
         all_markers_data = []
@@ -250,6 +257,7 @@ class ViconClient:
         return self.vicon_client.GetLatencyTotal()
 
     def get_frame(self):
-        return self.vicon_client.GetFrame()
-
+        a = self.vicon_client.GetFrame()
+        while a is not True:
+            a = self.vicon_client.GetFrame()
 
