@@ -1,7 +1,5 @@
-import socket
-import struct
+
 from typing import Union
-from ..interfaces import vicon_interface, pytrigno_interface
 
 
 try:
@@ -16,22 +14,21 @@ try:
 except ModuleNotFoundError:
     pass
 
-import sys
+
 from time import time, sleep, strftime
 import datetime
 import scipy.io as sio
 import numpy as np
-from math import ceil
 import multiprocessing as mp
 import os
-from .connection import Server
-from ..io import save_data
-from ..interfaces import pytrigno_interface, vicon_interface
-from ..processing.data_processing import RealTimeProcessing
-from ..processing.msk_functions import kalman_func
-from ..gui.plot import LivePlot
+from biosiglive.streaming.connection import Server
+from biosiglive.io import save_data
+from biosiglive.interfaces import pytrigno_interface, vicon_interface
+from biosiglive.processing.data_processing import RealTimeProcessing
+from biosiglive.processing.msk_functions import kalman_func
+from biosiglive.gui.plot import LivePlot
 
-vicon_package, biorbd_eigen = True, True
+vicon_package, biorbd = True, True
 
 try:
     import biorbd

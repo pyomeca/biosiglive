@@ -1,4 +1,4 @@
-from biosiglive.data_processing import read_data
+from biosiglive.io.save_data import read_data
 
 # Read pickle file saved with RT_process_pytrigno:
 filename = "streamed_data"

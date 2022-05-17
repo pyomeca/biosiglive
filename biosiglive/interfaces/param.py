@@ -31,7 +31,7 @@ class Type:
         self.sample = ceil(rate / self.system_rate)
         self.range = None
         self.process_method = None
-        self._set_process_method(real_time)
+        # self._set_process_method(real_time)
 
     def set_name(self, name: str):
         self.name = name
@@ -45,8 +45,8 @@ class Type:
     def get_process_method(self):
         return self.process_method
 
-    def _set_process_method(self, real_time=False):
-        self.process_method = RealTimeProcessing() if real_time else OfflineProcessing()
+    def set_process_method(self, processing_class):
+        self.process_method = processing_class
 
 
 class Device(Type):
@@ -54,8 +54,8 @@ class Device(Type):
     This class is used to store the available devices.
     """
 
-    def __init__(self, name: str = None, type: str = "emg", rate: float = None, system_rate: float = 100, channel_names: list = None, real_time:bool = False):
-        super().__init__(name, type, rate, system_rate, real_time)
+    def __init__(self, name: str = None, type: str = "emg", rate: float = 2000, system_rate: float = 100, channel_names: list = None):
+        super().__init__(name, type, rate, system_rate)
         self.infos = None
         self.channel_names = channel_names
 

@@ -11,19 +11,79 @@ Buff_size = 32767
 
 
 class Message:
-    def __init__(self):
+    def __init__(self,
+                 command: list = (),
+                 read_frequency: float = 100,
+                 nb_frame_to_get: int = 1,
+                 get_names: bool = None,
+                 mvc_list: list = None,
+                 kalman: bool = None,
+                 get_raw_data: bool = False):
         """
         Message class
         """
 
         self.command = []
-        self.dic = {
-            "command": [],
-            "read_frequency": 100,
-            "emg_windows": 2000,
-            "get_names": False,
-            "nb_frames_to_get": 1
-        }
+        self.command = command
+        self.read_frequency = 100
+        self.emg_windows = 2000
+        self.get_names = False
+        self.nb_frames_to_get = 1
+        self.get_names = get_names
+        self.mvc_list = mvc_list
+        self.kalman = kalman
+        self.read_frequency = read_frequency
+        self.nb_frames_to_get = nb_frame_to_get
+        self.raw_data = get_raw_data
+
+    def update_command(self, name: Union[str, list], value: Union[bool, int, float, list, str]):
+        """
+        Update the command.
+
+        Parameters
+        ----------
+        name: str
+            Name of the command to update.
+        value: bool, int, float, list, str
+            Value of the command to update.
+        """
+        names = [name] if not isinstance(name, list) else value
+        values = [value] if not isinstance(value, list) else value
+        values = [values] if name == "command" else values
+
+        for i, name in enumerate(names):
+            self.__setattr__(name, values[i])
+
+    def get_command(self):
+        """
+        Get the command.
+
+        Returns
+        -------
+        message: Message.dic
+            Message containing the command.
+        """
+        return self.command
+
+    def add_command(self, name: str, value: Union[bool, int, float, list, str]):
+        """
+        Add a command.
+
+        Parameters
+        ----------
+        name: str
+            Name of the command to add.
+        value: bool, int, float, list, str
+            Value of the command to add.
+        """
+        new_value = None
+        old_value = self.get_command()[name]
+        if isinstance(old_value, list):
+            old_value.append(value)
+            new_value = old_value
+        elif isinstance(old_value, (bool, int, float, str)):
+            new_value = value
+        return self.update_command(name, new_value)
 
 
 class Client:
@@ -47,7 +107,7 @@ class Client:
         self.address = f"{server_ip}:{port}"
         self.server_address = server_ip
         self.port = port
-        self.message = None
+        self.message = Message()
         self.client = self.client_sock(self.type)
 
     def _connect(self):
@@ -100,124 +160,13 @@ class Client:
         data = json.loads(data)
         return data
 
-    def init_command(
-        self,
-        data: list,
-        read_frequency: int = 100,
-        emg_wind: int = 2000,
-        nb_frames_to_get: int = 1,
-        get_kalman=False,
-        get_names=False,
-        mvc_list: list = None,
-        norm_emg: bool = False,
-        raw: bool = False,
-    ):
-        """
-        Initialize the command.
-        Parameters
-        ----------
-        data: list
-            List of data to get.
-        read_frequency: int
-            Frequency at which the data are streamed.
-        emg_wind: int
-            Size of the EMG window.
-        nb_frames_to_get: int
-            Number of frames to get.
-        get_kalman: bool
-            Get the kalman data.
-        get_names: bool
-            Get the names of the data.
-        mvc_list: list
-            MVC values.
-        norm_emg: bool
-            Normalize the EMG.
-        raw: bool
-            Get the raw data.
-        """
-
-        message = Message()
-        message.dic["get_names"] = get_names
-        message.dic["norm_emg"] = norm_emg
-        message.dic["mvc_list"] = mvc_list
-        message.dic["kalman"] = get_kalman
-        message.dic["read_frequency"] = read_frequency
-        message.dic["emg_windows"] = emg_wind
-        message.dic["nb_frames_to_get"] = nb_frames_to_get
-        message.dic["raw_data"] = raw
-
-        if norm_emg is True and mvc_list is None:
-            raise RuntimeError("Define a list of MVC to normalize the EMG data.")
-
-        elif mvc_list is not None and norm_emg is not True:
-            print(
-                "[WARNING] You have defined a list of MVC but not asked for normalization. "
-                "Please turn norm_EMG to True tu normalize your data."
-            )
-
-        message.dic["command"] = []
-        for i in data:
-            message.dic["command"].append(i)
-            if i != "emg" and i != "markers" and i != "imu" and i != "force_plate":
-                raise RuntimeError(f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' ")
-
-        self.message = message
-
-    def update_command(self, name: Union[str, list], value: Union[bool, int, float, list, str]):
-        """
-        Update the command.
-
-        Parameters
-        ----------
-        name: str
-            Name of the command to update.
-        value: bool, int, float, list, str
-            Value of the command to update.
-        """
-        names = [name] if not isinstance(name, list) else value
-        values = [value] if not isinstance(value, list) else value
-        values = [values] if name == "command" else values
-
-        for i, name in enumerate(names):
-            self.message.dic[name] = values[i]
-
-    def get_command(self):
-        """
-        Get the command.
-
-        Returns
-        -------
-        message: Message.dic
-            Message containing the command.
-        """
-        return self.message.dic
-
-    def add_command(self, name: str, value: Union[bool, int, float, list, str]):
-        """
-        Add a command.
-
-        Parameters
-        ----------
-        name: str
-            Name of the command to add.
-        value: bool, int, float, list, str
-            Value of the command to add.
-        """
-        new_value = None
-        old_value = self.get_command()[name]
-        if isinstance(old_value, list):
-            old_value.append(value)
-            new_value = old_value
-        elif isinstance(old_value, (bool, int, float, str)):
-            new_value = value
-        return self.update_command(name, new_value)
-
-    def get_data(self, buff: int = Buff_size):
+    def get_data(self, message: Message = Message(), buff: int = Buff_size):
         """
         Get the data from server using the command.
 
         Parameters
         ----------
+        message
         buff: int
             Size of the buffer.
 
@@ -228,6 +177,6 @@ class Client:
         """
 
         self._connect()
-        self.client.sendall(json.dumps(self.message.dic).encode())
+        self.client.sendall(json.dumps(message.__dict__).encode())
         return self.recv_all(buff)
 

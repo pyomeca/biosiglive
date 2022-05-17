@@ -1,5 +1,5 @@
 import scipy.io as sio
-from .io.save_data import read_data
+from biosiglive.io.save_data import read_data
 import numpy as np
 
 
@@ -14,7 +14,7 @@ def get_offline_data(data_type: list, path: str = None):
 def get_random_data(data_type: list):
     data_dic = {}
     for data in data_type:
-        data_dic[data] =
+        data_dic[data]
     pass
 
 

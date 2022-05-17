@@ -1,12 +1,11 @@
 import scipy.io as sio
-from biosiglive.client import Client
+from biosiglive.streaming.client import Client, Message
 import numpy as np
-import os
 try:
     from pythonosc.udp_client import SimpleUDPClient
 except ModuleNotFoundError:
     pass
-from biosiglive.data_processing import add_data_to_pickle
+from biosiglive.io.save_data import add_data_to_pickle
 
 if __name__ == '__main__':
     # Set program variables
@@ -39,16 +38,16 @@ if __name__ == '__main__':
         print("Streaming OSC activated")
     print_data = False
     count = 0
+    message = Message(command=type_of_data,
+                      read_frequency=read_freq,
+                      nb_frame_to_get=1,
+                      get_raw_data=True,
+                      mvc_list=list_mvc
+                      )
 
     while True:
         client = Client(host_ip, host_port, "TCP")
-        data = client.get_data(data=type_of_data,
-                               read_frequency=read_freq,
-                               nb_of_data_to_export=1,
-                               raw=True,
-                               norm_emg=True,
-                               mvc_list=list_mvc
-                               )
+        data = client.get_data(message)
         # time.sleep(1)
         if ["emg"] in type_of_data:
             emg = np.array(data['emg'])

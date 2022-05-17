@@ -51,7 +51,6 @@ class Connection:
             The data prepared to be sent.
 
         """
-        absolute_time_frame = data["absolute_time_frame"]
         read_frequency = message["read_frequency"]
         raw_data = message["raw_data"]
         nb_frames_to_get = message["nb_frames_to_get"] if message["nb_frames_to_get"] else 1
@@ -66,7 +65,8 @@ class Connection:
         if message["get_names"]:
             prepared_data["marker_names"] = data["marker_names"]
             prepared_data["emg_names"] = data["emg_names"]
-        prepared_data["absolute_time_frame"] = absolute_time_frame
+        if "absolute_time_frame" in data.keys():
+            prepared_data["absolute_time_frame"] = data["absolute_time_frame"]
         return prepared_data
 
     @staticmethod

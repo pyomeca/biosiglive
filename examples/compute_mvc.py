@@ -1,17 +1,19 @@
 """
-This file is part of biosiglive. it is used to compute the maximal voluntary contraction from EMG signals.
+This file is part of biosiglive. it is an example to see how to use biosiglive to compute the maximal voluntary
+ contraction from EMG signals.
 """
 
 from time import strftime
-from ..interfaces.vicon_interface import ViconClient
-from ..interfaces.pytrigno_interface import PytrignoClient
-from ..interfaces.client_interface import TcpClient
-from ..processing.data_processing import OfflineProcessing
-from ..gui.plot import LivePlot, Plot
+from biosiglive.interfaces.vicon_interface import ViconClient
+from biosiglive.interfaces.pytrigno_interface import PytrignoClient
+from biosiglive.interfaces.client_interface import TcpClient
+from biosiglive.processing.data_processing import OfflineProcessing
+from biosiglive.gui.plot import LivePlot, Plot
 from time import time, sleep
 import os
 import scipy.io as sio
 import numpy as np
+from typing import Union
 
 
 class ComputeMvc:
@@ -21,11 +23,11 @@ class ComputeMvc:
                  interface_port: int = 801,  # only for vicon
                  output_file: str = None,
                  muscle_names: list = None,
-                 frequency: float = 2000,
+                 emg_frequency: float = 2000,
                  acquisition_rate: float = 100,
                  mvc_windows: int = 2000,
                  test_with_connection: bool = True,
-                 range_muscle: tuple = None,
+                 range_muscle: Union[tuple, int] = None,
                  ):
         """
         Initialize the class.
@@ -65,7 +67,7 @@ class ComputeMvc:
             for i in range(range_muscle[0], range_muscle[1]):
                 self.muscle_names.append(f"Muscle_{i}")
 
-        self.frequency = frequency
+        self.frequency = emg_frequency
         self.acquisition_rate = acquisition_rate
         self.mvc_windows = mvc_windows
         self.test_with_connection = test_with_connection
@@ -446,6 +448,7 @@ class ComputeMvc:
 
         self.emg_interface = PytrignoClient(self.interface_ip)
         self.emg_interface.add_device("EMG_trigno", self.range_muscle, type="emg", rate=self.frequency)
+        # self.emg_interface.devices[-1].set
 
     def _init_vicon_emg(self):
         """
@@ -500,3 +503,24 @@ class ComputeMvc:
                                             '_MVC_tmp_mat',
                                             self.output_file, save)
         print(mvc)
+
+if __name__ == "__main__":
+    # number of EMG electrode
+    n_electrode = 2
+
+    # set file and directory to save
+    file_name = "MVC_xxxx.mat"
+    file_dir = "MVC_01_08_2021"
+    device_host = "192.168.1.211"
+    muscle_names = ["tri_long_1", "tri_long_2"]
+    # Run MVC
+    muscles_idx = (0, n_electrode - 1)
+    MVC = ComputeMvc(
+        stream_mode="server_data",
+        output_file=file_name,
+        test_with_connection=False,
+        muscle_names=muscle_names,
+    )
+    processing_method = OfflineProcessing().process_emg()
+    list_mvc = MVC.run()
+    print(list_mvc)

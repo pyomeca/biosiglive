@@ -16,7 +16,7 @@ class ViconClient:
     """
     Class for interfacing with the Vicon system.
     """
-    def __init__(self, ip: str = None, port: int = 801, init_now=True):
+    def __init__(self, ip: str = "127.0.0.1", port: int = 801, init_now=True):
         """
         Initialize the ViconClient class.
         Parameters
@@ -26,7 +26,6 @@ class ViconClient:
         port: int
             Port of the Vicon system.
         """
-        ip = ip if ip else "127.0.0.1"
         self.address = f"{ip}:{port}"
 
         self.vicon_client = None
