@@ -73,8 +73,8 @@ class ViconClient:
         device_tmp = Device(name, type, rate, system_rate)
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
-            if rate != self.vicon_client.GetFrameRate:
-                device_tmp.rate = self.vicon_client.GetFrameRate
+            if system_rate != self.vicon_client.GetFrameRate:
+                device_tmp.system_rate = self.vicon_client.GetFrameRate
         else:
             device_tmp.info = None
 

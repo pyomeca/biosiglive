@@ -256,6 +256,8 @@ class RealTimeProcessing(GenericProcessing):
                   threshold: float,
                   chanel_idx: Union[int, list] = None,
                   nb_min_frame: float = 2000,
+                  is_one = None,
+                  min_peaks_interval = 0
                   ):
         """
         Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
@@ -274,7 +276,7 @@ class RealTimeProcessing(GenericProcessing):
 
         """
         nb_peaks = []
-        is_one = False
+        # is_one = False
         if len(new_sample.shape) == 1:
             new_sample = np.expand_dims(new_sample, 0)
         sample_proc = np.copy(new_sample)
@@ -283,11 +285,16 @@ class RealTimeProcessing(GenericProcessing):
             for j in range(new_sample.shape[1]):
                 if new_sample[i, j] < threshold:
                     sample_proc[i, j] = 0
-                    is_one = False
+                    is_one[i] = False
                 elif new_sample[i, j] >= threshold:
-                    if not is_one:
-                        sample_proc[i, j] = 1
-                        is_one = True
+                    if not is_one[i]:
+                        if np.count_nonzero(new_sample == 1):
+                            pass
+                        if len(signal_proc) != 0 and np.count_nonzero(signal_proc[:, -min_peaks_interval:] == 1):
+                            pass
+                        else:
+                            sample_proc[i, j] = 1
+                            is_one[i] = True
                     else:
                         sample_proc[i, j] = 0
 
@@ -311,7 +318,7 @@ class RealTimeProcessing(GenericProcessing):
 
         if isinstance(nb_peaks, list):
             nb_peaks.append(np.count_nonzero(signal_proc[:, :] == 1))
-        return nb_peaks, signal_proc, signal
+        return nb_peaks, signal_proc, signal, is_one
 
     @staticmethod
     def custom_processing(funct, raw_data, data_proc, data_tmp, *args, **kwargs):
