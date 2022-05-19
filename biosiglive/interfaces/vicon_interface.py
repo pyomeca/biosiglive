@@ -74,7 +74,12 @@ class ViconClient:
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
             if system_rate != self.vicon_client.GetFrameRate:
+<<<<<<< Updated upstream
                 device_tmp.system_rate = self.vicon_client.GetFrameRate
+=======
+                raise RuntimeError(f"Frequency in Nexus ({self.vicon_client.GetFrameRate}) does not "
+                                   f"match the device system rate ({system_rate})")
+>>>>>>> Stashed changes
         else:
             device_tmp.info = None
 

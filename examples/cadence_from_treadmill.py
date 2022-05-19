@@ -15,7 +15,11 @@ if __name__ == '__main__':
         plot_app = LivePlot()
         plot_app.add_new_plot("cadence", "curve", ["force_z_R", "force_z_L", "force_z_R_raw", "force_z_L_raw"])
         rplt, window, app, box = plot_app.init_plot_window(plot=plot_app.plot[0], use_checkbox=True)
+<<<<<<< Updated upstream
     nb_second = 10
+=======
+    nb_second = 5
+>>>>>>> Stashed changes
     nb_min_frame = vicon_interface.devices[-1].rate * nb_second
     time_to_sleep = 1/vicon_interface.devices[-1].system_rate
     count = 0
@@ -31,6 +35,7 @@ if __name__ == '__main__':
     force_z_tmp = np.zeros((2, sample))
     is_one = [False, False]
     while True:
+<<<<<<< Updated upstream
         # data = vicon_interface.get_device_data(device_name="Treadmill")
         # force_z_tmp = data[0][[2, 8], :]
         force_z_tmp[0, :], force_z_tmp[1, :] = F_r[c:c + sample], F_l[c:c + sample]
@@ -40,14 +45,29 @@ if __name__ == '__main__':
                                                                                       signal=force_z,
                                                                                       signal_proc=force_z_process,
                                                                                       threshold=0.01,
+=======
+        # data = vicon_interface.get_device_data(device_name="Treadmill", channel_names="Fz")
+        # force_z_tmp = data[0][[2, 6], :]
+        force_z_tmp = np.random.random((2, 10))
+        cadence, force_z_process, force_z = vicon_interface.devices[0].process_method(new_sample=force_z_tmp,
+                                                                                      signal=force_z,
+                                                                                      signal_proc=force_z_process,
+                                                                                      threshold=0.0005,
+>>>>>>> Stashed changes
                                                                                       nb_min_frame=nb_min_frame,
                                                                                       is_one=is_one,
                                                                                       min_peaks_interval=50
                                                                                       )
         if show_cadence:
+<<<<<<< Updated upstream
             plot_app.update_plot_window(plot_app.plot[0], np.concatenate((force_z_process, force_z), axis=0), app, rplt, box)
 
         if count == 1000:
+=======
+            plot_app.update_plot_window(plot_app.plot[0], force_z_process, app, rplt, box)
+
+        if count == nb_min_frame / (vicon_interface.devices[-1].rate/vicon_interface.devices[-1].system_rate()):
+>>>>>>> Stashed changes
             print(f"Mean cadence for the last {nb_second} s is :{cadence}")
             count = 0
         count += 1
