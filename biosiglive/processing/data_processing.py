@@ -276,12 +276,9 @@ class RealTimeProcessing(GenericProcessing):
 
         """
         nb_peaks = []
-        # is_one = False
         if len(new_sample.shape) == 1:
             new_sample = np.expand_dims(new_sample, 0)
         sample_proc = np.copy(new_sample)
-        # if len(signal_proc) != 0:
-        #     min_peaks_interval = min_peaks_interval if min_peaks_interval else signal_proc.shape[1]
 
         for i in range(new_sample.shape[0]):
             for j in range(new_sample.shape[1]):
@@ -290,17 +287,8 @@ class RealTimeProcessing(GenericProcessing):
                     is_one[i] = False
                 elif new_sample[i, j] >= threshold:
                     if not is_one[i]:
-                        if min_peaks_interval:
-                            if len(signal_proc) == 0 and np.count_nonzero(new_sample == 1) != 0:
-                                sample_proc[i, j] = 0
-                            elif len(signal_proc) != 0 and np.count_nonzero(signal_proc[:, -min_peaks_interval:] == 1) != 0:
-                                sample_proc[i, j] = 0
-                            else:
-                                sample_proc[i, j] = 1
-                                is_one[i] = True
-                        else:
-                            sample_proc[i, j] = 1
-                            is_one[i] = True
+                        sample_proc[i, j] = 1
+                        is_one[i] = True
                     else:
                         sample_proc[i, j] = 0
 
@@ -322,9 +310,21 @@ class RealTimeProcessing(GenericProcessing):
             signal = signal[chanel_idx, :]
             signal_proc = signal_proc[chanel_idx, :]
 
+        if min_peaks_interval:
+            signal_proc = RealTimeProcessing._check_and_adjust_intervall(signal_proc, min_peaks_interval)
+
         if isinstance(nb_peaks, list):
             nb_peaks.append(np.count_nonzero(signal_proc[:, :] == 1))
         return nb_peaks, signal_proc, signal, is_one
+
+    @staticmethod
+    def _check_and_adjust_intervall(signal, interval):
+        for j in range(signal.shape[0]):
+            if np.count_nonzero(signal[j, -interval:] == 1) not in [0, 1]:
+                idx = np.where(signal[j, -interval:] == 1)[0]
+                for i in idx[1:]:
+                    signal[j, -interval:][i] = 0
+        return signal
 
     @staticmethod
     def custom_processing(funct, raw_data, data_proc, data_tmp, *args, **kwargs):

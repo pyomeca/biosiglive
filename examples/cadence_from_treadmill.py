@@ -21,11 +21,11 @@ if __name__ == '__main__':
     time_to_sleep = 1/vicon_interface.devices[-1].system_rate
     count = 0
     tic = time()
-    cadence_wanted = 40
+    cadence_wanted = 80
 
     time = np.linspace(0, np.pi*2 * cadence_wanted/2, 120000)
     amplitude = np.sin(time)
-    F_r = [i if i > 0 else 0 for i in amplitude]
+    F_r = [i if i > 0 else -i for i in amplitude]
     F_l = [-i if i < 0 else 0 for i in amplitude]
     import matplotlib.pyplot as plt
     plt.plot(F_l)
@@ -49,13 +49,12 @@ if __name__ == '__main__':
                                                                                       threshold=0.01,
                                                                                       nb_min_frame=nb_min_frame,
                                                                                       is_one=is_one,
-                                                                                      # min_peaks_interval=10
+                                                                                      min_peaks_interval=2000
                                                                                       )
         if show_cadence:
             plot_app.update_plot_window(plot_app.plot[0], np.concatenate((force_z_process, force_z), axis=0), app, rplt, box)
 
         if count == 100:
-            plot_app.update_plot_window(plot_app.plot[0], force_z_process, app, rplt, box)
             print(f"Mean cadence for the last {nb_second} s is :{cadence}")
             count = 0
         count += 1
