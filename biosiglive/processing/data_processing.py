@@ -47,7 +47,7 @@ class GenericProcessing:
         y = lfilter(b, a, data)
         return y
 
-    def _butter_lowpass_filter(self, data, lowcut, fs, order=4):
+    def butter_lowpass_filter(self, data, lowcut, fs, order=4):
         b, a = self._butter_lowpass(lowcut, fs, order=order)
         y = filtfilt(b, a, data)
         return y
@@ -150,7 +150,7 @@ class RealTimeProcessing(GenericProcessing):
             emg_proc_tmp = abs(self._butter_bandpass_filter(raw_emg, self.bpf_lcut, self.bpf_hcut, self.emg_rate))
 
             if lpf is True:
-                emg_lpf_tmp = self._butter_lowpass_filter(emg_proc_tmp, self.lpf_lcut, self.emg_rate, order=self.lp_butter_order)
+                emg_lpf_tmp = self.butter_lowpass_filter(emg_proc_tmp, self.lpf_lcut, self.emg_rate, order=self.lp_butter_order)
                 emg_lpf_tmp = emg_lpf_tmp[:, ::emg_sample]
                 emg_proc = np.append(emg_proc[:, emg_sample:], emg_lpf_tmp[:, -emg_sample:], axis=1)
 
@@ -370,7 +370,7 @@ class OfflineProcessing(GenericProcessing):
                 empty_ma = np.ndarray((data.shape[0], data.shape[1]))
                 emg_processed = self._moving_average(emg_processed, w, empty_ma)
             else:
-                emg_processed = self._butter_lowpass_filter(emg_processed, self.lpf_lcut, frequency, order=self.lp_butter_order)
+                emg_processed = self.butter_lowpass_filter(emg_processed, self.lpf_lcut, frequency, order=self.lp_butter_order)
         return emg_processed
 
     @staticmethod

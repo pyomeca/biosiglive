@@ -43,12 +43,12 @@ def read_data(filename, number_of_line=None):
             try:
                 data_tmp = pickle.load(file)
                 for key in data_tmp.keys():
-                    try:
+                    if key in data.keys():
                         if isinstance(data[key], list) is True:
                             data[key].append(data_tmp[key])
                         else:
                             data[key] = np.append(data[key], data_tmp[key], axis=len(data[key].shape) - 1)
-                    except ValueError:
+                    else:
                         if isinstance(data_tmp[key], (int, float, str, dict)) is True:
                             data[key] = [data_tmp[key]]
                         else:
