@@ -156,7 +156,12 @@ class ViconClient:
         for device in devices:
             if not device.infos:
                 device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
-            device_data = np.zeros((len(device.infos), device.sample))
+
+            if channel_names:
+                device_data = np.zeros((len(channel_names), device.sample))
+            else:
+                device_data = np.zeros((len(device.infos), device.sample))
+
             count = 0
             device_chanel_names = []
             for output_name, chanel_name, unit in device.infos:

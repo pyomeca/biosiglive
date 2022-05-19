@@ -257,7 +257,7 @@ class RealTimeProcessing(GenericProcessing):
                   chanel_idx: Union[int, list] = None,
                   nb_min_frame: float = 2000,
                   is_one = None,
-                  min_peaks_interval = 0
+                  min_peaks_interval = None
                   ):
         """
         Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
@@ -280,6 +280,8 @@ class RealTimeProcessing(GenericProcessing):
         if len(new_sample.shape) == 1:
             new_sample = np.expand_dims(new_sample, 0)
         sample_proc = np.copy(new_sample)
+        # if len(signal_proc) != 0:
+        #     min_peaks_interval = min_peaks_interval if min_peaks_interval else signal_proc.shape[1]
 
         for i in range(new_sample.shape[0]):
             for j in range(new_sample.shape[1]):
@@ -288,10 +290,14 @@ class RealTimeProcessing(GenericProcessing):
                     is_one[i] = False
                 elif new_sample[i, j] >= threshold:
                     if not is_one[i]:
-                        if np.count_nonzero(new_sample == 1):
-                            pass
-                        if len(signal_proc) != 0 and np.count_nonzero(signal_proc[:, -min_peaks_interval:] == 1):
-                            pass
+                        if min_peaks_interval:
+                            if len(signal_proc) == 0 and np.count_nonzero(new_sample == 1) != 0:
+                                sample_proc[i, j] = 0
+                            elif len(signal_proc) != 0 and np.count_nonzero(signal_proc[:, -min_peaks_interval:] == 1) != 0:
+                                sample_proc[i, j] = 0
+                            else:
+                                sample_proc[i, j] = 1
+                                is_one[i] = True
                         else:
                             sample_proc[i, j] = 1
                             is_one[i] = True
