@@ -37,6 +37,7 @@ class ViconClient:
         self.devices = []
         self.imu = []
         self.markers = []
+        self.is_frame = False
 
     def init_client(self):
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
@@ -49,12 +50,7 @@ class ViconClient:
         self.vicon_client.EnableDeviceData()
         self.vicon_client.EnableMarkerData()
         self.vicon_client.EnableUnlabeledMarkerData()
-
-        a = self.vicon_client.GetFrame()
-        while a is not True:
-            a = self.vicon_client.GetFrame()
-
-        self.acquisition_rate = self.vicon_client.GetFrameRate()
+        self.get_frame()
 
     def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100):
         """
@@ -80,9 +76,6 @@ class ViconClient:
             device_tmp.info = None
 
         self.devices.append(device_tmp)
-
-    # def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
-    #     self.imu.append(Imu(name, rate, from_emg=from_emg))
 
     def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
         """
@@ -140,7 +133,6 @@ class ViconClient:
         device_data: list
             All asked device data.
         """
-        self.get_frame()
         devices = []
         all_device_data = []
         if not isinstance(device_name, list):
@@ -195,7 +187,6 @@ class ViconClient:
         markers_data: list
             All asked markers data.
         """
-        self.get_frame()
         markers_set = []
         occluded = []
         all_markers_data = []
@@ -226,44 +217,11 @@ class ViconClient:
             all_occluded_data.append(occluded)
         return all_markers_data, all_occluded_data
 
-    # def get_imu(self, imu_names=None):  # , init=False, output_names=None, imu_names=None):
-    #     # output_names = [] if output_names is None else output_names
-    #     names = [] if imu_names is None else imu_names
-    #     if self.devices == "vicon":
-    #         imu = np.zeros((144, self.imu_sample))
-    #         # if init is True:
-    #         #     count = 0
-    #         #     for output_name, imu_name, unit in self.imu_device_info:
-    #         #         imu_tmp, occluded = self.vicon_client.GetDeviceOutputValues(
-    #         #             self.imu_device_name, output_name, imu_name
-    #         #         )
-    #         #         imu[count, :] = imu_tmp[-self.imu_sample:]
-    #         #         if np.mean(imu[count, :, -self.imu_sample:]) != 0:
-    #         #             output_names.append(output_name)
-    #         #             imu_names.append(imu_name)
-    #         #         count += 1
-    #         # else:
-    #         count = 0
-    #         for output_name, imu_name, unit in self.imu_device_info:
-    #             imu_tmp, occluded = self.vicon_client.GetDeviceOutputValues(self.imu_device_name, output_name, imu_name)
-    #             if imu_names is None:
-    #                 names.append(imu_name)
-    #             imu[count, :] = imu_tmp[-self.imu_sample :]
-    #             count += 1
-    #
-    #         imu = imu[: self.nb_electrodes * 9, :]
-    #         imu = imu.reshape(self.nb_electrodes, 9, -1)
-    #     else:
-    #         imu = self.dev_imu.read()
-    #         imu = imu.reshape(self.nb_electrodes, 9, -1)
-    #
-    #     return imu, names
-
     def get_latency(self):
         return self.vicon_client.GetLatencyTotal()
 
     def get_frame(self):
-        a = self.vicon_client.GetFrame()
-        while a is not True:
-            a = self.vicon_client.GetFrame()
+        self.is_frame = self.vicon_client.GetFrame()
+        while self.is_frame is not True:
+            self.is_frame = self.vicon_client.GetFrame()
 
