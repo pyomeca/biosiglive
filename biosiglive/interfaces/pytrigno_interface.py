@@ -10,7 +10,10 @@ class PytrignoClient:
         self.address = "127.0.0.1" if not ip else ip
         self.devices = []
         self.imu = []
+        self.markers = []
+
         self.emg_client, self.imu_client = None, None
+        self.is_frame = False
 
     def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000, real_time: bool = False):
         """
@@ -28,7 +31,7 @@ class PytrignoClient:
         real_time : bool
             If true device  will be used in real time application
         """
-        new_device = Device(name, type, rate, real_time=real_time)
+        new_device = Device(name, type, rate)
         new_device.range = range
         self.devices.append(new_device)
         if type == "emg":
@@ -90,6 +93,10 @@ class PytrignoClient:
 
     def get_force_plate_data(self):
         raise RuntimeError("It's not possible to get force plate data from pytrigno.")
+
+    def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
+        raise RuntimeError("It's not possible to get markers data from pytrigno.")
+
 
     @staticmethod
     def init_client():

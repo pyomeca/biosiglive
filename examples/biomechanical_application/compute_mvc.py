@@ -521,6 +521,5 @@ if __name__ == "__main__":
         test_with_connection=False,
         muscle_names=muscle_names,
     )
-    processing_method = OfflineProcessing().process_emg()
     list_mvc = MVC.run()
     print(list_mvc)

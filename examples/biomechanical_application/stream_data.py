@@ -50,29 +50,11 @@ class LiveData:
             server_ports=(),
             type=None,
             acquisition_rate=100,
-            emg_rate=2000,
-            imu_rate=148.1,
-            markers_rate=100,
-            emg_windows=2000,
-            markers_windows=100,
-            imu_windows=100,
             read_frequency=None,
-            recons_kalman=False,
-            model_path=None,
-            proc_emg=True,
-            proc_imu=True,
-            markers_dec=4,
-            emg_dec=10,
             timeout=None,
             buff_size=Buff_size,
             stream_from="vicon",  # 'vicon' or 'pytrigno',
             device_host_ip="127.0.0.1",  # localhost
-            muscle_range=None,
-            output_file=None,
-            output_dir=None,
-            save_data=True,
-            offline_file_path=None,
-            smooth_markers=True
     ):
 
         # problem variables
@@ -83,38 +65,37 @@ class LiveData:
         self.timeout = timeout if timeout else 10000
         self.read_frequency = read_frequency if read_frequency else acquisition_rate
         self.acquisition_rate = acquisition_rate
-        self.emg_rate = emg_rate
-        self.imu_rate = imu_rate
-        self.markers_rate = markers_rate
-        self.emg_windows = emg_windows
-        self.markers_windows = markers_windows
-        self.imu_windows = imu_windows
-        self.recons_kalman = recons_kalman
-        self.model_path = model_path
-        self.proc_emg = proc_emg
-        self.proc_imu = proc_imu
-        self.markers_dec = markers_dec
-        self.emg_dec = emg_dec
+        self.emg_rate = None
+        self.imu_rate = None
+        self.markers_rate = None
+        self.emg_windows = None
+        self.markers_windows = None
+        self.imu_windows = None
+        self.recons_kalman = None
+        self.model_path = None
+        self.proc_emg = None
+        self.proc_imu = None
+        self.markers_dec = None
+        self.emg_dec = None
         self.buff_size = buff_size
         self.save_data = save_data
         self.raw_data = False
         self.try_w_connection = True
-        self.device = device
         self.device_host_ip = device_host_ip
-        self.offline_file_path = offline_file_path
-        self.smooth_markers = smooth_markers
-        current_time = strftime("%Y%m%d-%H%M")
-        output_file = output_file if output_file else f"data_streaming_{current_time}"
+        self.offline_file_path = None
+        self.smooth_markers = None
+        # current_time = strftime("%Y%m%d-%H%M")
+        # output_file = output_file if output_file else f"data_streaming_{current_time}"
+        #
+        # output_dir = output_dir if output_dir else "live_data"
 
-        output_dir = output_dir if output_dir else "live_data"
-
-        if os.path.isdir(output_dir) is not True:
-            os.mkdir(output_dir)
-
-        if os.path.isfile(f"{output_dir}/{output_file}"):
-            os.remove(f"{output_dir}/{output_file}")
-
-        self.data_path = f"{output_dir}/{output_file}"
+        # if os.path.isdir(output_dir) is not True:
+        #     os.mkdir(output_dir)
+        #
+        # if os.path.isfile(f"{output_dir}/{output_file}"):
+        #     os.remove(f"{output_dir}/{output_file}")
+        #
+        # self.data_path = f"{output_dir}/{output_file}"
 
         # Init some variables
         self.plot_emg = ()
@@ -132,13 +113,13 @@ class LiveData:
         self.nb_of_data_to_export = 1
         self.emg_empty, self.markers_empty = (), ()
         self.nb_emg, self.nb_marks = 0, 0
-        if not muscle_range:
-            muscle_range = (0, 16)
-        self.nb_electrodes = muscle_range[1] - muscle_range[0] + 1
-        self.emg_sample = int(self.emg_rate / self.acquisition_rate)
-        self.imu_sample = int(self.imu_rate / self.acquisition_rate)
-        self.muscle_range = muscle_range if muscle_range else (0, 15)
-        self.imu_range = (self.muscle_range[0], self.muscle_range[0] + (self.nb_electrodes * 9))
+        # if not muscle_range:
+        #     muscle_range = (0, 16)
+        # self.nb_electrodes = muscle_range[1] - muscle_range[0] + 1
+        # self.emg_sample = int(self.emg_rate / self.acquisition_rate)
+        # self.imu_sample = int(self.imu_rate / self.acquisition_rate)
+        # self.muscle_range = muscle_range if muscle_range else (0, 15)
+        # self.imu_range = (self.muscle_range[0], self.muscle_range[0] + (self.nb_electrodes * 9))
         self.output_names = ()
         self.imu_output_names = ()
         self.emg_names = None
@@ -178,7 +159,7 @@ class LiveData:
 
     def add_emg_device(self,
                        electrode_idx: Union[int, tuple],
-                       names: Union[str, list] = None,
+                       device_name: Union[str, list] = None,
                        process: bool = True,
                        norm: bool = False,
                        mvc: list = None,
@@ -187,16 +168,16 @@ class LiveData:
         nb_emg = len(electrode_idx) if isinstance(electrode_idx, tuple) else 1
         if norm and not mvc:
             raise RuntimeError("Please provide mvc data to normalize emg signals or turn 'norm' to False")
-        else:
-            if not isinstance(mvc, list):
-                mvc = [mvc]
-                if len(mvc) != nb_emg:
-                    raise RuntimeError("Number of MVC data have to be the same than number of electrodes. "
-                                       f"You have {len(mvc)} and {nb_emg}.")
+        # else:
+        #     if not isinstance(mvc, list):
+        #         mvc = [mvc]
+        #         if len(mvc) != nb_emg:
+        #             raise RuntimeError("Number of MVC data have to be the same than number of electrodes. "
+        #                                f"You have {len(mvc)} and {nb_emg}.")
         self.plot_emg = live_plot
         self.mvc_list = mvc
         self.stream_emg = True
-        self.interface.add_device(name=names, range=electrode_idx, type="emg", rate=rate, real_time=True)
+        self.interface.add_device(name=device_name, range=electrode_idx, type="emg", rate=rate)
         self.interface.devices[-1].process_method = None if not process else self.interface.devices[-1].process_method
 
     def add_generic_device(self,
@@ -207,7 +188,7 @@ class LiveData:
         self.stream_generic_device = True
         self.nb_emg = len(electrode_idx) if isinstance(electrode_idx, tuple) else 1
         self.interface.add_device(name=names, range=electrode_idx, type="generic_device", rate=rate, real_time=True)
-        self.interface.devices[-1].process_method = None if not process else self.interface.devices[-1].process_method
+        self.interface.devices[-1].process_method = None if not process else RealTimeProcessing().process_emg
 
     def add_imu_device(self,
                        electrode_idx: Union[int, tuple],
@@ -217,13 +198,10 @@ class LiveData:
                        norm_max_accel_value=None,
                        norm_min_gyro_value=None,
                        norm_max_gyro_value=None,
-                       mvc: list = None,
-                       live_plot: bool = False,
-                       rate: float = 2000,
-                       compute_kin: bool = False):
+                       rate: float = 148.1):
         self.stream_imu = True
         self.nb_imu = len(electrode_idx) if isinstance(electrode_idx, tuple) else 1
-        self.interface.add_device(name=names, range=electrode_idx, type="imu", rate=rate, real_time=True)
+        self.interface.add_device(name=names, range=electrode_idx, type="imu", rate=rate)
         self.interface.devices[-1].process_method = None if not process else self.interface.devices[-1].process_method
 
     def add_force_plate_device(self):
@@ -247,11 +225,16 @@ class LiveData:
 
     def run(
             self,
-            optim=False,
-            mvc_list=None,
             test_with_connection=True,
+            save_data=True,
+            output_file_path=None,
+            offline_file_path=None,
+            show_log=False,
     ):
-        self.optim = optim
+        self.save_data = save_data
+        self.output_file_path = output_file_path
+        self.offline_file_path = offline_file_path
+        self.optim = show_log
         self.try_w_connection = test_with_connection
         if self.try_w_connection is not True:
             print("[Warning] Debug mode without connection.")
@@ -271,7 +254,7 @@ class LiveData:
                 else:
                     self.emg_exp = np.random.rand(self.nb_electrodes, int(self.emg_rate * self.offline_time))
 
-            if stream_markers:
+            if self.stream_markers:
                 if self.model_path:
                     if self.recons_kalman:
                         biomod = biorbd.Model(self.model_path)
@@ -326,6 +309,10 @@ class LiveData:
     def emg_processing(self):
         emg_tmp, emg_data = None, None
         c = 0
+        emg_process_method = None
+        for device in self.interface.devices:
+            if device.type == 'emg':
+                emg_process_method = device.get_process_method()
         while True:
             try:
                 emg_data = self.emg_queue_in.get_nowait()
@@ -343,12 +330,12 @@ class LiveData:
                 else:
                     emg_tmp = emg_data["emg_tmp"]
                 raw_emg, emg_proc = emg_data["raw_emg"], emg_data["emg_proc"]
-                raw_emg, emg_proc = RealTimeProcessing().process_emg(raw_emg,
-                                                                     emg_proc,
-                                                                     emg_tmp,
-                                                                     mvc_list=self.mvc_list,
-                                                                     norm_emg=self.norm_emg
-                                                                     )
+                raw_emg, emg_proc = emg_process_method(raw_emg,
+                                                       emg_proc,
+                                                       emg_tmp,
+                                                       mvc_list=self.mvc_list,
+                                                       norm_emg=self.norm_emg
+                                                       )
 
                 self.emg_queue_out.put({"raw_emg": raw_emg, "emg_proc": emg_proc})
                 self.event_emg.set()
@@ -356,6 +343,10 @@ class LiveData:
     def imu_processing(self):
         imu_tmp, imu_data = None, None
         d = 0
+        imu_process_method = None
+        for device in self.interface.devices:
+            if device.type == 'imu':
+                imu_process_method = device.get_process_method()
         while True:
             try:
                 imu_data = self.imu_queue_in.get_nowait()
@@ -375,11 +366,11 @@ class LiveData:
 
                 accel_tmp = imu_tmp[:, :3, :]
                 gyro_tmp = imu_tmp[:, 3:6, :]
-                if self.device == "vicon":
+                if self.stream_from == "vicon":
                     # convert rad/s into deg/s when vicon is used
                     gyro_tmp = gyro_tmp * (180 / np.pi)
 
-                if self.device == "pytrigno":
+                if self.stream_from == "pytrigno":
                     # convert data from G into m/s2 when pytrigno is used
                     accel_tmp = accel_tmp * 9.81
 
@@ -401,7 +392,7 @@ class LiveData:
                     raw_accel, accel_proc = raw_imu, imu_proc
                     raw_gyro, gyro_proc = raw_imu, imu_proc
 
-                raw_accel, accel_proc = RealTimeProcessing().process_imu(
+                raw_accel, accel_proc = imu_process_method(
                     accel_proc,
                     raw_accel,
                     accel_tmp,
@@ -413,7 +404,7 @@ class LiveData:
                     norm_max_bound=self.norm_max_accel_value,
                     squared=False,
                 )
-                raw_gyro, gyro_proc = RealTimeProcessing.process_imu(
+                raw_gyro, gyro_proc = imu_process_method(
                     gyro_proc,
                     raw_gyro,
                     gyro_tmp,
@@ -547,8 +538,6 @@ class LiveData:
         delta_tmp = 0
         self.iter = 0
         dic_to_put = {}
-        frame = False
-
         while True:
             tic = time()
             if self.iter == 0:
@@ -683,3 +672,35 @@ class LiveData:
             if 1 / duration > self.acquisition_rate:
                 sleep((1 / self.acquisition_rate) - duration)
             # delta, delta_tmp = self._loop_sleep(delta_tmp, delta, tic)
+
+
+if __name__ == '__main__':
+    server_ip = "127.0.0.1"
+    server_ports = [50000]
+    live_stream = LiveData(server_ip=server_ip,
+                           server_ports=server_ports,
+                           stream_from="vicon",
+                           device_host_ip="127.0.0.1",
+                           acquisition_rate=100)
+
+    live_stream.add_emg_device(electrode_idx=(0, 9),
+                               device_name="EMG",
+                               process=True,
+                               norm=False,
+                               live_plot=False,
+                               rate=2000)
+    emg_processing = RealTimeProcessing()
+    emg_processing.ma_win = 2000
+    live_stream.interface.devices[-1].set_process_method(emg_processing.process_emg)
+
+    live_stream.add_imu_device(electrode_idx=(0,9),
+                               names='IMU',
+                               process=True)
+
+    live_stream.add_markers(nb_markers=15,
+                            subject="subject_1",
+                            smooth_traj=False,
+                            rate=100,
+                            unlabeled=False,
+                            compute_kin=True
+                            )

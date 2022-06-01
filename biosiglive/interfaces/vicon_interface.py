@@ -52,7 +52,7 @@ class ViconClient:
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100):
+    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100, range: tuple = (0, 16)):
         """
         Add a device to the Vicon system.
         Parameters
@@ -67,6 +67,7 @@ class ViconClient:
             Rate of the system interface.
         """
         device_tmp = Device(name, type, rate, system_rate)
+        device_tmp.range = range
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
             if system_rate != self.vicon_client.GetFrameRate:
@@ -77,7 +78,7 @@ class ViconClient:
 
         self.devices.append(device_tmp)
 
-    def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
+    def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
         """
         Add markers set to stream from the Vicon system.
         Parameters
