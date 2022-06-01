@@ -1,11 +1,13 @@
 """
 This file is part of biosiglive. It is used to plot the data in live or offline mode.
 """
-
-import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui
-import pyqtgraph.widgets.RemoteGraphicsView as rgv
-from PyQt5.QtWidgets import *
+try:
+    import pyqtgraph as pg
+    from pyqtgraph.Qt import QtGui
+    import pyqtgraph.widgets.RemoteGraphicsView as rgv
+    from PyQt5.QtWidgets import *
+except ModuleNotFoundError:
+    pass
 import numpy as np
 from typing import Union
 import matplotlib.pyplot as plt
