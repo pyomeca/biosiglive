@@ -26,12 +26,12 @@ if __name__ == '__main__':
     else:
         init_now = True
 
-    show_skeleton = True
+    show_skeleton = False
     output_file_path = "trial_x"
     plot_fequency = 100
     model_path = "model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
     vicon_interface = ViconClient(init_now=init_now)
-    vicon_interface.add_markers(rate=100, unlabeled=False, subject_name="subject_1", recons_kin=True)
+    vicon_interface.add_markers(rate=100, unlabeled=False, subject_name="subject_1")
     model = biorbd.Model(model_path)
 
     if show_skeleton:

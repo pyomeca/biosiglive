@@ -211,8 +211,10 @@ class ViconClient:
             count = 0
             for m, marker_name in enumerate(markers.markers_names):
                 markers_data_tmp, occluded_tmp = self.vicon_client.GetMarkerGlobalTranslation(
-                    markers.subject_name, marker_name
+                    markers.subject_name, marker_name[0]
                 )
+                markers_data_tmp = np.array(markers_data_tmp)[:, np.newaxis]
+
                 if marker_names:
                     if marker_name in marker_names:
                         markers_data[:, count, :] = markers_data_tmp
