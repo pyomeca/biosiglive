@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 import numpy as np
 
 
-def kalman_func(markers, model, return_q_dot=True, kalman=None):
+def kalman_func(markers, model, return_q_dot=True, kalman=None, return_kalman=True):
     """
     Function to apply the Kalman filter to the markers.
     Parameters
@@ -48,9 +48,15 @@ def kalman_func(markers, model, return_q_dot=True, kalman=None):
 
     # compute markers from
     if return_q_dot:
-        return q_recons, q_dot_recons, kalman
+        if return_kalman:
+            return q_recons, q_dot_recons, kalman
+        else:
+            return q_recons, q_dot_recons
     else:
-        return q_recons, kalman
+        if return_kalman:
+            return q_recons, kalman
+        else:
+            return q_recons
 
 
 # def markers_fun(biorbd_model, q=None, eigen_backend=False):
