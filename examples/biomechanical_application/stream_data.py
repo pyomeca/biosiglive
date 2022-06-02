@@ -213,11 +213,13 @@ class LiveData:
                     smooth_traj: bool = None,
                     rate: float = 100,
                     unlabeled: bool = False,
-                    compute_kin: bool = False):
+                    compute_kin: bool = False,
+                    msk_model: str = None):
         self.stream_markers = True
         self.nb_marks = nb_markers
         self.smooth_markers = smooth_traj
         self.recons_kalman = compute_kin
+        self.model_path = msk_model
         if self.stream_from == "pytrigno":
             raise RuntimeError("Impossible to stream markers data from pytrigno.")
         else:
@@ -517,8 +519,6 @@ class LiveData:
 
     def save_streamed_data(self):
 
-        emg_dec = self.emg_dec
-        markers_dec = self.markers_dec
         raw_emg = []
         raw_imu = []
         imu_proc = []
@@ -533,7 +533,7 @@ class LiveData:
             self.interface.init_client()
         self.nb_marks = len(self.marker_names)
         if self.plot_emg:
-            rplt, win_emg, app, box = self.init_live_plot(multi=True, names=None)
+            rplt, win_emg, app, box = self.init_live_plot()
         delta = 0
         delta_tmp = 0
         self.iter = 0
@@ -576,7 +576,6 @@ class LiveData:
                         elif device.type == "generic_device":
                             generic_device_tmp, _ = all_device_data[i]
 
-                if self.stream_markers:
                     all_markers_tmp, all_occluded = self.interface.get_markers_data()
                     markers_tmp = all_markers_tmp[0]
                     occluded = all_occluded[0]
@@ -595,15 +594,15 @@ class LiveData:
                     self.event_emg.clear()
                     raw_emg, emg_proc = emg_data["raw_emg"], emg_data["emg_proc"]
                     dic_to_put["emg_names"] = emg_names
-                    dic_to_put["raw_emg"] = np.around(raw_emg, decimals=emg_dec)
-                    dic_to_put["emg_proc"] = np.around(emg_proc, decimals=emg_dec)
+                    dic_to_put["raw_emg"] = np.around(raw_emg, decimals=self.emg_dec)
+                    dic_to_put["emg_proc"] = np.around(emg_proc, decimals=self.emg_dec)
 
                 if self.stream_markers:
                     self.event_kin.wait()
                     kin = self.kin_queue_out.get_nowait()
                     self.event_kin.clear()
                     states, markers = kin["states"], kin["markers"]
-                    dic_to_put["markers"] = np.around(markers, decimals=markers_dec)
+                    dic_to_put["markers"] = np.around(markers, decimals=self.markers_dec)
                     dic_to_put["kalman"] = states
                     dic_to_put["marker_names"] = self.marker_names
 
@@ -618,7 +617,7 @@ class LiveData:
 
             dic_to_put["acquisition_rate"] = self.acquisition_rate
             dic_to_put["absolute_time_frame"] = absolute_time_frame_dic
-            if self.device == "vicon":
+            if self.stream_from == "vicon":
                 dic_to_put["vicon_latency"] = vicon_latency_total
             process_time = time() - tic  # time to process all data + time to get data
             for i in range(len(self.server_ports)):
@@ -666,7 +665,7 @@ class LiveData:
                         data_to_save["gyro_proc"] = imu_proc[self.nb_electrodes:, -1:]
                         data_to_save["raw_gyro"] = raw_imu[:, 3:6, -self.imu_sample:]
 
-                save_data.add_data_to_pickle(data_to_save, self.data_path)
+                save_data.add_data_to_pickle(data_to_save, self.output_file_path)
 
             duration = time() - tic
             if 1 / duration > self.acquisition_rate:
@@ -693,7 +692,7 @@ if __name__ == '__main__':
     emg_processing.ma_win = 2000
     live_stream.interface.devices[-1].set_process_method(emg_processing.process_emg)
 
-    live_stream.add_imu_device(electrode_idx=(0,9),
+    live_stream.add_imu_device(electrode_idx=(0, 9),
                                names='IMU',
                                process=True)
 

@@ -38,6 +38,7 @@ class ViconClient:
         self.imu = []
         self.markers = []
         self.is_frame = False
+        self.kalman = None
 
     def init_client(self):
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
@@ -78,7 +79,11 @@ class ViconClient:
 
         self.devices.append(device_tmp)
 
-    def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
+    def add_markers(self, name: str = None,
+                    rate: float = 100,
+                    unlabeled: bool = False,
+                    subject_name: str = None,
+                    ):
         """
         Add markers set to stream from the Vicon system.
         Parameters
@@ -91,6 +96,8 @@ class ViconClient:
             Whether the markers set is unlabeled.
         subject_name: str
             Name of the subject. If None, the subject will be the first one in Nexus.
+        recons_kin: bool
+            Whether to reconstruct the joint kinematics.
         """
         markers_tmp = MarkerSet(name, rate, unlabeled)
         if self.vicon_client:
@@ -225,4 +232,38 @@ class ViconClient:
         self.is_frame = self.vicon_client.GetFrame()
         while self.is_frame is not True:
             self.is_frame = self.vicon_client.GetFrame()
+
+    def get_kinematics_from_markers(self, markers, model, method="kalman", return_qdot = False, custom_func = None, *args):
+        """
+        Get the kinematics from markers.
+        Parameters
+        ----------
+        markers: list
+            List of markers.
+        model: biorbd.Model
+            Model of the kinematics.
+        kalman_filter: KalmanFilter
+            Kalman filter.
+        show_now: bool
+         if True show the kinematics
+        Returns
+        -------
+        kinematics: list
+            List of kinematics.
+        """
+        if method == 'kalman':
+            q, q_dot, self.kalman = kalman_func(markers, model, return_q_dot=True, kalman=self.kalman)
+            if return_qdot:
+                return q, q_dot
+            else:
+                return q
+        if method == 'custom':
+            q, q_dot = custom_func(markers, model, *args)
+            if return_qdot:
+                return q, q_dot
+            else:
+                return q
+        else:
+            raise RuntimeError(f'Method f{method} not implemented')
+
 

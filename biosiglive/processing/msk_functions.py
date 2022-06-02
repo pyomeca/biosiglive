@@ -39,8 +39,8 @@ def kalman_func(markers, model, return_q_dot=True, kalman=None):
     for i in range(markers.shape[2]):
         markers_over_frames.append([biorbd.NodeSegment(m) for m in markers[:, :, i].T])
 
-    q_recons = np.ndarray((model.nbQ(), len(markers_over_frames)))
-    q_dot_recons = np.ndarray((model.nbQ(), len(markers_over_frames)))
+    q_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
+    q_dot_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
     for i, targetMarkers in enumerate(markers_over_frames):
         kalman.reconstructFrame(model, targetMarkers, q, q_dot, qd_dot)
         q_recons[:, i] = q.to_array()
@@ -48,9 +48,9 @@ def kalman_func(markers, model, return_q_dot=True, kalman=None):
 
     # compute markers from
     if return_q_dot:
-        return q_recons, q_dot_recons
+        return q_recons, q_dot_recons, kalman
     else:
-        return q_recons
+        return q_recons, kalman
 
 
 # def markers_fun(biorbd_model, q=None, eigen_backend=False):

@@ -3,6 +3,7 @@ This file is part of biosiglive. It contains the Parameter class and introduce t
 """
 from math import ceil
 from ..processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
+from ..processing.msk_functions import kalman_func
 
 
 class Type:
@@ -83,7 +84,7 @@ class MarkerSet(Type):
     """
     This class is used to store the available markers.
     """
-    def __init__(self, name: str = None, rate: float = None, unlabeled: bool = False):
+    def __init__(self, name: str = None, rate: float = None, unlabeled: bool = False, recons_kin: bool = False):
         type = "unlabeled" if unlabeled else "labeled"
         super().__init__(name, type, rate)
         self.markers_names = name

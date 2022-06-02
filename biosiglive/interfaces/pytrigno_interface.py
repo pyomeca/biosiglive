@@ -97,7 +97,6 @@ class PytrignoClient:
     def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
         raise RuntimeError("It's not possible to get markers data from pytrigno.")
 
-
     @staticmethod
     def init_client():
         pass

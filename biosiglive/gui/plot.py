@@ -8,6 +8,10 @@ try:
     from PyQt5.QtWidgets import *
 except ModuleNotFoundError:
     pass
+try:
+    import bioviz
+except ModuleNotFoundError:
+    pass
 import numpy as np
 from typing import Union
 import matplotlib.pyplot as plt
@@ -88,6 +92,7 @@ class LivePlot:
         self.move = (0, 0)
         self.progress_bar_max = 1000
         self.type = "curve"
+        self.msk_model = None
 
     def add_new_plot(self, plot_name: str = "qt_app", plot_type="curve", channel_names: Union[str, list] = None):
         """
@@ -141,10 +146,14 @@ class LivePlot:
         elif plot.type == "progress_bar":
             rplt, layout, app = LivePlot._init_progress_bar(plot.figure_name, plot.channel_names)
             return rplt, layout, app
+
+        if plot.type == "skeleton":
+            plot.viz = self._init_skeleton(self.msk_model)
+
         else:
             raise ValueError(f"The plot type ({plot.type}) is not supported.")
 
-    def update_plot_window(self, plot, data: np.ndarray, app, rplt, box):
+    def update_plot_window(self, plot, data: np.ndarray, app=None, rplt=None, box=None):
         """
         This function is used to update the qt app.
         Parameters
@@ -165,6 +174,8 @@ class LivePlot:
             self._update_progress_bar(data, app, rplt, box)
         elif plot.type == "curve":
             self._update_curve(data, app, rplt, box)
+        elif plot.type == "skeleton":
+            self._update_skeleton(data, plot.viz)
         else:
             raise ValueError(f"The plot type ({plot.type}) is not supported.")
 
@@ -329,6 +340,49 @@ class LivePlot:
             name = subplot_label[i] if subplot_label else f"plot_{i}"
             rplt[i].setFormat(f"{name}: {int(value)} {unit}")
         app.processEvents()
+
+    @staticmethod
+    def _update_skeleton(data: np.ndarray, viz):
+        viz.set_q(data, refresh_window=True)
+
+    def _init_skeleton(self, model_path: str):
+        if not self.skeleton_plot_initialized:
+            self.set_skeleton_plot_options()
+        plot = bioviz.Viz(
+            model_path=model_path,
+            show_global_center_of_mass=self.show_global_center_of_mass,
+            show_markers=self.show_markers,
+            show_floor=self.show_floor,
+            show_gravity_vector=self.show_gravity_vector,
+            show_muscles=self.show_muscles,
+            show_segments_center_of_mass=self.show_segments_center_of_mass,
+            show_local_ref_frame=self.show_local_ref_frame,
+            show_global_ref_frame=self.show_global_ref_frame,
+        )
+        return plot
+
+    def set_skeleton_plot_options(self,
+                                  show_global_center_of_mass=False,
+                                  show_markers=True,
+                                  show_floor=False,
+                                  show_gravity_vector=False,
+                                  show_muscles=False,
+                                  show_segments_center_of_mass=False,
+                                  show_local_ref_frame=False,
+                                  show_global_ref_frame=False
+                                  ):
+
+        self.show_global_center_of_mass = show_global_center_of_mass
+        self.show_markers = show_markers
+        self.show_floor = show_floor
+        self.show_gravity_vector = show_gravity_vector
+        self.show_muscles = show_muscles
+        self.show_segments_center_of_mass = show_segments_center_of_mass
+        self.show_local_ref_frame = show_local_ref_frame
+        self.show_global_ref_frame = show_global_ref_frame
+        self.skeleton_plot_initialized = True
+
+
 
     @staticmethod
     def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
