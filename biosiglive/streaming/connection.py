@@ -215,7 +215,7 @@ class Server(Connection):
         except ConnectionError:
             raise RuntimeError("Unknown error. Server is not listening.")
 
-    def client_listening(self, data: dict):
+    def client_listening(self):
         """
         Listen to the client.
 
@@ -225,12 +225,9 @@ class Server(Connection):
             Data to send to the client function of message
         """
         connection, ad = self.server.accept()
-        message = json.loads(connection.recv(self.buff_size))
-        data_to_send = self._prepare_data(message, data)
-        self._send_data(data_to_send, connection)
+        return connection, json.loads(connection.recv(self.buff_size))
 
-    @staticmethod
-    def _send_data(data, connection):
+    def send_data(self, data, connection, message):
         """
         Send the data to the client.
 
@@ -241,9 +238,10 @@ class Server(Connection):
         connection : socket.socket
             The connection to send the data to.
         """
+        data_to_send = self._prepare_data(message, data)
         # if self.optim is not True:
         #     print("Sending data to client...")
-        encoded_data = json.dumps(data).encode()
+        encoded_data = json.dumps(data_to_send).encode()
         encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)
