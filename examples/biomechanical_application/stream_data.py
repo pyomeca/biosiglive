@@ -242,8 +242,8 @@ class LiveData:
 
     def open_server(self):
         server = Server(self.server_ip, self.server_ports[self.count_server], type=self.type)
-        connection, message = server.client_listening()
         server.start()
+        connection, message = server.client_listening()
         data_queue = []
         while len(data_queue) == 0:
             try:
