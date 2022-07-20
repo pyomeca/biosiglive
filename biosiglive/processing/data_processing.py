@@ -59,6 +59,14 @@ class GenericProcessing:
         return empty_ma
 
     @staticmethod
+    def center(emg_data, center_value=None):
+        center_value = center_value if center_value else emg_data.mean(axis=1)
+        emg_centered = np.copy(emg_data)
+        for i in range(emg_data.shape[0]):
+            emg_centered[i, :] = emg_data[i, :] - center_value[i]
+        return emg_centered
+
+    @staticmethod
     def normalize_emg(emg_data: np.ndarray, mvc_list: list):
         """
         Normalize EMG data.
@@ -147,7 +155,13 @@ class RealTimeProcessing(GenericProcessing):
 
         else:
             raw_emg = np.append(raw_emg[:, -self.emg_win + emg_sample:], emg_tmp, axis=1)
-            emg_proc_tmp = abs(self._butter_bandpass_filter(raw_emg, self.bpf_lcut, self.bpf_hcut, self.emg_rate))
+            emg_proc_tmp = abs(self.center(self._butter_bandpass_filter(raw_emg,
+                                                                        self.bpf_lcut,
+                                                                        self.bpf_hcut,
+                                                                        self.emg_rate
+                                                                        )
+                                           )
+                               )
 
             if lpf is True:
                 emg_lpf_tmp = self.butter_lowpass_filter(emg_proc_tmp, self.lpf_lcut, self.emg_rate, order=self.lp_butter_order)
@@ -370,7 +384,7 @@ class OfflineProcessing(GenericProcessing):
             emg_processed = emg_processed.values
 
         else:
-            emg_processed = abs(self._butter_bandpass_filter(data, self.bpf_lcut, self.bpf_hcut, frequency))
+            emg_processed = abs(self.center(self._butter_bandpass_filter(data, self.bpf_lcut, self.bpf_hcut, frequency)))
             if ma is True:
                 w = np.repeat(1, self.ma_win) / self.ma_win
                 empty_ma = np.ndarray((data.shape[0], data.shape[1]))
