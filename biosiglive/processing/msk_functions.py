@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 import numpy as np
 
 
-def kalman_func(markers, model, return_q_dot=True, kalman=None, return_kalman=True):
+def kalman_func(markers, model, return_q_dot=True, kalman=None, return_kalman=False):
     """
     Function to apply the Kalman filter to the markers.
     Parameters

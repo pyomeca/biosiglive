@@ -51,22 +51,26 @@ class Connection:
             The data prepared to be sent.
 
         """
+        prepared_data = data
         read_frequency = message["read_frequency"]
         raw_data = message["raw_data"]
+        ratio = message["ratio"]
         nb_frames_to_get = message["nb_frames_to_get"] if message["nb_frames_to_get"] else 1
 
         if self.acquisition_rate < read_frequency:
             raise RuntimeError(f"Acquisition rate ({self.acquisition_rate}) is lower than read "
                                f"frequency ({read_frequency}).")
-        else:
-            ratio = int(self.acquisition_rate / read_frequency)
         data_to_prepare = self.__data_to_prepare(message, data)
-        prepared_data = self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
+        prepared_data_tmp = self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
+        for key in prepared_data.keys():
+            if key in prepared_data_tmp:
+                if isinstance(prepared_data_tmp[key], np.ndarray):
+                    prepared_data[key] = prepared_data_tmp[key].to_list()
+                else:
+                    prepared_data[key] = prepared_data_tmp[key]
         if message["get_names"]:
             prepared_data["marker_names"] = data["marker_names"]
             prepared_data["emg_names"] = data["emg_names"]
-        if "absolute_time_frame" in data.keys():
-            prepared_data["absolute_time_frame"] = data["absolute_time_frame"]
         return prepared_data
 
     @staticmethod
@@ -95,7 +99,7 @@ class Connection:
                         raw_emg = data["raw_emg"]
                         data_to_prepare["raw_emg"] = raw_emg
                     emg = data["emg_proc"]
-                    if message["norm_emg"]:
+                    if message["mvc_list"]:
                         if isinstance(message["mvc_list"], np.ndarray) is True:
                             if len(message["mvc_list"].shape) == 1:
                                 quot = message["mvc_list"].reshape(-1, 1)
@@ -105,18 +109,19 @@ class Connection:
                             quot = np.array(message["mvc_list"]).reshape(-1, 1)
                     else:
                         quot = [1]
-                    data_to_prepare["emg"] = emg / quot
+                    data_to_prepare["emg_proc"] = emg / quot
+                    data_to_prepare["emg_sample"] = data["emg_sample"]
 
                 elif i == "markers":
                     markers = data["markers"]
                     data_to_prepare["markers"] = markers
-
                 elif i == "imu":
                     if message["raw_data"]:
                         raw_imu = data["raw_imu"]
                         data_to_prepare["raw_imu"] = raw_imu
                     imu = data["imu_proc"]
                     data_to_prepare["imu"] = imu
+                    data_to_prepare["imu_sample"] = data["imu_sample"]
 
                 elif i == "force plate":
                     raise RuntimeError("force plate not implemented yet.")
@@ -126,6 +131,8 @@ class Connection:
                     )
         else:
             raise RuntimeError(f"No command received.")
+        if message["kalman"]:
+            data_to_prepare["kalman"] = data["kalman"]
 
         return data_to_prepare
 
@@ -156,15 +163,17 @@ class Connection:
                 if len(data[key].shape) == 2:
                     if key != "raw_emg":
                         data[key] = data[key][:, ::ratio]
+                        data[key] = data[key][:, -nb_frames_to_get:].tolist()
                     if raw_data and key == "raw_emg":
-                        nb_frames_to_get = data["emg_sample"] * nb_frames_to_get
-                    data[key] = data[key][:, -nb_frames_to_get:].tolist()
+                        nb_frames_raw_data = data["emg_sample"] * nb_frames_to_get
+                        data[key] = data[key][:, -nb_frames_raw_data:].tolist()
                 elif len(data[key].shape) == 3:
                     if key != "raw_imu":
                         data[key] = data[key][:, :, ::ratio]
+                        data[key] = data[key][:, :, -nb_frames_to_get:].tolist()
                     if raw_data and key == "raw_imu":
-                        nb_frames_to_get = data["imu_sample"] * nb_frames_to_get
-                    data[key] = data[key][:, :, -nb_frames_to_get:].tolist()
+                        nb_frames_raw_data = data["imu_sample"] * nb_frames_to_get
+                        data[key] = data[key][:, :, -nb_frames_raw_data:].tolist()
         return data
 
 

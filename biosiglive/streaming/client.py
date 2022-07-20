@@ -18,13 +18,13 @@ class Message:
                  get_names: bool = None,
                  mvc_list: list = None,
                  kalman: bool = None,
-                 get_raw_data: bool = False):
+                 get_raw_data: bool = False,
+                 **kwargs):
         """
         Message class
         """
 
         self.command = command
-        self.read_frequency = 100
         self.emg_windows = 2000
         self.get_names = False
         self.nb_frames_to_get = 1
@@ -34,6 +34,8 @@ class Message:
         self.read_frequency = read_frequency
         self.nb_frames_to_get = nb_frame_to_get
         self.raw_data = get_raw_data
+        for key in kwargs.keys():
+            self.__setattr__(key, kwargs[key])
 
     def update_command(self, name: Union[str, list], value: Union[bool, int, float, list, str]):
         """
@@ -106,7 +108,6 @@ class Client:
         self.address = f"{server_ip}:{port}"
         self.server_address = server_ip
         self.port = port
-        self.message = Message()
         self.client = self.client_sock(self.type)
 
     def _connect(self):

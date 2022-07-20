@@ -98,7 +98,7 @@ class RealTimeProcessing(GenericProcessing):
         Initialize the class for real time processing.
         """
         self.emg_rate = 2000
-        self.emg_win = 200
+        self.emg_win = 2000
         self.ma_win = 200
         super().__init__()
 

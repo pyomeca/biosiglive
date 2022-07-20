@@ -144,7 +144,7 @@ class LiveData:
                        mvc: list = None,
                        live_plot: bool = False,
                        rate: float = 2000):
-        nb_emg = len(electrode_idx) if isinstance(electrode_idx, tuple) else 1
+        self.nb_electrodes = len(electrode_idx) if isinstance(electrode_idx, tuple) else 1
         if norm and not mvc:
             raise RuntimeError("Please provide mvc data to normalize emg signals or turn 'norm' to False")
         self.plot_emg = live_plot
@@ -461,6 +461,7 @@ class LiveData:
                     save_data.add_data_to_pickle(data_to_save, self.output_file_path)
                 self.iter += 1
 
+
 if __name__ == '__main__':
     server_ip = "192.168.1.211"
     server_ports = [50000]
@@ -485,7 +486,7 @@ if __name__ == '__main__':
                             rate=200,
                             unlabeled=False,
                             compute_kin=True,
-                            msk_model="model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
+                            msk_model="data_final/subject_1/model_subject_1_scaled.bioMod"
                             )
 
-    live_stream.run(show_log=True, output_file_path="data_test")
+    live_stream.run(test_with_connection=False, show_log=True, output_file_path="data_test")
