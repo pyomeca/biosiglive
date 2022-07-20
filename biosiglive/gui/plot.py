@@ -8,10 +8,6 @@ try:
     from PyQt5.QtWidgets import *
 except ModuleNotFoundError:
     pass
-# try:
-#     import bioviz
-# except ModuleNotFoundError:
-#     pass
 import numpy as np
 from typing import Union
 import matplotlib.pyplot as plt
@@ -165,7 +161,6 @@ class LivePlot:
             return rplt, layout, app
 
         if plot.type == "skeleton":
-            import bioviz
             plot.viz = self._init_skeleton(self.msk_model)
 
         else:
