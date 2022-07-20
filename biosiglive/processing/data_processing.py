@@ -295,16 +295,16 @@ class RealTimeProcessing(GenericProcessing):
         if len(signal) == 0:
             signal = new_sample
             signal_proc = sample_proc
-            nb_peaks = np.zeros((1, 1))
+            nb_peaks = None
 
         elif signal.shape[1] < nb_min_frame:
             signal = np.append(signal, new_sample, axis=1)
             signal_proc = np.append(signal_proc, sample_proc, axis=1)
-            nb_peaks = np.zeros((1, 1))
+            nb_peaks = None
 
         else:
-            signal = np.append(signal[:, -nb_min_frame + new_sample.shape[1]:], new_sample, axis=1)
-            signal_proc = np.append(signal_proc[:, -nb_min_frame + new_sample.shape[1]:], sample_proc, axis=1)
+            signal = np.append(signal[:, new_sample.shape[1]:], new_sample, axis=1)
+            signal_proc = np.append(signal_proc[:, new_sample.shape[1]:], sample_proc, axis=1)
 
         if chanel_idx:
             signal = signal[chanel_idx, :]
@@ -314,7 +314,7 @@ class RealTimeProcessing(GenericProcessing):
             signal_proc = RealTimeProcessing._check_and_adjust_intervall(signal_proc, min_peaks_interval)
 
         if isinstance(nb_peaks, list):
-            nb_peaks.append(np.count_nonzero(signal_proc[:, :] == 1))
+            nb_peaks.append(np.count_nonzero(signal_proc))
         return nb_peaks, signal_proc, signal, is_one
 
     @staticmethod

@@ -8,10 +8,10 @@ try:
     from PyQt5.QtWidgets import *
 except ModuleNotFoundError:
     pass
-try:
-    import bioviz
-except ModuleNotFoundError:
-    pass
+# try:
+#     import bioviz
+# except ModuleNotFoundError:
+#     pass
 import numpy as np
 from typing import Union
 import matplotlib.pyplot as plt
@@ -72,6 +72,8 @@ class Plot:
         # plt.tight_layout()
         plt.show()
 
+# TODO : create a class for the plot object
+
 
 class LivePlot:
     """
@@ -94,7 +96,11 @@ class LivePlot:
         self.type = "curve"
         self.msk_model = None
 
-    def add_new_plot(self, plot_name: str = "qt_app", plot_type="curve", channel_names: Union[str, list] = None):
+    def add_new_plot(self, plot_name: str = "qt_app",
+                     plot_type="curve",
+                     channel_names: Union[str, list] = None,
+                     nb_subplot: int = None,
+                     unit: str = ""):
         """
         This function is used to add a new plot.
         Parameters
@@ -106,11 +112,20 @@ class LivePlot:
         channel_names: str or list
             The name of the channels.
         """
+        if not nb_subplot and not channel_names and plot_type != "skeleton":
+            raise RuntimeError("you must defined a number of subplot or a list of a chanel names")
+
+        if nb_subplot and channel_names:
+            if nb_subplot != len(channel_names):
+                raise RuntimeError(f"You have defined a number of subplot ({nb_subplot} different"
+                                   f" than the length of the chanel names {len(channel_names)}.")
 
         plot = LivePlot()
         plot.type = plot_type
         plot.channel_names = channel_names
         plot.figure_name = plot_name
+        plot.nb_subplot = nb_subplot
+        plot.unit = unit
         self.plot.append(plot)
 
     def init_plot_window(self, plot, use_checkbox: bool = True, remote: bool = True):
@@ -139,15 +154,18 @@ class LivePlot:
         if plot.type == "curve":
             rplt, layout, app, box = self._init_curve(plot.figure_name,
                                                       plot.channel_names,
-                                                      len(plot.channel_names),
+                                                      plot.nb_subplot,
                                                       checkbox=use_checkbox,
                                                       remote=remote)
             return rplt, layout, app, box
         elif plot.type == "progress_bar":
-            rplt, layout, app = LivePlot._init_progress_bar(plot.figure_name, plot.channel_names)
+            rplt, layout, app = self._init_progress_bar(plot.figure_name,
+                                                        plot.nb_subplot,
+                                                        )
             return rplt, layout, app
 
         if plot.type == "skeleton":
+            import bioviz
             plot.viz = self._init_skeleton(self.msk_model)
 
         else:
@@ -171,7 +189,7 @@ class LivePlot:
         """
 
         if plot.type == "progress_bar":
-            self._update_progress_bar(data, app, rplt, box)
+            self._update_progress_bar(data, app, rplt, plot.channel_names, plot.unit)
         elif plot.type == "curve":
             self._update_curve(data, app, rplt, box)
         elif plot.type == "skeleton":
@@ -334,6 +352,11 @@ class LivePlot:
         unit: str
             The unit of the data to plot.
         """
+
+        if subplot_label and len(subplot_label) != data.shape[0]:
+            raise RuntimeError(f"The length of Subplot labels ({len(subplot_label)}) is different than"
+                               f" the first dimension of your data ({data.shape[0]}).")
+
         for i in range(data.shape[0]):
             value = np.mean(data[i, :])
             rplt[i].setValue(int(value))
@@ -346,6 +369,7 @@ class LivePlot:
         viz.set_q(data, refresh_window=True)
 
     def _init_skeleton(self, model_path: str):
+        import bioviz
         if not self.skeleton_plot_initialized:
             self.set_skeleton_plot_options()
         plot = bioviz.Viz(

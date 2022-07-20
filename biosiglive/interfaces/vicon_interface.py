@@ -71,9 +71,9 @@ class ViconClient:
         device_tmp.range = range
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
-            if system_rate != self.vicon_client.GetFrameRate:
-                raise RuntimeError(f"Frequency in Nexus ({self.vicon_client.GetFrameRate}) does not "
-                                   f"match the device system rate ({system_rate})")
+            # if system_rate != self.vicon_client.GetFrameRate():
+            #     raise RuntimeError(f"Frequency in Nexus ({self.vicon_client.GetFrameRate}) does not "
+            #                        f"match the device system rate ({system_rate})")
         else:
             device_tmp.info = None
 
@@ -146,7 +146,7 @@ class ViconClient:
         if not isinstance(device_name, list):
             device_name = [device_name]
 
-        if device_name != "all":
+        if device_name != ["all"]:
             for d, device in enumerate(self.devices):
                 if device.name == device_name[d]:
                     devices.append(device)
@@ -203,7 +203,16 @@ class ViconClient:
             for s, marker_set in enumerate(self.markers):
                 if marker_set.subject_name == subject_name[s]:
                     markers_set.append(marker_set)
+                    marker_names_tmp = self.vicon_client.GetMarkerNames(marker_set.subject_name)
+                    markers_set[-1].markers_names = []
+                    for i in range(len(marker_names_tmp)):
+                        markers_set[-1].markers_names.append(marker_names_tmp[i][0])
         else:
+            for i in range(len(self.markers)):
+                marker_names_tmp = self.vicon_client.GetMarkerNames(self.markers[i].subject_name)
+                self.markers[i].markers_names = []
+                for j in range(len(marker_names_tmp)):
+                    self.markers[i].markers_names.append(marker_names_tmp[j][0])
             markers_set = self.markers
 
         for markers in markers_set:
@@ -211,16 +220,14 @@ class ViconClient:
             count = 0
             for m, marker_name in enumerate(markers.markers_names):
                 markers_data_tmp, occluded_tmp = self.vicon_client.GetMarkerGlobalTranslation(
-                    markers.subject_name, marker_name[0]
+                    markers.subject_name, marker_name
                 )
-                markers_data_tmp = np.array(markers_data_tmp)[:, np.newaxis]
-
                 if marker_names:
                     if marker_name in marker_names:
                         markers_data[:, count, :] = markers_data_tmp
                         occluded.append(occluded_tmp)
                 else:
-                    markers_data[:, count, :] = markers_data_tmp
+                    markers_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis] * 0.001
                     occluded.append(occluded_tmp)
                 count += 1
             all_markers_data.append(markers_data)
@@ -234,6 +241,9 @@ class ViconClient:
         self.is_frame = self.vicon_client.GetFrame()
         while self.is_frame is not True:
             self.is_frame = self.vicon_client.GetFrame()
+
+    def get_frame_number(self):
+        return self.vicon_client.GetFrameNumber()
 
     def get_kinematics_from_markers(self, markers, model, method="kalman", return_qdot = False, custom_func = None, *args):
         """
@@ -267,5 +277,4 @@ class ViconClient:
                 return q
         else:
             raise RuntimeError(f'Method f{method} not implemented')
-
 

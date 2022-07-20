@@ -23,7 +23,6 @@ class Message:
         Message class
         """
 
-        self.command = []
         self.command = command
         self.read_frequency = 100
         self.emg_windows = 2000
@@ -134,7 +133,7 @@ class Client:
         else:
             raise RuntimeError(f"Invalid type of connexion ({type}). Type must be 'TCP' or 'UDP'.")
 
-    def recv_all(self, buff_size: int = Buff_size):
+    def _recv_all(self, buff_size: int = Buff_size):
         """
         Receive all data from the server.
         Parameters
@@ -178,5 +177,5 @@ class Client:
 
         self._connect()
         self.client.sendall(json.dumps(message.__dict__).encode())
-        return self.recv_all(buff)
+        return self._recv_all(buff)
 

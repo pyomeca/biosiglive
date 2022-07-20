@@ -4,7 +4,7 @@ This file is part of biosiglive. It contains a wrapper to use a client more easi
 
 import numpy as np
 from .param import Device, MarkerSet
-from ..streaming.client import Client
+from ..streaming.client import Client, Message
 from typing import Union
 try:
     from vicon_dssdk import ViconDataStream as VDS
@@ -12,7 +12,7 @@ except ModuleNotFoundError:
     pass
 
 
-class TcpClient(Client):
+class TcpClient():
     """
     Class for interfacing with the client.
     """
@@ -37,11 +37,12 @@ class TcpClient(Client):
         self.markers = []
         self.data_to_stream = []
         self.read_frequency = read_frequency
-        super().__init__(ip, port, type)
-        self.init_command(data=[], read_frequency=self.read_frequency, emg_wind=2000, nb_frames_to_get=1,
-                                 get_kalman=False, get_names=False, mvc_list=None, norm_emg=False, raw=True)
+        self.ip = ip
+        self.port = port
+        self.message = Message(read_frequency=read_frequency)
+        self.client = Client(server_ip=ip, port=port, type=type)
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000):
+    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100):
         """
         Add a device to the client.
         Parameters
@@ -52,12 +53,19 @@ class TcpClient(Client):
             Type of the device. (emg, imu, etc.)
         rate: float
             Frequency of the device.
+        system_rate: float
+            Acquisition frequency.
         """
-        device_tmp = Device(name, type, rate)
+        device_tmp = Device(name, type, rate, system_rate)
         self.devices.append(device_tmp)
+        # self.message.add_command(name="command", value=type)
+        self.message.command.append(type)
 
-    # def add_imu(self, name: str, rate: int = 148.1, from_emg: bool = False):
-    #     self.imu.append(Imu(name, rate, from_emg=from_emg))
+    def set_message(self, message: Message):
+        self.message = message
+
+    def get_message(self):
+        return self.message
 
     def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
         """
@@ -77,6 +85,8 @@ class TcpClient(Client):
         markers_tmp.subject_name = subject_name
         markers_tmp.markers_names = name
         self.markers.append(markers_tmp)
+        # self.message.add_command(name="command", value="markers")
+        self.message.command.append("markers")
 
     def get_data_from_server(self):
         """
@@ -87,26 +97,21 @@ class TcpClient(Client):
             ALL the data asked from the server.
         """
         all_data = []
-        if len(self.data_to_stream) == 0:
-            raise ValueError("No data to stream")
-        self.client.update_command(name="command", value=self.data_to_stream)
-        data = self.client.get_data()
+        data = self.client.get_data(message=self.message)
         for stream_data in self.data_to_stream:
             for key in data:
                 if key == stream_data:
                     all_data.append(np.array(data[key]))
         return all_data
 
-    def get_device_data(self, device_name: str = "all", stream_now: bool = False, get_names: bool = False, *args):
+    def get_device_data(self, device_name: str = "all", get_names: bool = False, *args):
         """
         Get the data from a device.
         Parameters
         ----------
         device_name: str
             Name of the device. all for all the devices.
-        stream_now: bool
-            If the data should be streamed now. if false, the data will be added to the data to stream.
-        get_names: bool
+       get_names: bool
             If the names of the devices should be returned.
 
         Returns
@@ -126,29 +131,21 @@ class TcpClient(Client):
         else:
             devices = self.devices
 
-        if stream_now:
-            self.client.update_command(name="get_names", value=get_names)
-            self.client.update_command(name="command", value=[i.type for i in devices])
-            data = self.client.get_data()
-            for device in devices:
-                for key in data:
-                    if key == device.type:
-                        all_device_data.append(np.array(data[key]))
-            return all_device_data
+        self.message.update_command(name="get_names", value=get_names)
+        self.message.update_command(name="command", value=[i.type for i in devices])
+        data = self.client.get_data(self.message)
+        for device in devices:
+            for key in data:
+                if key == device.type:
+                    all_device_data.append(np.array(data[key]))
+        return all_device_data
 
-        else:
-            for device in devices:
-                self.data_to_stream.append(device.type)
-            return None
-
-    def get_markers_data(self, stream_now: bool = False, get_names: bool = False):
+    def get_markers_data(self, get_names: bool = False):
         """
         Get the data from the markers.
 
         Parameters
         ----------
-        stream_now: bool
-            If the data should be streamed now. if false, the data will be added to the data to stream.
         get_names: bool
             If the names of the markers should be returned.
 
@@ -157,14 +154,11 @@ class TcpClient(Client):
         data: list
             The data asked from the server.
         """
-        if stream_now:
-            self.client.update_command(name="get_names", value=get_names)
-            self.client.update_command(name="command", value="markers")
-            data = self.client.get_data()
-            return np.array(data["markers"])
-        else:
-            self.data_to_stream.append("markers")
-            return None
+        self.message.update_command(name="get_names", value=get_names)
+        self.message.update_command(name="command", value="markers")
+        data = self.client.get_data(self.message)
+        return np.array(data["markers"])
+
 
 
 

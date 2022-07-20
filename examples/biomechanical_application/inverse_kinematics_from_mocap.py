@@ -18,7 +18,7 @@ def load_offline_markers(trial):
 
 
 if __name__ == '__main__':
-    try_offline = True
+    try_offline = False
     if try_offline:
         offline_trial = "abd"
         offline_markers = load_offline_markers(offline_trial)
@@ -31,8 +31,9 @@ if __name__ == '__main__':
     plot_fequency = 100
     model_path = "model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
     vicon_interface = ViconClient(init_now=init_now)
-    vicon_interface.add_markers(rate=100, unlabeled=False, subject_name="subject_1")
-    model = biorbd.Model(model_path)
+    vicon_interface.add_markers(rate=100, unlabeled=False, subject_name="Clara")
+
+    # model = biorbd.Model(model_path)
 
     if show_skeleton:
         skeleton_plot = LivePlot()
@@ -41,7 +42,7 @@ if __name__ == '__main__':
         skeleton_plot.set_skeleton_plot_options(show_floor=True)
         skeleton_plot.init_plot_window(skeleton_plot.plot[0])
 
-    q_est = np.zeros((model.nbQ(), 100))
+    # q_est = np.zeros((model.nbQ(), 100))
     time_to_sleep = 1/vicon_interface.markers[0].rate
     ratio = int(vicon_interface.markers[0].rate/plot_fequency)
     plot_count = 1
@@ -59,14 +60,15 @@ if __name__ == '__main__':
             vicon_interface.get_frame()
             markers_tmp = vicon_interface.get_markers_data()[0]
 
-        states = vicon_interface.get_kinematics_from_markers(markers_tmp, model, return_qdot=False)
+        # states = vicon_interface.get_kinematics_from_markers(markers_tmp, model, return_qdot=False)
         if show_skeleton:
             if plot_count == ratio:
                 skeleton_plot.update_plot_window(skeleton_plot.plot[0], states[:, -1])
                 plot_count = 1
             else:
                 plot_count += 1
-        add_data_to_pickle({"states": states, "markers": markers_tmp}, output_file_path)
+        print(markers_tmp)
+        add_data_to_pickle({"markers": markers_tmp}, output_file_path)
 
         loop_time = time() - tic
         if show_skeleton:
@@ -76,6 +78,5 @@ if __name__ == '__main__':
             sleep(real_time_to_sleep)
         # else:
         #     print("Warning: the loop took too long to run")
-
 
 
