@@ -242,6 +242,7 @@ class LiveData:
 
     def open_server(self):
         server = Server(self.server_ip, self.server_ports[self.count_server], type=self.type)
+        connection, message = server.client_listening()
         server.start()
         data_queue = []
         while len(data_queue) == 0:
@@ -252,7 +253,7 @@ class LiveData:
                 is_working = False
                 pass
             if is_working:
-                server.client_listening(data_queue)
+                server.send_data(data_queue, connection, message)
 
     def emg_processing(self):
         emg_tmp, emg_data = None, None
