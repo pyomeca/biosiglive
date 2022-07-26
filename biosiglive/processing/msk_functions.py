@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 import numpy as np
 
 
-def kalman_func(markers, model, return_q_dot=True, kalman=None, return_kalman=False):
+def kalman_func(markers, model, return_q_dot=True, kalman=None, use_kalman=True):
     """
     Function to apply the Kalman filter to the markers.
     Parameters
@@ -27,36 +27,36 @@ def kalman_func(markers, model, return_q_dot=True, kalman=None, return_kalman=Fa
     numpy.array or tuple
         The joint angle and (if asked) velocity. .
     """
-    markers_over_frames = []
-    if not kalman:
-        freq = 100  # Hz
-        params = biorbd.KalmanParam(freq)
-        kalman = biorbd.KalmanReconsMarkers(model, params)
+    if use_kalman:
+        markers_over_frames = []
+        if not kalman:
+            freq = 100  # Hz
+            params = biorbd.KalmanParam(freq)
+            kalman = biorbd.KalmanReconsMarkers(model, params)
 
-    q = biorbd.GeneralizedCoordinates(model)
-    q_dot = biorbd.GeneralizedVelocity(model)
-    qd_dot = biorbd.GeneralizedAcceleration(model)
-    for i in range(markers.shape[2]):
-        markers_over_frames.append([biorbd.NodeSegment(m) for m in markers[:, :, i].T])
+        q = biorbd.GeneralizedCoordinates(model)
+        q_dot = biorbd.GeneralizedVelocity(model)
+        qd_dot = biorbd.GeneralizedAcceleration(model)
+        for i in range(markers.shape[2]):
+            markers_over_frames.append([biorbd.NodeSegment(m) for m in markers[:, :, i].T])
 
-    q_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
-    q_dot_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
-    for i, targetMarkers in enumerate(markers_over_frames):
-        kalman.reconstructFrame(model, targetMarkers, q, q_dot, qd_dot)
-        q_recons[:, i] = q.to_array()
-        q_dot_recons[:, i] = q_dot.to_array()
+        q_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
+        q_dot_recons = np.zeros((model.nbQ(), len(markers_over_frames)))
 
+        for i, targetMarkers in enumerate(markers_over_frames):
+            kalman.reconstructFrame(model, targetMarkers, q, q_dot, qd_dot)
+            q_recons[:, i] = q.to_array()
+            q_dot_recons[:, i] = q_dot.to_array()
+    else:
+        ik = biorbd.InverseKinematics(model, markers)
+        ik.solve("only_lm")
+        q_recons = ik.q
+        q_dot_recons = np.array([0] * ik.nb_q)[:, np.newaxis]
     # compute markers from
     if return_q_dot:
-        if return_kalman:
-            return q_recons, q_dot_recons, kalman
-        else:
-            return q_recons, q_dot_recons
+        return q_recons, q_dot_recons
     else:
-        if return_kalman:
-            return q_recons, kalman
-        else:
-            return q_recons
+        return q_recons
 
 
 # def markers_fun(biorbd_model, q=None, eigen_backend=False):

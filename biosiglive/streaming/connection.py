@@ -51,7 +51,6 @@ class Connection:
             The data prepared to be sent.
 
         """
-        prepared_data = data
         read_frequency = message["read_frequency"]
         raw_data = message["raw_data"]
         ratio = message["ratio"]
@@ -61,16 +60,13 @@ class Connection:
             raise RuntimeError(f"Acquisition rate ({self.acquisition_rate}) is lower than read "
                                f"frequency ({read_frequency}).")
         data_to_prepare = self.__data_to_prepare(message, data)
-        prepared_data_tmp = self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
-        for key in prepared_data.keys():
-            if key in prepared_data_tmp:
-                if isinstance(prepared_data_tmp[key], np.ndarray):
-                    prepared_data[key] = prepared_data_tmp[key].to_list()
-                else:
-                    prepared_data[key] = prepared_data_tmp[key]
+        prepared_data= self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
+        prepared_data["vicon_latency"] = data["vicon_latency"]
         if message["get_names"]:
             prepared_data["marker_names"] = data["marker_names"]
             prepared_data["emg_names"] = data["emg_names"]
+        if "absolute_time_frame" in data.keys():
+            prepared_data["absolute_time_frame"] = data["absolute_time_frame"]
         return prepared_data
 
     @staticmethod
@@ -254,7 +250,7 @@ class Server(Connection):
         encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)
-            print(f"data sended : {data}")
+            print(f"data sended : {data_to_send}")
         except ConnectionError:
             pass
 

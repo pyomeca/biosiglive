@@ -134,6 +134,7 @@ class RealTimeProcessing(GenericProcessing):
         if self.ma_win > self.emg_win:
             raise RuntimeError(f"Moving average windows ({self.ma_win}) higher than emg windows ({self.emg_win}).")
         emg_sample = emg_tmp.shape[1]
+
         if norm_emg is True:
             if isinstance(mvc_list, np.ndarray) is True:
                 if len(mvc_list.shape) == 1:
