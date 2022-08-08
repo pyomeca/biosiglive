@@ -19,6 +19,7 @@ class Message:
                  mvc_list: list = None,
                  kalman: bool = None,
                  get_raw_data: bool = False,
+                 ratio: int = 1,
                  **kwargs):
         """
         Message class
@@ -34,6 +35,7 @@ class Message:
         self.read_frequency = read_frequency
         self.nb_frames_to_get = nb_frame_to_get
         self.raw_data = get_raw_data
+        self.ratio = ratio
         for key in kwargs.keys():
             self.__setattr__(key, kwargs[key])
 
@@ -128,7 +130,8 @@ class Client:
             Client main.
         """
         if type == "TCP" or type is None:
-            return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            return socket.socket()
+        # socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         elif type == "UDP":
             return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         else:
@@ -160,7 +163,7 @@ class Client:
         data = json.loads(data)
         return data
 
-    def get_data(self, message: Message = Message(), buff: int = Buff_size):
+    def get_data(self, message: (Message, str) = Message(), buff: int = Buff_size, initialize = True):
         """
         Get the data from server using the command.
 
@@ -175,8 +178,11 @@ class Client:
         data: dict
             Data from server.
         """
-
+        if initialize:
+            self.client = self.client_sock(self.type)
+        if not isinstance(message, str):
+            message = message.__dict__
         self._connect()
-        self.client.sendall(json.dumps(message.__dict__).encode())
+        self.client.sendall(json.dumps(message).encode())
         return self._recv_all(buff)
 

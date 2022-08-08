@@ -61,7 +61,9 @@ class Connection:
                                f"frequency ({read_frequency}).")
         data_to_prepare = self.__data_to_prepare(message, data)
         prepared_data= self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
-        prepared_data["vicon_latency"] = data["vicon_latency"]
+
+        if "vicon_latency" in data.keys():
+            prepared_data["vicon_latency"] = data["vicon_latency"]
         if message["get_names"]:
             prepared_data["marker_names"] = data["marker_names"]
             prepared_data["emg_names"] = data["emg_names"]

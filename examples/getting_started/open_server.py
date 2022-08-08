@@ -1,13 +1,11 @@
 from biosiglive.streaming.connection import Server
-from biosiglive.streaming.client import Message
 import numpy as np
 
 
 if __name__ == '__main__':
-    message = Message()
-
     server = Server(ip="localhost", port=50000, type='TCP')
     server.start()
+    connection, message = server.client_listening()
     while True:
-        data = {"emg": np.ndarray(4, 200), "norm_emg": True}
-        server.client_listening(data)
+        data = {"emg_proc": np.ndarray((4, 200)), "emg_sample": 20}
+        server.send_data(data, connection, message)
