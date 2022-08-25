@@ -15,7 +15,7 @@ class PytrignoClient:
         self.emg_client, self.imu_client = None, None
         self.is_frame = False
 
-    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000, real_time: bool = False):
+    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000, system_rate: float = 100):
         """
         Add a device to the Pytrigno client.
         Parameters
@@ -31,7 +31,7 @@ class PytrignoClient:
         real_time : bool
             If true device  will be used in real time application
         """
-        new_device = Device(name, type, rate)
+        new_device = Device(name, type, rate, system_rate)
         new_device.range = range
         self.devices.append(new_device)
         if type == "emg":
