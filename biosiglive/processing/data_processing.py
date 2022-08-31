@@ -106,7 +106,7 @@ class RealTimeProcessing(GenericProcessing):
                     raw_emg: np.ndarray,
                     emg_proc: np.ndarray,
                     emg_tmp: np.ndarray,
-                    mvc_list: Union[list, tuple],
+                    mvc_list: Union[list, tuple] = None,
                     norm_emg: bool = True,
                     lpf: bool = False):
         """
