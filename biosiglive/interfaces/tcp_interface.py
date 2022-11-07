@@ -1,22 +1,25 @@
 """
-This file is part of biosiglive. It contains a wrapper to use a client more easily.
+This file is part of biosiglive. It contains a wrapper to use a tcp client more easily.
 """
 
 import numpy as np
-from .param import Device, MarkerSet
 from ..streaming.client import Client, Message
+from .generic_interface import GenericInterface
+from ..enums import DeviceType, InterfaceType
 from typing import Union
+
 try:
     from vicon_dssdk import ViconDataStream as VDS
 except ModuleNotFoundError:
     pass
 
 
-class TcpClient():
+class TcpClient(GenericInterface):
     """
     Class for interfacing with the client.
     """
-    def __init__(self, ip: str = None, port: int = 801, type: str = "TCP", read_frequency: int = 100):
+
+    def __init__(self, ip: str = "127.0.0.1", port: int = 801, client_type: str = "TCP", read_frequency: int = 100):
         """
         Initialize the client.
         Parameters
@@ -25,13 +28,12 @@ class TcpClient():
             IP address of the server.
         port: int
             Port of the server.
-        type: str
+        client_type: str
             Type of the server.
         read_frequency: int
             Frequency of the reading of the data.
         """
-
-        ip = ip if ip else "127.0.0.1"
+        super(TcpClient, self).__init__(ip, interface_type=InterfaceType.TcpClient)
         self.devices = []
         self.imu = []
         self.markers = []
@@ -40,26 +42,32 @@ class TcpClient():
         self.ip = ip
         self.port = port
         self.message = Message(read_frequency=read_frequency)
-        self.client = Client(server_ip=ip, port=port, type=type)
+        self.client = Client(server_ip=ip, port=port, client_type=client_type)
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100):
+    def add_device(
+        self,
+        name: str,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
+        rate: float = 2000,
+        device_range: tuple = (0, 16),
+    ):
         """
         Add a device to the client.
         Parameters
         ----------
         name: str
             Name of the device.
-        type: str
+        device_type: Union[DeviceType, str]
             Type of the device. (emg, imu, etc.)
         rate: float
             Frequency of the device.
-        system_rate: float
-            Acquisition frequency.
+        device_range: tuple
+            Range of the device.
         """
-        device_tmp = Device(name, type, rate, system_rate)
+        device_tmp = self._add_device(name, device_type, rate, device_range)
+        device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
-        # self.message.add_command(name="command", value=type)
-        self.message.command.append(type)
+        self.message.command.append(device_type.value)
 
     def set_message(self, message: Message):
         self.message = message
@@ -81,11 +89,12 @@ class TcpClient():
         subject_name: str
             Name of the subject.
         """
-        markers_tmp = MarkerSet(name, rate, unlabeled)
+        if len(self.markers) != 0:
+            raise ValueError("Only one marker set can be added for now.")
+        markers_tmp = self._add_markers(name, rate, unlabeled)
         markers_tmp.subject_name = subject_name
-        markers_tmp.markers_names = name
+        markers_tmp.interface = self.interface_type
         self.markers.append(markers_tmp)
-        # self.message.add_command(name="command", value="markers")
         self.message.command.append("markers")
 
     def get_data_from_server(self):
@@ -104,14 +113,15 @@ class TcpClient():
                     all_data.append(np.array(data[key]))
         return all_data
 
-    def get_device_data(self, device_name: str = "all", get_names: bool = False, *args):
+    def get_device_data(self, device_name: str = "all", get_names: bool = False):
         """
         Get the data from a device.
+
         Parameters
         ----------
         device_name: str
             Name of the device. all for all the devices.
-       get_names: bool
+        get_names: bool
             If the names of the devices should be returned.
 
         Returns
@@ -136,7 +146,7 @@ class TcpClient():
         data = self.client.get_data(self.message)
         for device in devices:
             for key in data:
-                if key == device.type:
+                if key == device.device_type:
                     all_device_data.append(np.array(data[key]))
         return all_device_data
 
@@ -158,7 +168,3 @@ class TcpClient():
         self.message.update_command(name="command", value="markers")
         data = self.client.get_data(self.message)
         return np.array(data["markers"])
-
-
-
-

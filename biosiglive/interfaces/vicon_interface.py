@@ -5,6 +5,9 @@ This file is part of biosiglive. It contains a wrapper for the Vicon SDK for Pyt
 import numpy as np
 from .param import *
 from typing import Union
+from .generic_interface import GenericInterface
+from ..enums import InverseKinematicsMethods, InterfaceType
+from ..processing.msk_functions import compute_inverse_kinematics
 
 try:
     from vicon_dssdk import ViconDataStream as VDS
@@ -12,27 +15,32 @@ except ModuleNotFoundError:
     pass
 
 
-class ViconClient:
+class ViconClient(GenericInterface):
     """
     Class for interfacing with the Vicon system.
     """
-    def __init__(self, ip: str = "127.0.0.1", port: int = 801, init_now=True):
+
+    def __init__(self, system_rate: int, ip: str = "127.0.0.1", port: int = 801, init_now=True):
         """
         Initialize the ViconClient class.
         Parameters
         ----------
+        system_rate: int
+            Streaming rate of the nexus software.
         ip: str
             IP address of the Vicon system.
         port: int
             Port of the Vicon system.
         """
+        super(ViconClient, self).__init__(ip=ip, system_rate=system_rate, interface_type=InterfaceType.ViconClient)
         self.address = f"{ip}:{port}"
 
         self.vicon_client = None
         self.acquisition_rate = None
+        self.system_rate = system_rate
 
         if init_now:
-            self.init_client()
+            self._init_client()
 
         self.devices = []
         self.imu = []
@@ -40,7 +48,7 @@ class ViconClient:
         self.is_frame = False
         self.kalman = None
 
-    def init_client(self):
+    def _init_client(self):
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
         self.vicon_client = VDS.Client()
         self.vicon_client.Connect(self.address)
@@ -53,80 +61,69 @@ class ViconClient:
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100, range: tuple = (0, 16)):
+    def add_device(self, name: str, device_type: Union[DeviceType, str] = DeviceType.Emg, rate: float = 2000, device_range: tuple = (0, 16)):
         """
         Add a device to the Vicon system.
         Parameters
         ----------
         name: str
             Name of the device.
-        type: str
+        device_type: Union[DeviceType, str]
             Type of the device.
         rate: float
             Rate of the device.
-        system_rate : float
-            Rate of the system interface.
+        device_range: tuple
+            Range of the device.
         """
-        device_tmp = Device(name, type, rate, system_rate)
-        device_tmp.range = range
+        device_tmp = self._add_device(name, device_type, rate, device_range)
+        device_tmp.interface = self.interface_type
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
-            # if system_rate != self.vicon_client.GetFrameRate():
-            #     raise RuntimeError(f"Frequency in Nexus ({self.vicon_client.GetFrameRate}) does not "
-            #                        f"match the device system rate ({system_rate})")
         else:
             device_tmp.info = None
 
         self.devices.append(device_tmp)
 
-    def add_markers(self, name: str = None,
-                    rate: float = 100,
-                    unlabeled: bool = False,
-                    subject_name: str = None,
-                    ):
+    def add_markers(
+        self,
+        name: str = None,
+        marker_names : Union[list, str] = None,
+        rate: float = 100,
+        unlabeled: bool = False,
+        subject_name: str = None,
+    ):
         """
         Add markers set to stream from the Vicon system.
         Parameters
         ----------
         name: str
             Name of the markers set.
+        marker_names: Union[list, str]
+            List of markers names.
         rate: int
             Rate of the markers set.
         unlabeled: bool
             Whether the markers set is unlabeled.
         subject_name: str
             Name of the subject. If None, the subject will be the first one in Nexus.
-        recons_kin: bool
-            Whether to reconstruct the joint kinematics.
         """
+        if len(self.markers) != 0:
+            raise ValueError("Only one marker set can be added for now.")
         markers_tmp = MarkerSet(name, rate, unlabeled)
+        markers_tmp.interface = self.interface_type
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
             markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
         else:
             markers_tmp.subject_name = subject_name
-            markers_tmp.markers_names = name
+            markers_tmp.markers_names = marker_names
         self.markers.append(markers_tmp)
 
     @staticmethod
     def get_force_plate_data(vicon_client):
-        forceVectorData = []
-        forceplates = vicon_client.GetForcePlates()
-        for plate in forceplates:
-            forceVectorData = vicon_client.GetForceVector(plate)
-            momentVectorData = vicon_client.GetMomentVector(plate)
-            copData = vicon_client.GetCentreOfPressure(plate)
-            globalForceVectorData = vicon_client.GetGlobalForceVector(plate)
-            globalMomentVectorData = vicon_client.GetGlobalMomentVector(plate)
-            globalCopData = vicon_client.GetGlobalCentreOfPressure(plate)
+        raise NotImplementedError("Force plate streaming is not implemented yet.")
 
-            try:
-                analogData = vicon_client.GetAnalogChannelVoltage(plate)
-            except VDS.DataStreamException as e:
-                print("Failed getting analog channel voltages")
-        return forceVectorData
-
-    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None, *args):
+    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None):
         """
         Get the device data from Vicon.
         Parameters
@@ -165,9 +162,7 @@ class ViconClient:
             count = 0
             device_chanel_names = []
             for output_name, chanel_name, unit in device.infos:
-                data_tmp, _ = self.vicon_client.GetDeviceOutputValues(
-                    device.name, output_name, chanel_name
-                )
+                data_tmp, _ = self.vicon_client.GetDeviceOutputValues(device.name, output_name, chanel_name)
                 if channel_names:
                     if chanel_name in channel_names:
                         device_data[count, :] = data_tmp
@@ -178,6 +173,8 @@ class ViconClient:
                 device.chanel_names = device_chanel_names
                 count += 1
             all_device_data.append(device_data)
+        if len(all_device_data) == 1:
+            return all_device_data[0]
         return all_device_data
 
     def get_markers_data(self, marker_names: list = None, subject_name: str = None):
@@ -232,6 +229,8 @@ class ViconClient:
                 count += 1
             all_markers_data.append(markers_data)
             all_occluded_data.append(occluded)
+        if len(all_markers_data) == 1:
+            return all_markers_data[0], all_occluded_data[0]
         return all_markers_data, all_occluded_data
 
     def get_latency(self):
@@ -245,36 +244,43 @@ class ViconClient:
     def get_frame_number(self):
         return self.vicon_client.GetFrameNumber()
 
-    def get_kinematics_from_markers(self, markers, model, method="kalman", return_qdot = False, custom_func = None, *args):
+    def get_kinematics_from_markers(self, markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] =InverseKinematicsMethods.BiorbdLeastSquare
+                                    , return_qdot: bool=False, custom_func: staticmethod=None, **kwargs):
         """
         Get the kinematics from markers.
         Parameters
         ----------
-        markers: list
-            List of markers.
+        markers: np.ndarray
+            Array of markers.
         model: biorbd.Model
             Model of the kinematics.
-        kalman_filter: KalmanFilter
-            Kalman filter.
-        show_now: bool
-         if True show the kinematics
+        method: str
+            Method to use to get the kinematics. Can be "kalman" or "custom".
+        return_qdot: bool
+            If True, return the qdot.
+        custom_func: function
+            Custom function to get the kinematics.
         Returns
         -------
         kinematics: list
             List of kinematics.
         """
-        if method == 'kalman':
-            q, q_dot, self.kalman = kalman_func(markers, model, return_q_dot=True, kalman=self.kalman)
-            if return_qdot:
-                return q, q_dot
+        if isinstance(method, str):
+            if method in [t.value for t in InverseKinematicsMethods]:
+                method = InverseKinematicsMethods(method)
             else:
-                return q
-        if method == 'custom':
-            q, q_dot = custom_func(markers, model, *args)
-            if return_qdot:
-                return q, q_dot
-            else:
-                return q
-        else:
-            raise RuntimeError(f'Method f{method} not implemented')
+                raise ValueError(f"Method {method} is not supported")
 
+        if method == InverseKinematicsMethods.BiorbdKalman:
+            q, q_dot, self.kalman = compute_inverse_kinematics(markers, model, return_q_dot=True, use_kalman=True, kalman=self.kalman)
+        elif method == InverseKinematicsMethods.BiorbdLeastSquare:
+            q, q_dot = compute_inverse_kinematics(markers, model, return_q_dot=True, use_kalman=False)
+        elif method == InverseKinematicsMethods.Custom:
+            q, q_dot = custom_func(markers, model, **kwargs)
+        else:
+            raise RuntimeError(f"Method f{method} not implemented")
+
+        if return_qdot:
+            return q, q_dot
+        else:
+            return q
