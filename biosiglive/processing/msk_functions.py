@@ -8,7 +8,7 @@ except ModuleNotFoundError:
 import numpy as np
 
 
-def kalman_func(markers, model, return_q_dot=True, kalman=None, use_kalman=True):
+def compute_inverse_kinematics(markers, model, return_q_dot=True, kalman=None, use_kalman=True):
     """
     Function to apply the Kalman filter to the markers.
     Parameters
@@ -21,6 +21,8 @@ def kalman_func(markers, model, return_q_dot=True, kalman=None, use_kalman=True)
         If True, the function will return the q_dot.
     kalman : biorbd.Kalman
         The Kalman filter to use.
+    use_kalman : bool
+        If True, the function will use the Kalman filter. If False, it will use the standard inverse kinematics.
 
     Returns
     -------

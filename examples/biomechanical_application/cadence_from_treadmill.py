@@ -5,10 +5,10 @@ from biosiglive.gui.plot import LivePlot
 from time import sleep, time
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     show_cadence = False
-    vicon_interface = ViconClient(init_now=True)
-    vicon_interface.add_device("Treadmill", "generic_device", rate=2000, system_rate=100)
+    vicon_interface = ViconClient(init_now=False, system_rate=100)
+    vicon_interface.add_device("Treadmill", "generic_device", rate=2000)
     vicon_interface.devices[-1].set_process_method(RealTimeProcessing().get_peaks)
     force_z, force_z_process = [], []
     if show_cadence:
@@ -28,16 +28,19 @@ if __name__ == '__main__':
         vicon_interface.get_frame()
         data = vicon_interface.get_device_data(device_name="Treadmill")
         force_z_tmp = data[0][[2, 8], :]
-        cadence, force_z_process, force_z, is_one = vicon_interface.devices[0].process_method(new_sample=force_z_tmp,
-                                                                                      signal=force_z,
-                                                                                      signal_proc=force_z_process,
-                                                                                      threshold=0.2,
-                                                                                      nb_min_frame=nb_min_frame,
-                                                                                      is_one=is_one,
-                                                                                      min_peaks_interval=1300
-                                                                                      )
+        cadence, force_z_process, force_z, is_one = vicon_interface.devices[0].process_method(
+            new_sample=force_z_tmp,
+            signal=force_z,
+            signal_proc=force_z_process,
+            threshold=0.2,
+            nb_min_frame=nb_min_frame,
+            is_one=is_one,
+            min_peaks_interval=1300,
+        )
         if show_cadence:
-            plot_app.update_plot_window(plot_app.plot[0], np.concatenate((force_z_process, force_z), axis=0), app, rplt, box)
+            plot_app.update_plot_window(
+                plot_app.plot[0], np.concatenate((force_z_process, force_z), axis=0), app, rplt, box
+            )
         # print(force_z)
         if count == print_every * vicon_interface.devices[-1].system_rate:
             print(f"Mean cadence for the last {nb_second} s is :{cadence}")

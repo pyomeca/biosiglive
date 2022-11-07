@@ -48,57 +48,57 @@ def run(
     OSC_port=51337,
 ):
     """
-        Run streaming of delsys sensors data with real time processing and plotting.
-        ----------
-        muscles_range: tuple
-            list of sensor to stream, note that last values is included.
-        get_emg: bool
-            True to stream emg data
-        get_accel: bool
-            True to stream accelerometer data
-        get_gyro: bool
-            True to stream gyroscope data
-        read_freq: int
-            frequency at which the system will read sensor data.
-        MVC_list: list
-            list of MVC value length must be the same than sensor number.
-        host_ip: str
-            IP adress of the device which run the trigno software default is 'localhost'.
-        emg_freq: float
-            frequency of emg data.
-        IM_freq: float
-            frequency of inertial measurement data.
-        emg_windows: float
-            size of the sliding window for emg processing.
-        IM_windows: float
-            size of the sliding window for IM processing.
-        accept_delay: float
-            acceptable delay between real time and data streaming.
-        save_data: bool
-            True for save data during streaming, this can impact the realtime streaming.
-        output_dir: str
-            name of output directory.
-        output_file: str
-            name of output file.
-        show_data: list
-            list of name of data to plot. Can be: 'emg' or 'raw_emg' (gyro and accel not implemented yet).
-        print_data: bool
-            True to print data in the console
-        server: str
-            method to stream data. Can be 'pytrigno'.
-        norm_emg: bool
-            True for normalize emg in real time. Note that you need a MVC list.
-        muscle_names: list
-            list of muscle names. Length must be the same than the number of delsys sensors.
-        OSC_stream: bool
-            Stream OSC (open sound control) value to destination
-        OSC_port: int
-            OSC output port (must be over 1024 and under 65000), default : 51337 
-        OSC_ip: str
-            OSC output ip address, default : 127.0.0.1        
-        Returns
-            -------
-     """
+    Run streaming of delsys sensors data with real time processing and plotting.
+    ----------
+    muscles_range: tuple
+        list of sensor to stream, note that last values is included.
+    get_emg: bool
+        True to stream emg data
+    get_accel: bool
+        True to stream accelerometer data
+    get_gyro: bool
+        True to stream gyroscope data
+    read_freq: int
+        frequency at which the system will read sensor data.
+    MVC_list: list
+        list of MVC value length must be the same than sensor number.
+    host_ip: str
+        IP adress of the device which run the trigno software default is 'localhost'.
+    emg_freq: float
+        frequency of emg data.
+    IM_freq: float
+        frequency of inertial measurement data.
+    emg_windows: float
+        size of the sliding window for emg processing.
+    IM_windows: float
+        size of the sliding window for IM processing.
+    accept_delay: float
+        acceptable delay between real time and data streaming.
+    save_data: bool
+        True for save data during streaming, this can impact the realtime streaming.
+    output_dir: str
+        name of output directory.
+    output_file: str
+        name of output file.
+    show_data: list
+        list of name of data to plot. Can be: 'emg' or 'raw_emg' (gyro and accel not implemented yet).
+    print_data: bool
+        True to print data in the console
+    server: str
+        method to stream data. Can be 'pytrigno'.
+    norm_emg: bool
+        True for normalize emg in real time. Note that you need a MVC list.
+    muscle_names: list
+        list of muscle names. Length must be the same than the number of delsys sensors.
+    OSC_stream: bool
+        Stream OSC (open sound control) value to destination
+    OSC_port: int
+        OSC output port (must be over 1024 and under 65000), default : 51337
+    OSC_ip: str
+        OSC output ip address, default : 127.0.0.1
+    Returns
+        -------
+    """
     if len(mvc_list) != 0:
         norm_emg = True
     if test_with_connection is not True:

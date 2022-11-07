@@ -7,6 +7,7 @@ import multiprocessing as mp
 import numpy as np
 import struct
 from typing import Union
+
 try:
     from pythonosc.udp_client import SimpleUDPClient
 except ModuleNotFoundError:
@@ -17,6 +18,7 @@ class Connection:
     """
     This class is used to connect to the biosiglive server.
     """
+
     def __init__(self, ip: str = "127.0.0.1", ports: Union[int, list] = 50000):
         """
         Initialize the connection.
@@ -57,10 +59,11 @@ class Connection:
         nb_frames_to_get = message["nb_frames_to_get"] if message["nb_frames_to_get"] else 1
 
         if self.acquisition_rate < read_frequency:
-            raise RuntimeError(f"Acquisition rate ({self.acquisition_rate}) is lower than read "
-                               f"frequency ({read_frequency}).")
+            raise RuntimeError(
+                f"Acquisition rate ({self.acquisition_rate}) is lower than read " f"frequency ({read_frequency})."
+            )
         data_to_prepare = self.__data_to_prepare(message, data)
-        prepared_data= self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
+        prepared_data = self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
 
         if "vicon_latency" in data.keys():
             prepared_data["vicon_latency"] = data["vicon_latency"]
@@ -124,9 +127,7 @@ class Connection:
                 elif i == "force plate":
                     raise RuntimeError("force plate not implemented yet.")
                 else:
-                    raise RuntimeError(
-                        f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' "
-                    )
+                    raise RuntimeError(f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' ")
         else:
             raise RuntimeError(f"No command received.")
         if message["kalman"]:
@@ -179,6 +180,7 @@ class Server(Connection):
     """
     Class to create a server.
     """
+
     def __init__(self, ip: str = "127.0.0.1", port: int = 50000, type: str = "TCP"):
         """
         Parameters
@@ -249,7 +251,7 @@ class Server(Connection):
         # if self.optim is not True:
         #     print("Sending data to client...")
         encoded_data = json.dumps(data_to_send).encode()
-        encoded_data = struct.pack('>I', len(encoded_data)) + encoded_data
+        encoded_data = struct.pack(">I", len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)
             print(f"data sended : {data_to_send}")
@@ -261,6 +263,7 @@ class OscClient(Connection):
     """
     Class to create an OSC client.
     """
+
     def __init__(self, ip: str = "127.0.0.1"):
         self.ports = [51337]
         self.osc = []
@@ -334,4 +337,3 @@ class OscClient(Connection):
                 self.osc[0].send_message("/gyro/", data[idx + 2])
             else:
                 raise RuntimeError(f"Unknown device ({key}) to send. Possible devices are 'emg' and 'imu'.")
-

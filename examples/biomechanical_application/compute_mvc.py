@@ -6,7 +6,7 @@ This file is part of biosiglive. it is an example to see how to use biosiglive t
 from time import strftime
 from biosiglive.interfaces.vicon_interface import ViconClient
 from biosiglive.interfaces.pytrigno_interface import PytrignoClient
-from biosiglive.interfaces.client_interface import TcpClient
+from biosiglive.interfaces.tcp_interface import TcpClient
 from biosiglive.processing.data_processing import OfflineProcessing
 from biosiglive.gui.plot import LivePlot, Plot
 from time import time, sleep
@@ -17,18 +17,19 @@ from typing import Union
 
 
 class ComputeMvc:
-    def __init__(self,
-                 stream_mode: str = "pytrigno",  # or 'server_data' or 'vicon'
-                 interface_ip: str = "127.0.0.1",
-                 interface_port: int = 801,  # only for vicon
-                 output_file: str = None,
-                 muscle_names: list = None,
-                 emg_frequency: float = 2000,
-                 acquisition_rate: float = 100,
-                 mvc_windows: int = 2000,
-                 test_with_connection: bool = True,
-                 range_muscle: Union[tuple, int] = None,
-                 ):
+    def __init__(
+        self,
+        stream_mode: str = "pytrigno",  # or 'server_data' or 'vicon'
+        interface_ip: str = "127.0.0.1",
+        interface_port: int = 801,  # only for vicon
+        output_file: str = None,
+        muscle_names: list = None,
+        emg_frequency: float = 2000,
+        acquisition_rate: float = 100,
+        mvc_windows: int = 2000,
+        test_with_connection: bool = True,
+        range_muscle: Union[tuple, int] = None,
+    ):
         """
         Initialize the class.
 
@@ -107,17 +108,18 @@ class ComputeMvc:
             else:
                 raise ValueError("stream_mode must be 'pytrigno', 'vicon' or 'server_data'")
 
-    def set_processing_method(self,
-                              moving_average: bool = True,
-                              low_pass: bool = False,
-                              custom: bool = False,
-                              custom_function: callable = None,
-                              bandpass_frequency: tuple = (10, 425),
-                              lowpass_frequency: float = 5,
-                              lowpass_order: int = 4,
-                              butterworth_order: int = 4,
-                              ma_window: int = 200,
-                              ):
+    def set_processing_method(
+        self,
+        moving_average: bool = True,
+        low_pass: bool = False,
+        custom: bool = False,
+        custom_function: callable = None,
+        bandpass_frequency: tuple = (10, 425),
+        lowpass_frequency: float = 5,
+        lowpass_order: int = 4,
+        butterworth_order: int = 4,
+        ma_window: int = 200,
+    ):
         """
         Set the emg processing method.
 
@@ -190,8 +192,7 @@ class ComputeMvc:
             while task != "c" and task != "r" and task != "q":
                 print(f"Invalid entry ({task}). Please press 'c', 'r', or 'q' (in lowercase).")
                 task = input(
-                    "Press 'c' to do an other MVC trial," 
-                    " 'r' to do again the MVC trial or 'q' then enter to quit.\n"
+                    "Press 'c' to do an other MVC trial," " 'r' to do again the MVC trial or 'q' then enter to quit.\n"
                 )
 
             if task == "c":
@@ -271,8 +272,7 @@ class ComputeMvc:
             try:
                 if nb_frame == 0:
                     print(
-                        "Trial is running please press 'Ctrl+C' when trial is ended "
-                        "(it will not end the program)."
+                        "Trial is running please press 'Ctrl+C' when trial is ended " "(it will not end the program)."
                     )
 
                 if self.test_with_connection is True:
@@ -350,14 +350,16 @@ class ComputeMvc:
                     legend = legend * raw_data.shape[0]
                     x = np.linspace(0, raw_data.shape[1] / self.frequency, raw_data.shape[1])
                     print("Close the plot windows to continue.")
-                    Plot().multi_plot(data,
-                                      nb_column=nb_column,
-                                      y_label="Activation level (v)",
-                                      x_label="Time (s)",
-                                      legend=legend,
-                                      subplot_title=self.muscle_names,
-                                      figure_name=self.try_name,
-                                      x=x)
+                    Plot().multi_plot(
+                        data,
+                        nb_column=nb_column,
+                        y_label="Activation level (v)",
+                        x_label="Time (s)",
+                        legend=legend,
+                        subplot_title=self.muscle_names,
+                        figure_name=self.try_name,
+                        x=x,
+                    )
                 else:
                     pass
                 n_p += 1
@@ -410,10 +412,7 @@ class ComputeMvc:
         """
         self.plot_app = LivePlot(multi_process=multi)
         self.plot_app.add_new_plot("EMG", "curve", self.muscle_names)
-        rplt, layout, app, box = self.plot_app.init_plot_window(self.plot_app.plot[0],
-                                                                use_checkbox=True,
-                                                                remote=True
-                                                                )
+        rplt, layout, app, box = self.plot_app.init_plot_window(self.plot_app.plot[0], use_checkbox=True, remote=True)
         return rplt, layout, app, box
 
     def _update_live_plot(self, data, nb_frame):
@@ -427,13 +426,8 @@ class ComputeMvc:
             The current frame.
         """
         if self.plot_app:
-            plot_data = data if nb_frame < self.acquisition_rate else data[:, -self.mvc_windows:]
-            self.plot_app.update_plot_window(self.plot_app.plot[0],
-                                             plot_data,
-                                             self.app,
-                                             self.rplt,
-                                             self.box
-                                             )
+            plot_data = data if nb_frame < self.acquisition_rate else data[:, -self.mvc_windows :]
+            self.plot_app.update_plot_window(self.plot_app.plot[0], plot_data, self.app, self.rplt, self.box)
 
     def _init_pytrigno_emg(self):
         """
@@ -495,14 +489,12 @@ class ComputeMvc:
 
         mvc_list_max = np.ndarray((len(self.muscle_names), self.mvc_windows))
         mvc_trials = emg_processed
-        save = True if save == 's' else False
-        mvc = OfflineProcessing.compute_mvc(self.nb_muscles,
-                                            mvc_trials,
-                                            self.mvc_windows,
-                                            mvc_list_max,
-                                            '_MVC_tmp_mat',
-                                            self.output_file, save)
+        save = True if save == "s" else False
+        mvc = OfflineProcessing.compute_mvc(
+            self.nb_muscles, mvc_trials, self.mvc_windows, mvc_list_max, "_MVC_tmp_mat", self.output_file, save
+        )
         print(mvc)
+
 
 if __name__ == "__main__":
     # number of EMG electrode

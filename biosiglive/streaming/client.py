@@ -11,16 +11,18 @@ Buff_size = 32767
 
 
 class Message:
-    def __init__(self,
-                 command: list = (),
-                 read_frequency: float = 100,
-                 nb_frame_to_get: int = 1,
-                 get_names: bool = None,
-                 mvc_list: list = None,
-                 kalman: bool = None,
-                 get_raw_data: bool = False,
-                 ratio: int = 1,
-                 **kwargs):
+    def __init__(
+        self,
+        command: list = (),
+        read_frequency: float = 100,
+        nb_frame_to_get: int = 1,
+        get_names: bool = None,
+        mvc_list: list = None,
+        kalman: bool = None,
+        get_raw_data: bool = False,
+        ratio: int = 1,
+        **kwargs,
+    ):
         """
         Message class
         """
@@ -50,7 +52,7 @@ class Message:
         value: bool, int, float, list, str
             Value of the command to update.
         """
-        names = [name] if not isinstance(name, list) else value
+        names = [name] if not isinstance(name, list) else name
         values = [value] if not isinstance(value, list) else value
         values = [values] if name == "command" else values
 
@@ -90,7 +92,7 @@ class Message:
 
 
 class Client:
-    def __init__(self, server_ip: str, port: int, type: str = "TCP", name: str = None):
+    def __init__(self, server_ip: str, port: int, client_type: str = "TCP", name: str = None):
         """
         Create a client main.
         Parameters
@@ -99,29 +101,31 @@ class Client:
             Server address.
         port: int
             Server port.
-        type: str
+        client_type: str
             Type of the main.
         name: str
             Name of the client.
         """
 
         self.name = name if name is not None else "Client"
-        self.type = type
+        self.client_type = client_type
         self.address = f"{server_ip}:{port}"
         self.server_address = server_ip
         self.port = port
-        self.client = self.client_sock(self.type)
+        self.client = self.client_sock(self.client_type)
 
     def _connect(self):
         self.client.connect((self.server_address, self.port))
 
     @staticmethod
-    def client_sock(type: str,):
+    def client_sock(
+        tcp_type: str,
+    ):
         """
         Create a client main.
         Parameters
         ----------
-        type: str
+        tcp_type: str
             Type of the main.
 
         Returns
@@ -129,13 +133,12 @@ class Client:
         client: socket.socket
             Client main.
         """
-        if type == "TCP" or type is None:
-            return socket.socket()
-        # socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        elif type == "UDP":
+        if tcp_type == "TCP" or type is None:
+            return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        elif tcp_type == "UDP":
             return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         else:
-            raise RuntimeError(f"Invalid type of connexion ({type}). Type must be 'TCP' or 'UDP'.")
+            raise RuntimeError(f"Invalid type of connexion ({tcp_type}). Type must be 'TCP' or 'UDP'.")
 
     def _recv_all(self, buff_size: int = Buff_size):
         """
@@ -152,7 +155,7 @@ class Client:
         """
 
         msg_len = self.client.recv(4)
-        msg_len = struct.unpack('>I', msg_len)[0]
+        msg_len = struct.unpack(">I", msg_len)[0]
         data = []
         l = 0
         while l < msg_len:
@@ -163,7 +166,7 @@ class Client:
         data = json.loads(data)
         return data
 
-    def get_data(self, message: (Message, str) = Message(), buff: int = Buff_size, initialize = True):
+    def get_data(self, message: (Message, str) = Message(), buff: int = Buff_size, initialize=True):
         """
         Get the data from server using the command.
 
@@ -179,10 +182,9 @@ class Client:
             Data from server.
         """
         if initialize:
-            self.client = self.client_sock(self.type)
+            self.client = self.client_sock(self.client_type)
         if not isinstance(message, str):
             message = message.__dict__
         self._connect()
         self.client.sendall(json.dumps(message).encode())
         return self._recv_all(buff)
-

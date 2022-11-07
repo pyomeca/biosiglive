@@ -5,6 +5,7 @@ from biosiglive.processing.msk_functions import kalman_func
 from biosiglive.io.save_data import add_data_to_pickle, read_data
 from biosiglive.gui.plot import LivePlot
 from time import sleep, time
+
 try:
     import biorbd
 except ImportError:
@@ -17,7 +18,7 @@ def load_offline_markers(trial):
     return markers
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try_offline = False
     if try_offline:
         offline_trial = "abd"
@@ -43,8 +44,8 @@ if __name__ == '__main__':
         skeleton_plot.init_plot_window(skeleton_plot.plot[0])
 
     # q_est = np.zeros((model.nbQ(), 100))
-    time_to_sleep = 1/vicon_interface.markers[0].rate
-    ratio = int(vicon_interface.markers[0].rate/plot_fequency)
+    time_to_sleep = 1 / vicon_interface.markers[0].rate
+    ratio = int(vicon_interface.markers[0].rate / plot_fequency)
     plot_count = 1
     offline_count = 0
     kalman = None
@@ -72,11 +73,9 @@ if __name__ == '__main__':
 
         loop_time = time() - tic
         if show_skeleton:
-            print("plot_frequency: ", 1/loop_time)
+            print("plot_frequency: ", 1 / loop_time)
         real_time_to_sleep = time_to_sleep - loop_time
         if real_time_to_sleep > 0:
             sleep(real_time_to_sleep)
         # else:
         #     print("Warning: the loop took too long to run")
-
-
