@@ -27,3 +27,12 @@ Install pytrigno from this repository : https://github.com/aceglia/pytrigno runn
 python setup.py install
 ```
 in the main directory.
+
+## How to use
+
+Biosiglive is a python librairy that allows to share biosignals data from Nexus (Vicon) and trigno community SDK. It includes: live and offline classes for plotting and processing data, classes for streaming data (oppening tcp/ip server and client), classes to efficiently save data with pickle... Some exemples are provided in the examples folder. There are some specific biomechanical application examples to show the possibility of the librairy.
+
+Please feel free to contribute by making pull request or by sending issues.
+
+## How to cite
+DOI: [![DOI](https://zenodo.org/badge/422247719.svg)](https://zenodo.org/badge/latestdoi/422247719)
