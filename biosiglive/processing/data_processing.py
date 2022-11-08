@@ -169,9 +169,17 @@ class GenericProcessing:
 
 
 class RealTimeProcessing(GenericProcessing):
-    def __init__(self, data_rate: int = 2000, processing_windows: int = 2000, moving_average_window: int = 200):
+    def __init__(self, data_rate: int, processing_windows: int, moving_average_window: int = 200):
         """
         Initialize the class for real time processing.
+        Parameters
+        ----------
+        data_rate : int
+            Data rate.
+        processing_windows : int
+            Processing windows.
+        moving_average_window : int
+            Moving average window.
         """
         super().__init__()
         self.data_rate = data_rate
@@ -179,6 +187,7 @@ class RealTimeProcessing(GenericProcessing):
         self.ma_win = moving_average_window
         self.raw_data_buffer = []
         self.processed_data_buffer = []
+        self._is_one = None
 
     def process_emg(
         self,
@@ -190,7 +199,7 @@ class RealTimeProcessing(GenericProcessing):
         centering = True,
         absolute_value = True,
         normalization = False,
-        ):
+        )-> np.ndarray:
         """
         Process EMG data in real-time.
         Parameters
@@ -199,10 +208,22 @@ class RealTimeProcessing(GenericProcessing):
             Temporary EMG data (nb_emg, emg_sample).
         mvc_list : list
             MVC values.
+        band_pass_filter : bool
+            Apply band pass filter.
+        low_pass_filter : bool
+            Apply low pass filter.
+        moving_average : bool
+            Apply moving average.
+        centering : bool
+            Apply centering.
+        absolute_value : bool
+            Apply absolute value.
+        normalization : bool
+            Apply normalization.
         Returns
         -------
-        tuple
-            raw and processed EMG data.
+        np.ndarray
+           processed EMG data.
 
         """
         if self.ma_win > self.processing_window:
@@ -258,7 +279,7 @@ class RealTimeProcessing(GenericProcessing):
         squared: bool =False,
         norm_min_bound:int=None,
         norm_max_bound: int=None,
-    ):
+    )->np.ndarray:
         """
         Process IMU data in real-time.
         Parameters
@@ -276,8 +297,8 @@ class RealTimeProcessing(GenericProcessing):
 
         Returns
         -------
-        tuple
-            raw and processed IMU data.
+        np.ndarray
+            processed IMU data.
         """
 
         if len(self.raw_data_buffer) == 0:
@@ -326,77 +347,70 @@ class RealTimeProcessing(GenericProcessing):
 
         return self.processed_data_buffer
 
-    @staticmethod
     def get_peaks(
+            self,
         new_sample: np.ndarray,
-        signal: np.ndarray,
-        signal_proc: np.ndarray,
         threshold: float,
-        chanel_idx: Union[int, list] = None,
-        nb_min_frame: float = 2000,
-        is_one=None,
         min_peaks_interval=None,
-    ):
+    )-> tuple:
         """
         Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
         Parameters
         ----------
-        new_sample
-        signal
-        threshold
-        chanel
-        window_len
-        rate
-        nb_min_frame
+        new_sample : numpy.ndarray
+            New sample to add to the signal.
+        threshold : float
+            Threshold to detect peaks.
+        min_peaks_interval : float
+            Minimum interval between two peaks.
 
         Returns
         -------
-
+        tuple
+            Number of peaks and the processed signal.
         """
         nb_peaks = []
         if len(new_sample.shape) == 1:
             new_sample = np.expand_dims(new_sample, 0)
         sample_proc = np.copy(new_sample)
+        if not self._is_one:
+            self._is_one = [False] * new_sample.shape[0]
 
         for i in range(new_sample.shape[0]):
             for j in range(new_sample.shape[1]):
                 if new_sample[i, j] < threshold:
                     sample_proc[i, j] = 0
-                    is_one[i] = False
+                    self._is_one[i] = False
                 elif new_sample[i, j] >= threshold:
-                    if not is_one[i]:
+                    if not self._is_one[i]:
                         sample_proc[i, j] = 1
-                        is_one[i] = True
+                        self._is_one[i] = True
                     else:
                         sample_proc[i, j] = 0
 
-        if len(signal) == 0:
-            signal = new_sample
-            signal_proc = sample_proc
+        if len(self.raw_data_buffer) == 0:
+            self.raw_data_buffer = new_sample
+            self.processed_data_buffer = sample_proc
             nb_peaks = None
 
-        elif signal.shape[1] < nb_min_frame:
-            signal = np.append(signal, new_sample, axis=1)
-            signal_proc = np.append(signal_proc, sample_proc, axis=1)
+        elif self.raw_data_buffer.shape[1] < self.processing_window:
+            self.raw_data_buffer = np.append(self.raw_data_buffer, new_sample, axis=1)
+            self.processed_data_buffer = np.append(self.processed_data_buffer, sample_proc, axis=1)
             nb_peaks = None
 
         else:
-            signal = np.append(signal[:, new_sample.shape[1] :], new_sample, axis=1)
-            signal_proc = np.append(signal_proc[:, new_sample.shape[1] :], sample_proc, axis=1)
-
-        if chanel_idx:
-            signal = signal[chanel_idx, :]
-            signal_proc = signal_proc[chanel_idx, :]
+            self.raw_data_buffer = np.append(self.raw_data_buffer[:, new_sample.shape[1] :], new_sample, axis=1)
+            self.processed_data_buffer = np.append(self.processed_data_buffer[:, new_sample.shape[1] :], sample_proc, axis=1)
 
         if min_peaks_interval:
-            signal_proc = RealTimeProcessing._check_and_adjust_intervall(signal_proc, min_peaks_interval)
+            self.processed_data_buffer = RealTimeProcessing._check_and_adjust_interval(self.processed_data_buffer, min_peaks_interval)
 
         if isinstance(nb_peaks, list):
-            nb_peaks.append(np.count_nonzero(signal_proc))
-        return nb_peaks, signal_proc, signal, is_one
+            nb_peaks.append(np.count_nonzero(self.processed_data_buffer))
+        return nb_peaks, self.processed_data_buffer
 
     @staticmethod
-    def _check_and_adjust_intervall(signal, interval):
+    def _check_and_adjust_interval(signal, interval):
         for j in range(signal.shape[0]):
             if np.count_nonzero(signal[j, -interval:] == 1) not in [0, 1]:
                 idx = np.where(signal[j, -interval:] == 1)[0]
@@ -419,11 +433,7 @@ class OfflineProcessing(GenericProcessing):
         self.processing_window = processing_window
         self.moving_average_windows = moving_average_windows
 
-    @staticmethod
-    def custom_processing(funct, raw_data, **kwargs):
-        return funct(raw_data, **kwargs)
-
-    def process_emg(self, data: np.ndarray, mvc_list: list)-> np.ndarray:
+    def process_emg(self, data: np.ndarray, mvc_list: list) -> np.ndarray:
         """
         Process EMG data.
         Parameters
@@ -434,6 +444,7 @@ class OfflineProcessing(GenericProcessing):
             List of MVC for each muscle.
 
         Returns
+        -------
         np.ndarray
             Processed EMG data.
         -------
