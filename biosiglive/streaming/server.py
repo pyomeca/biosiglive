@@ -181,7 +181,7 @@ class Server(Connection):
     Class to create a server.
     """
 
-    def __init__(self, ip: str = "127.0.0.1", port: int = 50000, type: str = "TCP"):
+    def __init__(self, ip: str = "127.0.0.1", port: int = 50000, server_type: str = "TCP"):
         """
         Parameters
         ----------
@@ -194,7 +194,7 @@ class Server(Connection):
         """
         self.ip = ip
         self.port = port
-        self.type = type
+        self.server_type = server_type
         self.server = None
         self.inputs = None
         self.outputs = None
@@ -206,17 +206,17 @@ class Server(Connection):
         Start the server.
         """
         # for i, port in enumerate(self.ports):
-        if self.type == "TCP":
+        if self.server_type == "TCP":
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        elif self.type == "UDP":
+        elif self.server_type == "UDP":
             raise RuntimeError(f"UDP server not implemented yet.")
             # self.servers.append(socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
         else:
-            raise RuntimeError(f"Invalid type of connexion ({type}). Type must be 'TCP' or 'UDP'.")
+            raise RuntimeError(f"Invalid type of connexion ({self.server_type}). Type must be 'TCP' or 'UDP'.")
         try:
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server.bind((self.ip, self.port))
-            if self.type != "UDP":
+            if self.server_type != "UDP":
                 self.server.listen(10)
                 self.inputs = [self.server]
                 self.outputs = []

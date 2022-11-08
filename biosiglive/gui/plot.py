@@ -13,10 +13,11 @@ from typing import Union
 import matplotlib.pyplot as plt
 from math import ceil
 from ..enums import PlotType
+import time
 
 
 class Plot:
-    def __init__(self, nb_subplots: int, plot_type: Union[PlotType, str] = PlotType.Curve, name: str = None, channel_names: list = None, unit: str = None):
+    def __init__(self, nb_subplots: int, plot_type: Union[PlotType, str] = PlotType.Curve, name: str = None, channel_names: list = None, rate: int = None, unit: str = None):
         """
         Initialize the plot class.
 
@@ -47,6 +48,7 @@ class Plot:
         self.figure_name = name
         self.nb_subplot = nb_subplots
         self.unit = unit
+        self.rate = rate
 
 
 class OfflinePlot:
@@ -129,6 +131,8 @@ class LivePlot:
         self.msk_model = None
         self.plots_buffer = []
         self.plots_windows = []
+        self.last_plot = []
+        self.plot_once_update = []
 
     # TODO: change plot type by PlotType enum
     def add_new_plot(
@@ -136,6 +140,7 @@ class LivePlot:
         nb_subplot: int,
         plot_name: str = "qt_app",
         plot_type: Union[PlotType, str] = PlotType.Curve,
+        plot_rate: int = None,
         channel_names: Union[str, list] = None,
         unit: str = "",
     ):
@@ -149,6 +154,8 @@ class LivePlot:
             The name of the plot.
         plot_type: str
             The type of the plot.
+        plot_rate: int
+            The rate of the plot.
         channel_names: str or list
             The name of the channels.
         unit: str
@@ -162,9 +169,11 @@ class LivePlot:
                         plot_name = plot.figure_name[:-1] + str(int(plot.figure_name[-1]) + 1)
                     except ValueError:
                         plot_name = plot_name + "_1"
-        self.plots.append(Plot(nb_subplot, plot_type, plot_name, channel_names, unit))
+        self.plots.append(Plot(nb_subplot, plot_type, plot_name, channel_names, plot_rate, unit))
         self.plots_windows.append(None)
         self.plots_buffer.append(None)
+        self.last_plot.append(None)
+        self.plot_once_update.append(False)
 
     def init_plot(self, plot_name, plot_windows: int=None, use_checkbox: bool = True, remote: bool = True, **kwargs):
         """
@@ -228,6 +237,7 @@ class LivePlot:
         box: QCheckBox
             The checkbox.
         """
+        update = True
         plot_idx = [i for i, plot in enumerate(self.plots) if plot.figure_name == plot_name][0]
         plot = self.plots[plot_idx]
         if self.plots_windows[plot_idx]:
@@ -238,15 +248,21 @@ class LivePlot:
                     size = data.shape[1]
                     self.plots_buffer[plot_idx] = np.append((self.plots_buffer[plot_idx, size:]), data, axis=1)
                 data = self.plots_buffer[plot_idx]
-
-        if plot.type == "progress_bar":
-            self._update_progress_bar(data, app, rplt, plot.channel_names, plot.unit)
-        elif plot.type == "curve":
-            self._update_curve(data, app, rplt, box)
-        elif plot.type == "skeleton":
-            self._update_skeleton(data, plot.viz)
-        else:
-            raise ValueError(f"The plot type ({plot.type}) is not supported.")
+        if plot.rate and self.plot_once_update[plot_idx]:
+            if self.last_plot[plot_idx] + 1 / plot.rate < time.time():
+                update = False
+            else:
+                update = True
+        if update:
+            self.plot_once_update[plot_idx] = True
+            if plot.type == "progress_bar":
+                self._update_progress_bar(data, app, rplt, plot.channel_names, plot.unit)
+            elif plot.type == "curve":
+                self._update_curve(data, app, rplt, box)
+            elif plot.type == "skeleton":
+                self._update_skeleton(data, plot.viz)
+            else:
+                raise ValueError(f"The plot type ({plot.type}) is not supported.")
 
     def _init_curve(
         self,
