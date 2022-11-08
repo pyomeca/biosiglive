@@ -46,11 +46,11 @@ class GenericInterface:
 
     def _add_device(
         self,
-            device_type: Union[DeviceType, str] = DeviceType.Emg,
-            nb_channels: int = 1,
+        nb_channels: int,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
         name: str = None,
         rate: float = 2000,
-        device_range: tuple = (0, 16),
+        device_range: tuple = None,
     ):
         """
         Add a device to the Vicon system.
@@ -70,13 +70,13 @@ class GenericInterface:
                 raise ValueError("The type of the device is not valid.")
             device_type = DeviceType(device_type)
         device_tmp = Device(device_type, nb_channels,  name,  rate, self.system_rate)
-        device_tmp.device_range = device_range
+        device_tmp.device_range = device_range if device_range else (0, nb_channels)
         device_tmp.interface = self.interface_type
         return device_tmp
 
     def _add_markers(
         self,
-        nb_markers: int = 1,
+        nb_markers: int,
         name: str = None,
         marker_names: Union[str, list] = None,
         rate: float = 100,
@@ -99,55 +99,27 @@ class GenericInterface:
         markers_tmp.interface = self.interface_type
         return markers_tmp
 
-    def add_markers(self,
-                    nb_markers: int = 1,
-        name: str = None,
-        marker_names: Union[str, list] = None,
-        rate: float = 100,
-        unlabeled: bool = False,
-        subject_name: str = None,):
+    def add_markers(self, **kwargs):
 
         """
         Add markers set to stream from the interface system.
-        Parameters
-        ----------
-        name: str
-            Name of the markers set.
-        marker_names: Union[list, str]
-            List of markers names.
-        rate: int
-            Rate of the markers set.
-        unlabeled: bool
-            Whether the markers set is unlabeled.
-        subject_name: str
-            Name of the subject. If None, the subject will be the first one in Nexus.
         """
         raise RuntimeError(f"Markers are not implemented with interface '{self.interface_type}'.")
 
-    def add_device(self, nb_channels: int = 1, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None,  rate: float = 2000, device_range: tuple = (0, 16)):
+    def add_device(self, **kwargs):
         """
         Add a device to the Vicon system.
-        Parameters
-        ----------
-        name: str
-            Name of the device.
-        device_type: Union[DeviceType, str]
-            Type of the device.
-        rate: float
-            Rate of the device.
-        device_range: tuple
-            Range of the device.
         """
         raise RuntimeError(f"Devices are not implemented with interface '{self.interface_type}.")
 
     @staticmethod
-    def get_force_plate_data(vicon_client):
+    def get_force_plate_data():
         raise NotImplementedError("Force plate streaming is not implemented yet.")
 
-    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None):
+    def get_device_data(self, **kwargs):
         raise RuntimeError(f"You can not get device data from '{self.interface_type}'.")
 
-    def get_markers_data(self, marker_names: list = None, subject_name: str = None):
+    def get_markers_data(self, **kwargs):
         raise RuntimeError(f"You can not get merkers data from '{self.interface_type}'.")
 
     def get_latency(self):
@@ -159,7 +131,9 @@ class GenericInterface:
     def get_frame_number(self):
         raise RuntimeError(f"You can not get frame number from '{self.interface_type}'.")
 
-    def get_kinematics_from_markers(self, markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare
-                                    , return_qdot: bool=False, custom_func: staticmethod=None, **kwargs):
+    def get_kinematics_from_markers(self, **kwargs):
         raise RuntimeError(f"You can not get kinematics from '{self.interface_type}'.")
+
+    def init_client(self):
+        raise RuntimeError(f"You can not init client from '{self.interface_type}'.")
 

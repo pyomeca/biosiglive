@@ -1,3 +1,4 @@
+import numpy as np
 from .generic_interface import GenericInterface
 from ..enums import DeviceType, InterfaceType
 from typing import Union
@@ -21,25 +22,28 @@ class PytrignoClient(GenericInterface):
 
     def add_device(
         self,
-        name: str = None,
-        device_range: tuple = (0, 16),
+        nb_channels: int,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
+        name: str = None,
         rate: float = 2000,
+        device_range: tuple = None,
     ):
         """
         Add a device to the Pytrigno client.
         Parameters
         ----------
-        name : str
-            Name of the device.
-        device_range : tuple
-            Range of the electrodes.
+        nb_channels: int
+            Number of channels of the device.
         device_type : Union[DeviceType, str]
             Type of the device. (emg or imu)
+        name : str
+            Name of the device.
         rate : float
             Rate of the device.
+        device_range : tuple
+            Range of the device.
         """
-        device_tmp = self._add_device(name, device_type, rate, device_range)
+        device_tmp = self._add_device(nb_channels, device_type, name,  rate, device_range)
         device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
         if device_type == DeviceType.Emg:
@@ -58,14 +62,15 @@ class PytrignoClient(GenericInterface):
         else:
             raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
 
-    def get_device_data(self, device_name: str = "all"):
+    def get_device_data(self, device_name: str = "all", channel_idx: Union[int, list] = ()):
         """
         Get data from the device.
         Parameters
         ----------
         device_name : str
             Name of the device.
-
+        channel_idx : Union[int, list]
+            Index of the channel.
         Returns
         -------
         data : list
@@ -73,6 +78,8 @@ class PytrignoClient(GenericInterface):
         """
         devices = []
         all_device_data = []
+        if not isinstance(channel_idx, list):
+            channel_idx = [channel_idx]
 
         if device_name and not isinstance(device_name, list):
             device_name = [device_name]
@@ -91,6 +98,11 @@ class PytrignoClient(GenericInterface):
                 device_data = self.imu_client.read()
             else:
                 raise RuntimeError(f"Device type ({device.type}) not supported with pytrigno.")
+            if len(channel_idx) != 0:
+                device_data_idx = np.ndarray((len(channel_idx), device_data.shape[1]))
+                for i, idx in enumerate(channel_idx):
+                    device_data_idx[i, :] = device_data[idx, :]
+                device_data = device_data_idx
             all_device_data.append(device_data)
         return all_device_data
 
@@ -102,15 +114,3 @@ class PytrignoClient(GenericInterface):
 
     def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
         raise RuntimeError("It's not possible to get markers data from pytrigno.")
-
-    @staticmethod
-    def _init_client():
-        pass
-
-    @staticmethod
-    def get_latency():
-        return 0
-
-    @staticmethod
-    def get_frame():
-        return True
