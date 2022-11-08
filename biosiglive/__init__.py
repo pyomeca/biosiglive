@@ -12,6 +12,6 @@ from .processing.data_processing import RealTimeProcessing, OfflineProcessing, G
 from .processing.msk_functions import kalman_func
 
 from .streaming.client import Client
-from .streaming.connection import Server
+from .streaming.server import Server
 
 from .enums import InterfaceType
