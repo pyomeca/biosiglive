@@ -6,9 +6,12 @@ try:
 except ModuleNotFoundError:
     pass
 import numpy as np
+from ..enums import InverseKinematicsMethods
+from typing import Union
 
 
-def compute_inverse_kinematics(markers, model, return_q_dot=True, kalman=None, use_kalman=True):
+def compute_inverse_kinematics(markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+                               kalman_freq: int=100, kalman: biorbd.KalmanReconsMarkers=None, custom_function: callable=None, **kwargs)->tuple:
     """
     Function to apply the Kalman filter to the markers.
     Parameters
@@ -17,25 +20,31 @@ def compute_inverse_kinematics(markers, model, return_q_dot=True, kalman=None, u
         The experimental markers.
     model : biorbd.Model
         The model used to compute the kinematics.
-    return_q_dot : bool
-        If True, the function will return the q_dot.
-    kalman : biorbd.Kalman
+    kalman : biorbd.KalmanReconsMarkers
         The Kalman filter to use.
-    use_kalman : bool
-        If True, the function will use the Kalman filter. If False, it will use the standard inverse kinematics.
-
+    kalman_freq : int
+        The frequency of the Kalman filter.
+    method : Union[InverseKinematicsMethods, str]
+        The method to use to compute the inverse kinematics.
+    custom_function : callable
+        Custom function to use.
     Returns
     -------
-    numpy.array or tuple
-        The joint angle and (if asked) velocity. .
+    tuple
+        The joint angle and velocity.
     """
-    if use_kalman:
-        markers_over_frames = []
+    if isinstance(method, str):
+        if method in [t.value for t in InverseKinematicsMethods]:
+            method = InverseKinematicsMethods(method)
+        else:
+            raise ValueError(f"Method {method} is not supported")
+
+    if method == InverseKinematicsMethods.BiorbdKalman:
         if not kalman:
-            freq = 100  # Hz
+            freq = kalman_freq  # Hz
             params = biorbd.KalmanParam(freq)
             kalman = biorbd.KalmanReconsMarkers(model, params)
-
+        markers_over_frames = []
         q = biorbd.GeneralizedCoordinates(model)
         q_dot = biorbd.GeneralizedVelocity(model)
         qd_dot = biorbd.GeneralizedAcceleration(model)
@@ -49,16 +58,20 @@ def compute_inverse_kinematics(markers, model, return_q_dot=True, kalman=None, u
             kalman.reconstructFrame(model, targetMarkers, q, q_dot, qd_dot)
             q_recons[:, i] = q.to_array()
             q_dot_recons[:, i] = q_dot.to_array()
-    else:
+
+    elif method == InverseKinematicsMethods.BiorbdLeastSquare:
         ik = biorbd.InverseKinematics(model, markers)
         ik.solve("only_lm")
         q_recons = ik.q
         q_dot_recons = np.array([0] * ik.nb_q)[:, np.newaxis]
+
+    elif method == InverseKinematicsMethods.Custom:
+        if not custom_function:
+            raise ValueError("No custom function provided.")
+        q_recons = custom_function(markers, **kwargs)
+        q_dot_recons = np.zerros((q_recons.shape()))
     # compute markers from
-    if return_q_dot:
-        return q_recons, q_dot_recons
-    else:
-        return q_recons
+    return q_recons, q_dot_recons
 
 
 # def markers_fun(biorbd_model, q=None, eigen_backend=False):
