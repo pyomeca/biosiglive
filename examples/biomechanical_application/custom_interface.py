@@ -57,6 +57,7 @@ class MyInterface(GenericInterface):
 
         for device in devices:
             data_tmp = np.random.rand(device.nb_channels, device.sample)
+            device.new_data = data_tmp
             all_device_data.append(data_tmp)
 
         if len(all_device_data) == 1:
