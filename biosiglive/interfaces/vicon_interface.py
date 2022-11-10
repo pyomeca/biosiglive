@@ -14,6 +14,12 @@ try:
 except ModuleNotFoundError:
     pass
 
+try:
+    import biorbd
+    is_biorbd = True
+except ModuleNotFoundError:
+    is_biorbd = False
+
 
 class ViconClient(GenericInterface):
     """
@@ -39,7 +45,7 @@ class ViconClient(GenericInterface):
         self.acquisition_rate = None
         self.system_rate = system_rate
 
-        # Add possibility to initialize the client after, as swig object are not pickable.
+        # Add possibility to initialize the client after, as swig object are not pickable (multiprocessing).
         if init_now:
             self._init_client()
 
@@ -63,7 +69,7 @@ class ViconClient(GenericInterface):
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
 
-    def add_device(self, nb_channels: int, device_type: Union[DeviceType.value, str] = DeviceType.Emg, name: str = None, rate: float = 2000, device_range: tuple = None):
+    def add_device(self, nb_channels: int, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None, rate: float = 2000, device_range: tuple = None):
         """
         Add a device to the Vicon system.
         Parameters
@@ -126,7 +132,7 @@ class ViconClient(GenericInterface):
         )
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
-            markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
+            markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not marker_names else marker_names
         else:
             markers_tmp.subject_name = subject_name
             markers_tmp.markers_names = marker_names
@@ -283,15 +289,14 @@ class ViconClient(GenericInterface):
             raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetFrameNumber()
 
-    def get_kinematics_from_markers(self, markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-                                    markers_rate: int = 100, kalman: biorbd.KalmanReconsMarkers = None
-                                    , custom_func: staticmethod=None, **kwargs):
+    def get_kinematics_from_markers(self, markerset: str, model:callable, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare, kalman: callable = None
+                                    , custom_func: callable=None, **kwargs):
         """
         Get the kinematics from markers.
         Parameters
         ----------
-        markers: np.ndarray
-            Array of markers.
+        markerset: str
+            name of the markerset.
         model: biorbd.Model
             Model of the kinematics.
         method: str
@@ -307,10 +312,5 @@ class ViconClient(GenericInterface):
         kinematics: list
             List of kinematics.
         """
-        if isinstance(method, str):
-            if method in [t.value for t in InverseKinematicsMethods]:
-                method = InverseKinematicsMethods(method)
-            else:
-                raise ValueError(f"Method {method} is not supported")
-        q, q_dot = compute_inverse_kinematics(markers, model, method, kalman=kalman, kalman_freq=markers_rate, **kwargs)
-        return q, q_dot
+        markerset_idx = [i for i, m in enumerate(self.markers) if m.name == markerset][0]
+        return self.markers[markerset_idx].get_kinematics(model, method, kalman=kalman, **kwargs)

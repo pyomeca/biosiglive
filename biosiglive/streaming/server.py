@@ -3,10 +3,8 @@ This is part of the biosiglive project. It contains the connection class.
 """
 import socket
 import json
-import multiprocessing as mp
 import numpy as np
 import struct
-from typing import Union
 
 try:
     from pythonosc.udp_client import SimpleUDPClient
@@ -19,7 +17,7 @@ class Connection:
     This class is used to connect to the biosiglive server.
     """
 
-    def __init__(self, ip: str = "127.0.0.1", ports: Union[int, list] = 50000):
+    def __init__(self, ip: str = "127.0.0.1", port: int = 50000):
         """
         Initialize the connection.
 
@@ -27,11 +25,11 @@ class Connection:
         ----------
         ip : str
             The ip address of the server.
-        ports : int or list
-            The port(s) of the server.
+        port : int
+            The port of the server.
         """
         self.ip = ip
-        self.ports = [ports] if not isinstance(ports, list) else ports
+        self.ports = port
         self.message_queues = None
         self.buff_size = 100000
         self.acquisition_rate = 100
@@ -187,9 +185,9 @@ class Server(Connection):
         ----------
         ip : str
             The ip of the server.
-        ports : list
-                The ports of the server.
-        type : str
+        port : int
+            The port of the server.
+        server_type : str
             The type of the server.
         """
         self.ip = ip
@@ -199,7 +197,7 @@ class Server(Connection):
         self.inputs = None
         self.outputs = None
         self.buff_size = 100000
-        super().__init__(ip=ip, ports=port)
+        super().__init__(ip=ip, port=port)
 
     def start(self):
         """

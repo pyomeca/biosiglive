@@ -185,7 +185,7 @@ class StreamData:
             try:
                 device_data = self.device_queue_in[device_idx].get_nowait()
                 is_working = True
-            except :
+            except mp.Queue().empty:
                 is_working = False
 
             if is_working:
@@ -217,6 +217,7 @@ class StreamData:
         params = biorbd.KalmanParam(freq)
         kalman = biorbd.KalmanReconsMarkers(model, params)
         while True:
+            # If the queue is empty, the process is not working. Cannot use is_empty function as it is not trustable.
             try:
                 markers_data = self.kin_queue_in[marker_idx].get_nowait()
                 is_working = True

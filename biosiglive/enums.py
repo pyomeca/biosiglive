@@ -30,3 +30,18 @@ class InverseKinematicsMethods(Enum):
     BiorbdKalman = "biorbd_kalman"
     BiorbdLeastSquare = "biorbd_least_square"
     Custom = "custom"
+
+
+class RealTimeProcessingMethod(Enum):
+    ProcessEmg = "process_emg"
+    ProcessImu = "process_imu"
+    CalibrationMatrix = "calibration_matrix"
+    GetPeaks = "get_peaks"
+    Custom = "custom"
+
+
+class OfflineProcessingMethod(Enum):
+    ProcessEmg = "process_emg"
+    CalibrationMatrix = "calibration_matrix"
+    ComputeMvc = "compute_mvc"
+

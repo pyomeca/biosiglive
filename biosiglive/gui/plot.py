@@ -16,7 +16,7 @@ from ..enums import PlotType
 import time
 
 
-class Plot:
+class LivePlot:
     def __init__(self, nb_subplots: int, plot_type: Union[PlotType, str] = PlotType.Curve, name: str = None, channel_names: list = None, rate: int = None, unit: str = None):
         """
         Initialize the plot class.
@@ -37,7 +37,7 @@ class Plot:
         if isinstance(plot_type, str):
             if plot_type not in [t.value for t in PlotType]:
                 raise ValueError("Plot type not recognized")
-            self.plot_type = PlotType(plot_type)
+            plot_type = PlotType(plot_type)
         self.plot_type = plot_type
 
         if nb_subplots and channel_names:
@@ -49,6 +49,335 @@ class Plot:
         self.nb_subplot = nb_subplots
         self.unit = unit
         self.rate = rate
+        self.rplt = None
+        self.box = None
+        self.layout = None
+        self.app = None
+        self.viz = None
+        self.resize = (400, 400)
+        self.move = (0, 0)
+        self.plot_windows = None
+        self.plot_buffer = None
+        self.msk_model = None
+        self.last_plot = None
+        self.once_update = False
+        
+    def init(self, plot_windows: Union[int, list]=None, use_checkbox: bool = True, remote: bool = True, bar_graph_max_value: Union[int, list]=None, msk_model: str = None, **kwargs):
+        """
+        This function is used to initialize the qt app.
+        Parameters
+        ----------
+        plot_windows: Union[int, list]
+            The number of frames ti plot. If is a list, the number of frames to plot for each subplot.
+        use_checkbox: bool
+            If True, the checkbox is used.
+        remote: bool
+            If True, the plot is done in a separate process.
+        bar_graph_max_value: Union[int, list]
+            The maximum value of the progress bar.
+        **kwargs:
+            The arguments of the bioviz plot.
+        """
+        self.msk_model = msk_model
+        self.plot_buffer = [None] * self.nb_subplot
+        if isinstance(plot_windows, int):
+            plot_windows = [plot_windows] * self.nb_subplot
+        self.plot_windows = plot_windows
+        if self.plot_type == PlotType.Curve:
+            self.rplt, self.layout, self.app, self.box = self._init_curve(
+                self.figure_name, self.channel_names, self.nb_subplot, checkbox=use_checkbox
+            )
+        elif self.plot_type == PlotType.ProgressBar:
+            self.rplt, self.layout, self.app = self._init_progress_bar(
+                self.figure_name,
+                self.nb_subplot,
+                bar_graph_max_value,
+            )
+
+        elif self.plot_type == PlotType.Skeleton:
+            if not self.msk_model:
+                raise ValueError("Please provide the path to the model.")
+            self.viz = self._init_skeleton(self.msk_model, **kwargs)
+
+        else:
+            raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+
+    def update(self, data: Union[np.ndarray, list]):
+        """
+        This function is used to update the qt app.
+        Parameters
+        ----------
+        data: Union[np.ndarray, list]
+            The data to plot. if list, the data to plot for each subplot.
+        """
+        update = True
+        if isinstance(data, list):
+            if len(data) != self.nb_subplot:
+                raise ValueError("The number of subplots is not equal to the number of data.")
+            for d in data:
+                if isinstance(d, np.ndarray):
+                    if len(d.shape) != 2:
+                        raise ValueError("The data should be a 2D array.")
+                else:
+                    raise ValueError("The data should be a 2D array.")
+        if isinstance(data, np.ndarray):
+            data_mat = data
+            data = []
+            if data_mat.shape[0] != self.nb_subplot:
+                raise ValueError("The number of subplots is not equal to the number of data.")
+            for d in data_mat:
+                data.append(d[np.newaxis, :])
+
+        if self.plot_windows:
+            for i in range(self.nb_subplot):
+                if self.plot_buffer[i] is None:
+                    self.plot_buffer[i] = data[i]
+                elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=1)
+                elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
+                    size = data[i].shape[1]
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i][:, size:], data[i], axis=1)
+                data[i] = self.plot_buffer[i]
+        if self.rate and self.once_update:
+            if self.last_plot + 1 / self.rate < time.time():
+                update = False
+            else:
+                update = True
+        if update:
+            self.once_update = True
+            if self.plot_type == PlotType.ProgressBar:
+                self._update_progress_bar(data, self.app, self.rplt, self.channel_names, self.unit)
+            elif self.plot_type == PlotType.Curve:
+                self._update_curve(data, self.app, self.rplt, self.box)
+            elif self.plot_type == PlotType.Skeleton:
+                self._update_skeleton(data, self.viz)
+            else:
+                raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+
+    def _init_curve(
+        self,
+        figure_name: str = "Figure",
+        subplot_label: Union[list, str] = None,
+        nb_subplot: int = None,
+        checkbox: bool = True,
+        # remote: bool = True,
+    ):
+        """
+        This function is used to initialize the curve plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        subplot_label: str or list
+            The label of the subplot.
+        nb_subplot: int
+            The number of subplot.
+        checkbox: bool
+            If True, the checkbox is used.
+        remote: bool
+            If True, the plot is done in a separate process.
+
+        Returns
+        -------
+        app: QApplication
+            The qt app.
+        rplt: method
+            The plot.
+        layout:
+            The layout of the qt app.
+        box: QCheckBox
+            The checkbox.
+        """
+        # TODO add remote statement
+        # --- Curve graph --- #
+        resize = self.resize
+        move = self.move
+        layout, app = self._init_layout(figure_name, resize, move)
+        remote = []
+        label = QtGui.QLabel()
+        box = []
+        rplt = []
+        row_count = 0
+        col_span = 4 if nb_subplot > 8 else 8
+
+        if not isinstance(subplot_label, list):
+            subplot_label = [subplot_label]
+        if isinstance(subplot_label, list) and len(subplot_label) != nb_subplot:
+            raise ValueError("The length of the subplot_label list must be equal to the number of subplot")
+
+        for plot in range(nb_subplot):
+            remote.append(rgv.RemoteGraphicsView())
+            remote[plot].pg.setConfigOptions(antialias=True)
+            app.aboutToQuit.connect(remote[plot].close)
+            if checkbox:
+                if subplot_label:
+                    box.append(QtGui.QCheckBox(subplot_label[plot]))
+                else:
+                    box.append(QtGui.QCheckBox(f"plot_{plot}"))
+            if plot >= 8:
+                if checkbox:
+                    layout.addWidget(box[plot], row=1, col=plot - 8)
+                layout.addWidget(remote[plot], row=plot - 8 + 2, col=4, colspan=col_span)
+            else:
+                if checkbox:
+                    layout.addWidget(box[plot], row=0, col=plot)
+                layout.addWidget(remote[plot], row=plot + 2, col=0, colspan=col_span)
+            rplt.append(remote[plot].pg.PlotItem())
+            rplt[plot]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
+            remote[plot].setCentralItem(rplt[plot])
+            layout.addWidget(label)
+            layout.show()
+            row_count += 1
+        return rplt, layout, app, box
+
+    def _init_progress_bar(self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100):
+        """
+        This function is used to initialize the curve plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        nb_subplot: int
+            The number of subplot.
+
+        Returns
+        -------
+        app: QApplication
+            The qt app.
+        rplt: Plot
+            The plot.
+        layout: pg.LayoutWidget
+            The layout of the qt app.
+        bar_graph_max_value: Union[int, list]
+            The maximum value of the progress bar.
+        """
+        # --- Progress bar graph --- #
+        layout, app = self._init_layout(figure_name, resize=self.resize, move=self.move)
+        rplt = []
+        row_count = 0
+        if isinstance(bar_graph_max_value, int):
+            bar_graph_max_value = [bar_graph_max_value] * nb_subplot
+        for plot in range(nb_subplot):
+            rplt.append(QProgressBar())
+            rplt[plot].setMaximum(bar_graph_max_value[plot])
+            layout.addWidget(rplt[plot], row=plot, col=0)
+            layout.show()
+            row_count += 1
+
+        return rplt, layout, app
+
+    @staticmethod
+    def _update_curve(data: list, app, rplt: list, box: list):
+        """
+        This function is used to update the curve plot.
+        Parameters
+        ----------
+        data: list
+            The data to plot.
+        app: QApplication
+            The qt app.
+        rplt: list
+            The plot.
+        box: QCheckBox
+            The checkbox.
+
+        Returns
+        -------
+
+        """
+        for i in range(len(data)):
+            if len(box) != 0:
+                if box[i].isChecked() is True:
+                    rplt[i].plot(data[i][0, :], clear=True, _callSync="off")
+            else:
+                rplt[i].plot(data[i][0, :], clear=True, _callSync="off")
+        app.processEvents()
+
+    @staticmethod
+    def _update_progress_bar(data: list, app, rplt: list, subplot_label: list, unit: str = ""):
+        """
+        This function is used to update the progress bar plot.
+        Parameters
+        ----------
+        data: list
+            The data to plot.
+        app: QApplication
+            The qt app.
+        rplt: list
+            The plot.
+        subplot_label: list
+            The subplot label.
+        unit: str
+            The unit of the data to plot.
+        """
+
+        if subplot_label and len(subplot_label) != len(data):
+            raise RuntimeError(
+                f"The length of Subplot labels ({len(subplot_label)}) is different than"
+                f" the first dimension of your data ({len(data)})."
+            )
+
+        for i in range(len(data)):
+            value = np.mean(data[i][0, :])
+            rplt[i].setValue(int(value))
+            name = subplot_label[i] if subplot_label else f"plot_{i}"
+            rplt[i].setFormat(f"{name}: {int(value)} {unit}")
+        app.processEvents()
+
+    @staticmethod
+    def _update_skeleton(data: list, viz):
+        """
+        This function is used to update the skeleton plot.
+        Parameters
+        ----------
+        data  : list
+            The data to plot. list of length degree of freedom.
+        viz: Viz3D
+            The plot.
+
+        Returns
+        -------
+
+        """
+        data_mat = np.ndarray((len(data), data[0].shape[1]))
+        for i, d in enumerate(data):
+            data_mat[i, :] = d
+        viz.set_q(data, refresh_window=True)
+
+    def _init_skeleton(self, model_path: str, **kwargs):
+        try:
+            import bioviz
+        except ImportError:
+            raise ImportError("Please install bioviz (github.com/pyomeca/bioviz) to use the skeleton plot.")
+        plot = bioviz.Viz(model_path, **kwargs)
+        return plot
+
+    @staticmethod
+    def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
+        """
+        This function is used to initialize the qt app layout.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        resize: tuple
+            The size of the figure.
+        move: tuple
+            The position of the figure.
+
+        Returns
+        -------
+        layout: QVBoxLayout
+            The layout of the qt app.
+        app: QApplication
+            The qt app.
+
+        """
+        app = pg.mkQApp(figure_name)
+        layout = pg.LayoutWidget()
+        layout.resize(resize[0], resize[1])
+        layout.move(move[0], move[1])
+        return layout, app
 
 
 class OfflinePlot:
@@ -113,364 +442,3 @@ class OfflinePlot:
                 plt.title(subplot_title[i], fontsize=size_police)
         plt.show()
 
-
-class LivePlot:
-    """
-    This class is used to plot the data in live mode.
-    """
-
-    def __init__(self):
-        """
-        This function is used to initialize the LivePlot class.
-        """
-        self.check_box = True
-        self.plots = []
-        self.resize = (800, 800)
-        self.move = (0, 0)
-        self.progress_bar_max = 1000
-        self.msk_model = None
-        self.plots_buffer = []
-        self.plots_windows = []
-        self.last_plot = []
-        self.plot_once_update = []
-
-    # TODO: change plot type by PlotType enum
-    def add_new_plot(
-        self,
-        nb_subplot: int,
-        plot_name: str = "qt_app",
-        plot_type: Union[PlotType, str] = PlotType.Curve,
-        plot_rate: int = None,
-        channel_names: Union[str, list] = None,
-        unit: str = "",
-    ):
-        """
-        This function is used to add a new plot.
-        Parameters
-        ----------
-        nb_subplot: int
-            The number of subplot in the plot.
-        plot_name: str
-            The name of the plot.
-        plot_type: str
-            The type of the plot.
-        plot_rate: int
-            The rate of the plot.
-        channel_names: str or list
-            The name of the channels.
-        unit: str
-            The unit of the plot.
-        """
-        for plot in self.plots:
-            if plot.figure_name == plot_name:
-                if plot.figure_name[-1] != "1":
-                    try:
-                        int(plot.figure_name[-1])
-                        plot_name = plot.figure_name[:-1] + str(int(plot.figure_name[-1]) + 1)
-                    except ValueError:
-                        plot_name = plot_name + "_1"
-        self.plots.append(Plot(nb_subplot, plot_type, plot_name, channel_names, plot_rate, unit))
-        self.plots_windows.append(None)
-        self.plots_buffer.append(None)
-        self.last_plot.append(None)
-        self.plot_once_update.append(False)
-
-    def init_plot(self, plot_name, plot_windows: int=None, use_checkbox: bool = True, remote: bool = True, **kwargs):
-        """
-        This function is used to initialize the qt app.
-        Parameters
-        ----------
-        plot_name: str
-            The plot to initialize.
-        plot_windows: int
-            The number of plot windows.
-        use_checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: Plot
-            The plot.
-        layout: QVBoxLayout
-            The layout of the qt app.
-        box: QCheckBox
-            The checkbox.
-        """
-        plot_idx = [i for i, plot in enumerate(self.plots) if plot.figure_name == plot_name][0]
-        plot = self.plots[plot_idx]
-        self.plots_windows[plot_idx] = plot_windows
-        if plot.type == PlotType.Curve:
-            rplt, layout, app, box = self._init_curve(
-                plot.figure_name, plot.channel_names, plot.nb_subplot, checkbox=use_checkbox
-            )
-            return rplt, layout, app, box
-        elif plot.type == PlotType.ProgressBar:
-            rplt, layout, app = self._init_progress_bar(
-                plot.figure_name,
-                plot.nb_subplot,
-            )
-            return rplt, layout, app
-
-        if plot.type == PlotType.Skeleton:
-            plot.viz = self._init_skeleton(self.msk_model, **kwargs)
-
-        else:
-            raise ValueError(f"The plot type ({plot.type}) is not supported.")
-
-    def update_plot(self, plot_name, data: np.ndarray, app=None, rplt=None, box=None):
-        """
-        This function is used to update the qt app.
-        Parameters
-        ----------
-        plot_name: str
-            The plot to update.
-        data: np.ndarray
-            The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: method
-            qt rplt.
-        box: QCheckBox
-            The checkbox.
-        """
-        update = True
-        plot_idx = [i for i, plot in enumerate(self.plots) if plot.figure_name == plot_name][0]
-        plot = self.plots[plot_idx]
-        if self.plots_windows[plot_idx]:
-            if self.plots_buffer[plot_idx]:
-                if self.plots_buffer[plot_idx].shape[1] < self.plots_windows[plot_idx]:
-                    self.plots_buffer[plot_idx] = np.append((self.plots_buffer[plot_idx]), data, axis=1)
-                elif self.plots_buffer[plot_idx].shape[1] >= self.plots_windows[plot_idx]:
-                    size = data.shape[1]
-                    self.plots_buffer[plot_idx] = np.append((self.plots_buffer[plot_idx, size:]), data, axis=1)
-                data = self.plots_buffer[plot_idx]
-        if plot.rate and self.plot_once_update[plot_idx]:
-            if self.last_plot[plot_idx] + 1 / plot.rate < time.time():
-                update = False
-            else:
-                update = True
-        if update:
-            self.plot_once_update[plot_idx] = True
-            if plot.type == "progress_bar":
-                self._update_progress_bar(data, app, rplt, plot.channel_names, plot.unit)
-            elif plot.type == "curve":
-                self._update_curve(data, app, rplt, box)
-            elif plot.type == "skeleton":
-                self._update_skeleton(data, plot.viz)
-            else:
-                raise ValueError(f"The plot type ({plot.type}) is not supported.")
-
-    def _init_curve(
-        self,
-        figure_name: str = "Figure",
-        subplot_label: Union[list, str] = None,
-        nb_subplot: int = None,
-        checkbox: bool = True,
-        # remote: bool = True,
-    ):
-        """
-        This function is used to initialize the curve plot.
-        Parameters
-        ----------
-        figure_name: str
-            The name of the figure.
-        subplot_label: str or list
-            The label of the subplot.
-        nb_subplot: int
-            The number of subplot.
-        checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: method
-            The plot.
-        layout:
-            The layout of the qt app.
-        box: QCheckBox
-            The checkbox.
-        """
-        # TODO add remote statement
-        # --- Curve graph --- #
-        resize = self.resize
-        move = self.move
-        layout, app = LivePlot._init_layout(figure_name, resize, move)
-        remote = []
-        label = QtGui.QLabel()
-        box = []
-        rplt = []
-        row_count = 0
-        col_span = 4 if nb_subplot > 8 else 8
-
-        if not isinstance(subplot_label, list):
-            subplot_label = [subplot_label]
-        if isinstance(subplot_label, list) and len(subplot_label) != nb_subplot:
-            raise ValueError("The length of the subplot_label list must be equal to the number of subplot")
-
-        for plot in range(nb_subplot):
-            remote.append(rgv.RemoteGraphicsView())
-            remote[plot].pg.setConfigOptions(antialias=True)
-            app.aboutToQuit.connect(remote[plot].close)
-            if checkbox:
-                if subplot_label:
-                    box.append(QtGui.QCheckBox(subplot_label[plot]))
-                else:
-                    box.append(QtGui.QCheckBox(f"plot_{plot}"))
-            if plot >= 8:
-                if checkbox:
-                    layout.addWidget(box[plot], row=1, col=plot - 8)
-                layout.addWidget(remote[plot], row=plot - 8 + 2, col=4, colspan=col_span)
-            else:
-                if checkbox:
-                    layout.addWidget(box[plot], row=0, col=plot)
-                layout.addWidget(remote[plot], row=plot + 2, col=0, colspan=col_span)
-            rplt.append(remote[plot].pg.PlotItem())
-            rplt[plot]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
-            remote[plot].setCentralItem(rplt[plot])
-            layout.addWidget(label)
-            layout.show()
-            row_count += 1
-        return rplt, layout, app, box
-
-    def _init_progress_bar(self, figure_name: str = "Figure", nb_subplot: int = None):
-        """
-        This function is used to initialize the curve plot.
-        Parameters
-        ----------
-        figure_name: str
-            The name of the figure.
-        nb_subplot: int
-            The number of subplot.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: Plot
-            The plot.
-        layout: pg.LayoutWidget
-            The layout of the qt app.
-        """
-        # --- Progress bar graph --- #
-        layout, app = LivePlot._init_layout(figure_name, resize=self.resize, move=self.move)
-        rplt = []
-        row_count = 0
-        for plot in range(nb_subplot):
-            rplt.append(QProgressBar())
-            rplt[plot].setMaximum(self.progress_bar_max)
-            layout.addWidget(rplt[plot], row=plot, col=0)
-            layout.show()
-            row_count += 1
-
-        return rplt, layout, app
-
-    @staticmethod
-    def _update_curve(data: np.ndarray, app, rplt: list, box: list):
-        """
-        This function is used to update the curve plot.
-        Parameters
-        ----------
-        data: np.ndarray
-            The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
-            The plot.
-        box: QCheckBox
-            The checkbox.
-
-        Returns
-        -------
-
-        """
-        for i in range(data.shape[0]):
-            if len(box) != 0:
-                if box[i].isChecked() is True:
-                    if len(data.shape) == 2:
-                        rplt[i].plot(data[i, :], clear=True, _callSync="off")
-                    else:
-                        raise ValueError("The data must be a 2D array.")
-            else:
-                if len(data.shape) == 2:
-                    rplt[i].plot(data[i, :], clear=True, _callSync="off")
-                else:
-                    raise ValueError("The data must be a 2D array.")
-        app.processEvents()
-
-    @staticmethod
-    def _update_progress_bar(data: np.ndarray, app, rplt: list, subplot_label: list, unit: str = ""):
-        """
-        This function is used to update the progress bar plot.
-        Parameters
-        ----------
-        data: np.ndarray
-            The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
-            The plot.
-        subplot_label: list
-            The subplot label.
-        unit: str
-            The unit of the data to plot.
-        """
-
-        if subplot_label and len(subplot_label) != data.shape[0]:
-            raise RuntimeError(
-                f"The length of Subplot labels ({len(subplot_label)}) is different than"
-                f" the first dimension of your data ({data.shape[0]})."
-            )
-
-        for i in range(data.shape[0]):
-            value = np.mean(data[i, :])
-            rplt[i].setValue(int(value))
-            name = subplot_label[i] if subplot_label else f"plot_{i}"
-            rplt[i].setFormat(f"{name}: {int(value)} {unit}")
-        app.processEvents()
-
-    @staticmethod
-    def _update_skeleton(data: np.ndarray, viz):
-        viz.set_q(data, refresh_window=True)
-
-    def _init_skeleton(self, model_path: str, **kwargs):
-        try:
-            import bioviz
-        except ImportError:
-            raise ImportError("Please install bioviz (github.com/pyomeca/bioviz) to use the skeleton plot.")
-        plot = bioviz.Viz(model_path, **kwargs)
-        return plot
-
-    @staticmethod
-    def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
-        """
-        This function is used to initialize the qt app layout.
-        Parameters
-        ----------
-        figure_name: str
-            The name of the figure.
-        resize: tuple
-            The size of the figure.
-        move: tuple
-            The position of the figure.
-
-        Returns
-        -------
-        layout: QVBoxLayout
-            The layout of the qt app.
-        app: QApplication
-            The qt app.
-
-        """
-        app = pg.mkQApp(figure_name)
-        layout = pg.LayoutWidget()
-        layout.resize(resize[0], resize[1])
-        layout.move(move[0], move[1])
-        return layout, app
