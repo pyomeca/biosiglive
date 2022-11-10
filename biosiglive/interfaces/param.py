@@ -111,12 +111,6 @@ class Device(Param):
             if kwargs["processing_windows"] != self.data_windows:
                 raise ValueError("The processing windows is different than the data windows.")
             kwargs.pop("moving_average_window")
-
-        if "moving_average_window" in kwargs:
-            ma_win = kwargs["moving_average_window"]
-            kwargs.pop("moving_average_window")
-        else:
-            ma_win = ceil(self.rate/10)
         if self.new_data is None:
             raise RuntimeError("No data to process. Please run first the function get_device_data.")
         if isinstance(method, str):
@@ -127,36 +121,28 @@ class Device(Param):
 
         if not self.process_method:
             self._init_process_method(method, **kwargs)
-
-        self.processed_data = self.process_method(self.new_data, **kwargs)
+        if method == RealTimeProcessingMethod.Custom:
+            self.process_method(self.new_data, custom_function, **kwargs)
+        else:
+            self.processed_data = self.process_method(self.new_data, **kwargs)
         self._append_data(self.new_data)
         return self.processed_data
 
     def _init_process_method(self,  method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod], **kwargs):
-        if "processing_windows" in kwargs:
-            if kwargs["processing_windows"] != self.data_windows:
-                raise ValueError("The processing windows is different than the data windows.")
-            kwargs.pop("moving_average_window")
-
-        if "moving_average_window" in kwargs:
-            ma_win = kwargs["moving_average_window"]
-            kwargs.pop("moving_average_window")
-        else:
-            ma_win = ceil(self.rate / 10)
         if method == RealTimeProcessingMethod.ProcessEmg:
-            self.process_method = RealTimeProcessing(self.rate, self.data_windows, ma_win).process_emg
+            self.process_method = RealTimeProcessing(self.rate, self.data_windows).process_emg
         elif method == RealTimeProcessingMethod.ProcessImu:
-            self.process_method = RealTimeProcessing(self.rate, self.data_windows, ma_win).process_imu
+            self.process_method = RealTimeProcessing(self.rate, self.data_windows).process_imu
         elif method == RealTimeProcessingMethod.GetPeaks:
-            self.process_method = RealTimeProcessing(self.rate, self.data_windows, ma_win).get_peaks
+            self.process_method = RealTimeProcessing(self.rate, self.data_windows).get_peaks
         elif method == OfflineProcessingMethod.ProcessEmg:
-            self.process_method = OfflineProcessing(self.rate, self.data_windows, ma_win).process_emg
+            self.process_method = OfflineProcessing(self.rate, self.data_windows).process_emg
         elif method == OfflineProcessingMethod.ComputeMvc:
-            self.process_method = OfflineProcessing(self.rate, self.data_windows, ma_win).compute_mvc
+            self.process_method = OfflineProcessing(self.rate, self.data_windows).compute_mvc
         elif method == RealTimeProcessingMethod.CalibrationMatrix or method == OfflineProcessingMethod.CalibrationMatrix:
             self.process_method = GenericProcessing().calibration_matrix
         elif method == RealTimeProcessingMethod.Custom:
-            self.process_method = RealTimeProcessing(self.rate, self.data_windows, ma_win).custom_processing
+            self.process_method = RealTimeProcessing(self.rate, self.data_windows).custom_processing
         else:
             raise ValueError("The method is not a valid method.")
 

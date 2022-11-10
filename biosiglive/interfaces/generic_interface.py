@@ -65,6 +65,8 @@ class GenericInterface:
         device_range: tuple
             Range of the device.
         """
+        if name in [device.name for device in self.devices]:
+            raise RuntimeError(f"The device '{name}' already exists.")
         if isinstance(device_type, str):
             if device_type not in [t.value for t in DeviceType]:
                 raise ValueError("The type of the device is not valid.")
@@ -95,6 +97,8 @@ class GenericInterface:
         unlabeled: bool
             Whether the markers set is unlabeled.
         """
+        if name in [marker.name for marker in self.markers]:
+            raise RuntimeError(f"The marker set '{name}' already exists.")
         markers_tmp = MarkerSet(nb_markers, name, marker_names, rate, unlabeled, self.system_rate)
         markers_tmp.interface = self.interface_type
         return markers_tmp
@@ -105,6 +109,50 @@ class GenericInterface:
         Add markers set to stream from the interface system.
         """
         raise RuntimeError(f"Markers are not implemented with interface '{self.interface_type}'.")
+
+    def get_device(self, name: str = None, idx: int = None):
+        """
+        Get a device from the interface.
+        Parameters
+        ----------
+        idx: int
+            Index of the device.
+        name: str
+            Name of the device.
+        Returns
+        -------
+        The device.
+        """
+        if idx is not None:
+            return self.devices[idx]
+        elif name is not None:
+            for device in self.devices:
+                if device.name == name:
+                    return device
+        else:
+            raise RuntimeError("You must provide an index or a name for the device.")
+
+    def get_marker_set(self, name: str = None, idx: int = None):
+        """
+        Get a device from the interface.
+        Parameters
+        ----------
+        idx: int
+            Index of the device.
+        name: str
+            Name of the device.
+        Returns
+        -------
+        The device.
+        """
+        if idx is not None:
+            return self.markers[idx]
+        elif name is not None:
+            for marker_set in self.markers:
+                if marker_set.name == name:
+                    return marker_set
+        else:
+            raise RuntimeError("You must provide an index or a name for the marker set.")
 
     def add_device(self, **kwargs):
         """
