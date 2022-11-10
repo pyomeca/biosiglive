@@ -3,6 +3,7 @@ This file is part of biosiglive. it contains the functions to save and read data
 """
 import pickle
 import numpy as np
+from pathlib import Path
 
 
 def add_data_to_pickle(data_dict, data_path):
@@ -16,6 +17,8 @@ def add_data_to_pickle(data_dict, data_path):
     data_path : str
         The path to the file. The file must exist.
     """
+    if Path(data_path).suffix != ".bio":
+        data_path += ".bio"
     with open(data_path, "ab") as outf:
         pickle.dump(data_dict, outf, pickle.HIGHEST_PROTOCOL)
 
@@ -35,6 +38,8 @@ def read_data(filename, number_of_line=None):
     data : dict
         The data read from the file.
     """
+    if Path(filename).suffix != ".bio":
+        raise ValueError("The file must be a .bio file.")
     data = {}
     limit = 2 if not number_of_line else number_of_line
     with open(filename, "rb") as file:
