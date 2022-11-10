@@ -8,15 +8,8 @@ import scipy.io as sio
 import os
 from typing import Union
 
-try:
-    from pyomeca import Analogs
 
-    pyomeca_module = True
-except ModuleNotFoundError:
-    pyomeca_module = False
-
-
-# TODO add a calibrate fucntion for calibration matrix
+# TODO: add a function to compute the mean process time
 class GenericProcessing:
     def __init__(self):
         """
@@ -26,9 +19,8 @@ class GenericProcessing:
         self.bpf_hcut = 425
         self.lpf_lcut = 5
         self.lp_butter_order = 4
-        self.bp_butter_order = 4
-        self.moving_average_windows = 200
-        self.data_rate = 2000
+        self.bp_butter_order = 2
+        self.data_rate = None
 
     @staticmethod
     def _butter_bandpass(lowcut, highcut, fs, order=5):
@@ -118,7 +110,8 @@ class GenericProcessing:
                     moving_average=True,
                     centering=True,
                     absolute_value=True,
-                    normalization=False):
+                    normalization=False,
+                    moving_average_window=200):
         """
         Process EMG data.
         Parameters
@@ -158,7 +151,7 @@ class GenericProcessing:
                 data_proc, self.lpf_lcut, self.data_rate, order=self.lp_butter_order
             )
         else:
-            w = np.repeat(1, self.moving_average_windows) / self.moving_average_windows
+            w = np.repeat(1, moving_average_window) / moving_average_window
             empty_ma = np.ndarray((data.shape[0], data.shape[1]))
             data_proc = self._moving_average(data_proc, w, empty_ma)
 
@@ -169,7 +162,7 @@ class GenericProcessing:
 
 
 class RealTimeProcessing(GenericProcessing):
-    def __init__(self, data_rate: Union[int, float], processing_windows: int, moving_average_window: int = 200):
+    def __init__(self, data_rate: Union[int, float], processing_windows: int):
         """
         Initialize the class for real time processing.
         Parameters
@@ -178,13 +171,10 @@ class RealTimeProcessing(GenericProcessing):
             Data rate.
         processing_windows : int
             Processing windows.
-        moving_average_window : int
-            Moving average window.
         """
         super().__init__()
         self.data_rate = data_rate
         self.processing_window = processing_windows
-        self.ma_win = moving_average_window
         self.raw_data_buffer = []
         self.processed_data_buffer = []
         self._is_one = None
@@ -199,6 +189,7 @@ class RealTimeProcessing(GenericProcessing):
         centering = True,
         absolute_value = True,
         normalization = False,
+        moving_average_window = 200
         )-> np.ndarray:
         """
         Process EMG data in real-time.
@@ -226,8 +217,11 @@ class RealTimeProcessing(GenericProcessing):
            processed EMG data.
 
         """
-        if self.ma_win > self.processing_window:
-            raise RuntimeError(f"Moving average windows ({self.ma_win}) higher than emg windows ({self.processing_window}).")
+        if low_pass_filter and moving_average:
+            raise RuntimeError("Please choose between low-pass filter and moving average.")
+        ma_win = moving_average_window
+        if ma_win > self.processing_window:
+            raise RuntimeError(f"Moving average windows ({ma_win}) higher than emg windows ({self.processing_window}).")
         emg_sample = emg_data.shape[1]
 
         if normalization:
@@ -255,23 +249,19 @@ class RealTimeProcessing(GenericProcessing):
 
         else:
             self.raw_data_buffer = np.append(self.raw_data_buffer[:, -self.processing_window + emg_sample :], emg_data, axis=1)
-            emg_proc_tmp =  self._process_emg(self.raw_data_buffer, band_pass_filter=band_pass_filter,
+            emg_proc_tmp = self._process_emg(self.raw_data_buffer, band_pass_filter=band_pass_filter,
                                                      centering=centering,
                                                      absolute_value=absolute_value,
                                                      low_pass_filter=False,
                                                      moving_average=False,
                                                      normalization=False
                                                      )
-            if low_pass_filter and moving_average:
-                raise RuntimeError("Please choose between low-pass filter and moving average.")
             if low_pass_filter:
-                emg_lpf_tmp = self.butter_lowpass_filter(
+                self.processed_data_buffer = self.butter_lowpass_filter(
                     emg_proc_tmp, self.lpf_lcut, self.data_rate, order=self.lp_butter_order
-                )
-                emg_lpf_tmp = emg_lpf_tmp[:, ::emg_sample]
-                self.processed_data_buffer = np.append(self.processed_data_buffer[:, emg_sample:], emg_lpf_tmp[:, -emg_sample:]/quot, axis=1)
+                )/quot
             else:
-                average = np.median(emg_proc_tmp[:, -self.ma_win:], axis=1).reshape(-1, 1)
+                average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)
         return self.processed_data_buffer
 
@@ -426,16 +416,15 @@ class RealTimeProcessing(GenericProcessing):
 
 
 class OfflineProcessing(GenericProcessing):
-    def __init__(self, data_rate: float = 2000, processing_window: int = 2000, moving_average_windows: int = 200):
+    def __init__(self, data_rate: float, processing_window: int):
         """
         Offline processing.
         """
         super(OfflineProcessing, self).__init__()
         self.data_rate = data_rate
         self.processing_window = processing_window
-        self.moving_average_windows = moving_average_windows
 
-    def process_emg(self, data: np.ndarray, mvc_list: list) -> np.ndarray:
+    def process_emg(self, data: np.ndarray, mvc_list: list, **kwargs) -> np.ndarray:
         """
         Process EMG data.
         Parameters
@@ -451,7 +440,7 @@ class OfflineProcessing(GenericProcessing):
             Processed EMG data.
         -------
     """
-        return self._process_emg(data, mvc_list)
+        return self._process_emg(data, mvc_list, **kwargs)
 
     @staticmethod
     def compute_mvc(
