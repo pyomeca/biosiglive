@@ -3,15 +3,16 @@ This file is part of biosiglive. It contains biorbd specific functions for muscu
 """
 try:
     import biorbd
+    biordb_package = True
 except ModuleNotFoundError:
-    pass
+    biordb_package = False
 import numpy as np
 from ..enums import InverseKinematicsMethods
 from typing import Union
 
 
-def compute_inverse_kinematics(markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-                               kalman_freq: int=100, kalman: biorbd.KalmanReconsMarkers=None, custom_function: callable=None, **kwargs)->tuple:
+def compute_inverse_kinematics(markers: np.ndarray, model: callable, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+                               kalman_freq: Union[int, float]=100, kalman: callable=None, custom_function: callable=None, **kwargs)->tuple:
     """
     Function to apply the Kalman filter to the markers.
     Parameters
@@ -33,6 +34,8 @@ def compute_inverse_kinematics(markers: np.ndarray, model: biorbd.Model, method:
     tuple
         The joint angle and velocity.
     """
+    if not biordb_package:
+        raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
     if isinstance(method, str):
         if method in [t.value for t in InverseKinematicsMethods]:
             method = InverseKinematicsMethods(method)

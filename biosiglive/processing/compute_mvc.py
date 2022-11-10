@@ -4,11 +4,11 @@ This file is part of biosiglive. it is an example to see how to use biosiglive t
 """
 
 from time import strftime
-from biosiglive.interfaces.vicon_interface import ViconClient
-from biosiglive.interfaces.pytrigno_interface import PytrignoClient
-from biosiglive.interfaces.tcp_interface import TcpClient
-from biosiglive.processing.data_processing import OfflineProcessing
-from biosiglive.gui.plot import LivePlot, Plot
+from ..interfaces.vicon_interface import ViconClient
+from ..interfaces.pytrigno_interface import PytrignoClient
+from ..interfaces.tcp_interface import TcpClient
+from .data_processing import OfflineProcessing
+from ..gui.plot import LivePlot
 from time import time, sleep
 import os
 import scipy.io as sio

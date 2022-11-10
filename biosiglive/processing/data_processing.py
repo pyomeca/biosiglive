@@ -169,7 +169,7 @@ class GenericProcessing:
 
 
 class RealTimeProcessing(GenericProcessing):
-    def __init__(self, data_rate: int, processing_windows: int, moving_average_window: int = 200):
+    def __init__(self, data_rate: Union[int, float], processing_windows: int, moving_average_window: int = 200):
         """
         Initialize the class for real time processing.
         Parameters
@@ -244,12 +244,14 @@ class RealTimeProcessing(GenericProcessing):
             quot = [1]
 
         if len(self.raw_data_buffer) == 0:
-            self.processed_data_buffer = np.zeros((emg_data.shape[0], 1))
             self.raw_data_buffer = emg_data
+            processed_shape = self.raw_data_buffer.shape[1] if not moving_average else 1
+            self.processed_data_buffer = np.zeros((emg_data.shape[0], processed_shape))
 
         elif self.raw_data_buffer.shape[1] < self.processing_window:
             self.raw_data_buffer = np.append(self.raw_data_buffer, emg_data, axis=1)
-            self.processed_data_buffer = np.zeros((emg_data.shape[0], self.raw_data_buffer.shape[1]))
+            processed_shape = self.raw_data_buffer.shape[1] if not moving_average else self.raw_data_buffer.shape[1] // emg_sample
+            self.processed_data_buffer = np.zeros((emg_data.shape[0], processed_shape))
 
         else:
             self.raw_data_buffer = np.append(self.raw_data_buffer[:, -self.processing_window + emg_sample :], emg_data, axis=1)
@@ -267,7 +269,7 @@ class RealTimeProcessing(GenericProcessing):
                     emg_proc_tmp, self.lpf_lcut, self.data_rate, order=self.lp_butter_order
                 )
                 emg_lpf_tmp = emg_lpf_tmp[:, ::emg_sample]
-                self.processed_data_buffer = np.append(self.processed_data_buffer[:, emg_sample:], emg_lpf_tmp[:, -emg_sample:], axis=1)
+                self.processed_data_buffer = np.append(self.processed_data_buffer[:, emg_sample:], emg_lpf_tmp[:, -emg_sample:]/quot, axis=1)
             else:
                 average = np.median(emg_proc_tmp[:, -self.ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)

@@ -10,11 +10,11 @@ except ModuleNotFoundError:
 
 
 class MyInterface(GenericInterface):
-    def __init__(self):
-        super().__init__(system_rate=100, interface_type=InterfaceType.Custom)
+    def __init__(self, system_rate: float = 100):
+        super().__init__(system_rate=system_rate, interface_type=InterfaceType.Custom)
 
-    def add_device(self, nb_channels: int = 1, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None,  rate: float = 2000, device_range: tuple = (0, 16)):
-        self.devices.append(self._add_device(device_type, nb_channels, name,  rate, device_range))
+    def add_device(self, nb_channels: int = 1, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None,  rate: float = 2000, device_range: tuple = None):
+        self.devices.append(self._add_device(nb_channels,device_type,  name,  rate, device_range))
 
     def add_markers(self,
                     nb_channels: int = 3,
@@ -63,12 +63,12 @@ class MyInterface(GenericInterface):
             return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, marker_names: list = None, subject_name: str = None):
+    def get_markers_data(self, marker_names: Union[list, str] = None, subject_name: str = None):
         """
         Get the markers data from Vicon.
         Parameters
         ----------
-        marker_names: list
+        marker_names: Union[list, str]
             List of markers names.
         subject_name: str
             Name of the subject. If None, the subject will be the first one in Nexus.
@@ -82,21 +82,37 @@ class MyInterface(GenericInterface):
         occluded = []
         all_markers_data = []
         all_occluded_data = []
-
-        for markers in markers_set:
-            markers_data = np.random.rand((3, len(marker_names), markers.sample))
-            all_markers_data.append(markers_data)
-            all_occluded_data.append(occluded)
+        if not isinstance(marker_names, list):
+            marker_names = [marker_names]
+        if not marker_names:
+            nb_markers = self.markers[0].nb_channels
+        else:
+            nb_markers = len(marker_names)
+        for m, marker in enumerate(self.markers):
+            if marker.name == marker_names[m]:
+                marker.marker_data = np.random.rand(3, nb_markers, marker.sample)
+                all_markers_data.append(marker.marker_data)
+                all_occluded_data.append(occluded)
         if len(all_markers_data) == 1:
             return all_markers_data[0], all_occluded_data[0]
         return all_markers_data, all_occluded_data
 
-    def get_kinematics_from_markers(self, markers: np.ndarray, model: biorbd.Model, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare
-                                    , return_qdot: bool=False, custom_func: staticmethod=None, **kwargs):
-        if not biorbd_installed:
-            raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
-        if return_qdot:
-            return np.random.rand(model.nbQ()/2, markers.shape[2]), np.random.rand(model.nbQ()/2, markers.shape[2])
-        else:
-            return np.random.rand(model.nbQ()/2, markers.shape[2])
+    def get_kinematics_from_markers(self, marker_name: str, nb_dof: int):
+        self.get_markers_data(marker_name)
+        marker_data = None
+        for marker in self.markers:
+            if marker.name == marker_name:
+                marker_data = marker.marker_data
+            else:
+                raise Exception("No marker with this name")
+        return np.random.rand(nb_dof, marker_data.shape[2]), np.random.rand(nb_dof, marker_data.shape[2])
+
+
+if __name__ == '__main__':
+    interface = MyInterface(system_rate=100)
+    interface.add_device(nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000)
+    interface.add_markers(nb_channels=3, name="My markers", marker_names=["M1", "M2", "M3"], rate=100)
+
+    print(interface.get_kinematics_from_markers("My markers", 3))
+
 
