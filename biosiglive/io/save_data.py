@@ -18,7 +18,10 @@ def add_data_to_pickle(data_dict, data_path):
         The path to the file. The file must exist.
     """
     if Path(data_path).suffix != ".bio":
-        data_path += ".bio"
+        if Path(data_path).suffix == "":
+            data_path += ".bio"
+        else:
+            raise ValueError("The file must be a .bio file.")
     with open(data_path, "ab") as outf:
         pickle.dump(data_dict, outf, pickle.HIGHEST_PROTOCOL)
 
