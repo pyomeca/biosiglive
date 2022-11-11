@@ -17,7 +17,15 @@ import time
 
 
 class LivePlot:
-    def __init__(self, nb_subplots: int, plot_type: Union[PlotType, str] = PlotType.Curve, name: str = None, channel_names: list = None, rate: int = None, unit: str = None):
+    def __init__(
+        self,
+        nb_subplots: int,
+        plot_type: Union[PlotType, str] = PlotType.Curve,
+        name: str = None,
+        channel_names: list = None,
+        rate: int = None,
+        unit: str = None,
+    ):
         """
         Initialize the plot class.
 
@@ -61,8 +69,16 @@ class LivePlot:
         self.msk_model = None
         self.last_plot = None
         self.once_update = False
-        
-    def init(self, plot_windows: Union[int, list]=None, use_checkbox: bool = True, remote: bool = True, bar_graph_max_value: Union[int, list]=None, msk_model: str = None, **kwargs):
+
+    def init(
+        self,
+        plot_windows: Union[int, list] = None,
+        use_checkbox: bool = True,
+        remote: bool = True,
+        bar_graph_max_value: Union[int, list] = None,
+        msk_model: str = None,
+        **kwargs,
+    ):
         """
         This function is used to initialize the qt app.
         Parameters
@@ -230,7 +246,9 @@ class LivePlot:
             row_count += 1
         return rplt, layout, app, box
 
-    def _init_progress_bar(self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100):
+    def _init_progress_bar(
+        self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100
+    ):
         """
         This function is used to initialize the curve plot.
         Parameters
@@ -441,4 +459,3 @@ class OfflinePlot:
             if subplot_title:
                 plt.title(subplot_title[i], fontsize=size_police)
         plt.show()
-

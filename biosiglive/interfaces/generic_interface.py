@@ -6,6 +6,7 @@ import numpy as np
 from .param import *
 from typing import Union
 from ..enums import DeviceType, InverseKinematicsMethods, InterfaceType
+
 try:
     import biorbd
 except ModuleNotFoundError:
@@ -17,7 +18,9 @@ class GenericInterface:
     Class for generic interfacing.
     """
 
-    def __init__(self, ip: str = "127.0.0.1", system_rate: float = 100, interface_type: Union[InterfaceType, str] = None):
+    def __init__(
+        self, ip: str = "127.0.0.1", system_rate: float = 100, interface_type: Union[InterfaceType, str] = None
+    ):
         """
         Initialize the ViconClient class.
         Parameters
@@ -71,7 +74,7 @@ class GenericInterface:
             if device_type not in [t.value for t in DeviceType]:
                 raise ValueError("The type of the device is not valid.")
             device_type = DeviceType(device_type)
-        device_tmp = Device(device_type, nb_channels,  name,  rate, self.system_rate)
+        device_tmp = Device(device_type, nb_channels, name, rate, self.system_rate)
         device_tmp.device_range = device_range if device_range else (0, nb_channels)
         device_tmp.interface = self.interface_type
         return device_tmp
@@ -184,4 +187,3 @@ class GenericInterface:
 
     def init_client(self):
         raise RuntimeError(f"You can not init client from '{self.interface_type}'.")
-

@@ -6,6 +6,7 @@ from ..enums import DeviceType, MarkerType, InverseKinematicsMethods, RealTimePr
 from ..processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
 from ..processing.msk_functions import compute_inverse_kinematics
 from typing import Union
+
 try:
     import biorbd
 except ModuleNotFoundError:
@@ -51,10 +52,12 @@ class Param:
     def _append_data(self, new_data: np.ndarray):
         if len(self.raw_data) == 0:
             self.raw_data = new_data
-        elif self.raw_data.shape[len(new_data.shape)-1] < self.data_windows:
-            self.raw_data = np.append(self.raw_data, new_data, axis=len(new_data.shape)-1)
+        elif self.raw_data.shape[len(new_data.shape) - 1] < self.data_windows:
+            self.raw_data = np.append(self.raw_data, new_data, axis=len(new_data.shape) - 1)
         else:
-            self.raw_data = np.append(self.raw_data[..., new_data.shape[len(new_data.shape)-1]:], new_data, axis=len(new_data.shape)-1)
+            self.raw_data = np.append(
+                self.raw_data[..., new_data.shape[len(new_data.shape) - 1] :], new_data, axis=len(new_data.shape) - 1
+            )
 
     def set_name(self, name: str):
         self.name = name
@@ -83,7 +86,7 @@ class Device(Param):
         system_rate: float = 100,
         channel_names: Union[list, str] = None,
     ):
-        super().__init__(nb_channels, name,  rate, system_rate)
+        super().__init__(nb_channels, name, rate, system_rate)
         if isinstance(channel_names, str):
             channel_names = [channel_names]
         if channel_names:
@@ -95,7 +98,12 @@ class Device(Param):
         self.interface = None
         self.device_type = device_type
 
-    def process(self, method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod], custom_function: callable = None, **kwargs):
+    def process(
+        self,
+        method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod],
+        custom_function: callable = None,
+        **kwargs
+    ):
         """
         Process the data of the device.
         Parameters
@@ -128,7 +136,7 @@ class Device(Param):
         self._append_data(self.new_data)
         return self.processed_data
 
-    def _init_process_method(self,  method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod], **kwargs):
+    def _init_process_method(self, method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod], **kwargs):
         if method == RealTimeProcessingMethod.ProcessEmg:
             self.process_method = RealTimeProcessing(self.rate, self.data_windows).process_emg
         elif method == RealTimeProcessingMethod.ProcessImu:
@@ -139,7 +147,9 @@ class Device(Param):
             self.process_method = OfflineProcessing(self.rate, self.data_windows).process_emg
         elif method == OfflineProcessingMethod.ComputeMvc:
             self.process_method = OfflineProcessing(self.rate, self.data_windows).compute_mvc
-        elif method == RealTimeProcessingMethod.CalibrationMatrix or method == OfflineProcessingMethod.CalibrationMatrix:
+        elif (
+            method == RealTimeProcessingMethod.CalibrationMatrix or method == OfflineProcessingMethod.CalibrationMatrix
+        ):
             self.process_method = GenericProcessing().calibration_matrix
         elif method == RealTimeProcessingMethod.Custom:
             self.process_method = RealTimeProcessing(self.rate, self.data_windows).custom_processing
@@ -147,13 +157,20 @@ class Device(Param):
             raise ValueError("The method is not a valid method.")
 
 
-
 class MarkerSet(Param):
     """
     This class is used to store the available markers.
     """
 
-    def __init__(self, nb_channels: int = 1, name: str = None, marker_names: Union[str, list] = None, rate: float = None, unlabeled: bool = False, system_rate: float = 100):
+    def __init__(
+        self,
+        nb_channels: int = 1,
+        name: str = None,
+        marker_names: Union[str, list] = None,
+        rate: float = None,
+        unlabeled: bool = False,
+        system_rate: float = 100,
+    ):
         marker_type = MarkerType.Unlabeled if unlabeled else MarkerType.Labeled
         super(MarkerSet, self).__init__(nb_channels, name, rate, system_rate)
         if isinstance(marker_names, str):
@@ -166,8 +183,14 @@ class MarkerSet(Param):
         self.interface = None
         self.marker_type = marker_type
 
-    def get_kinematics(self, model: callable, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-                       kalman: callable=None, custom_function: callable=None, **kwargs)->tuple:
+    def get_kinematics(
+        self,
+        model: callable,
+        method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+        kalman: callable = None,
+        custom_function: callable = None,
+        **kwargs
+    ) -> tuple:
         """
         Function to apply the Kalman filter to the markers.
         Parameters
@@ -186,6 +209,7 @@ class MarkerSet(Param):
             The joint angle and velocity.
         """
         if not self.raw_data:
-            raise RuntimeError("No markers data to compute the kinematics."
-                               " Please run first the function get_markers_data.")
+            raise RuntimeError(
+                "No markers data to compute the kinematics." " Please run first the function get_markers_data."
+            )
         return compute_inverse_kinematics(self.raw_data, model, method, self.rate, kalman, custom_function, **kwargs)

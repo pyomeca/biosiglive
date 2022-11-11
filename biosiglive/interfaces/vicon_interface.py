@@ -16,6 +16,7 @@ except ModuleNotFoundError:
 
 try:
     import biorbd
+
     is_biorbd = True
 except ModuleNotFoundError:
     is_biorbd = False
@@ -69,7 +70,14 @@ class ViconClient(GenericInterface):
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
 
-    def add_device(self, nb_channels: int, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None, rate: float = 2000, device_range: tuple = None):
+    def add_device(
+        self,
+        nb_channels: int,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
+        name: str = None,
+        rate: float = 2000,
+        device_range: tuple = None,
+    ):
         """
         Add a device to the Vicon system.
         Parameters
@@ -132,7 +140,9 @@ class ViconClient(GenericInterface):
         )
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
-            markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not marker_names else marker_names
+            markers_tmp.markers_names = (
+                self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not marker_names else marker_names
+            )
         else:
             markers_tmp.subject_name = subject_name
             markers_tmp.markers_names = marker_names
@@ -142,7 +152,9 @@ class ViconClient(GenericInterface):
     def get_force_plate_data():
         raise NotImplementedError("Force plate streaming is not implemented yet.")
 
-    def get_device_data(self, device_name: Union[str, list] = "all", channel_idx: Union[int, list] = (), get_frame: bool = True):
+    def get_device_data(
+        self, device_name: Union[str, list] = "all", channel_idx: Union[int, list] = (), get_frame: bool = True
+    ):
         """
         Get the device data from Vicon.
         Parameters
@@ -174,7 +186,11 @@ class ViconClient(GenericInterface):
 
         for d, device in enumerate(self.devices):
             if device_name[0] == "all" or device.name in device_name:
-                device_data = np.zeros((len(channel_idx), device.sample)) if channel_idx else np.zeros((device.nb_channels, device.sample))
+                device_data = (
+                    np.zeros((len(channel_idx), device.sample))
+                    if channel_idx
+                    else np.zeros((device.nb_channels, device.sample))
+                )
                 count = 0
                 device_chanel_names = []
                 for output_name, chanel_name, unit in device.infos:
@@ -193,7 +209,9 @@ class ViconClient(GenericInterface):
             return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = (), get_frame: bool = True):
+    def get_markers_data(
+        self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = (), get_frame: bool = True
+    ):
         """
         Get the markers data from Vicon.
         Parameters
@@ -289,8 +307,15 @@ class ViconClient(GenericInterface):
             raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetFrameNumber()
 
-    def get_kinematics_from_markers(self, markerset: str, model:callable, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare, kalman: callable = None
-                                    , custom_func: callable=None, **kwargs):
+    def get_kinematics_from_markers(
+        self,
+        markerset: str,
+        model: callable,
+        method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+        kalman: callable = None,
+        custom_func: callable = None,
+        **kwargs,
+    ):
         """
         Get the kinematics from markers.
         Parameters

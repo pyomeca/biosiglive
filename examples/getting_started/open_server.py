@@ -1,4 +1,4 @@
-from biosiglive.streaming.connection import Server
+from biosiglive.streaming.server import Server
 import numpy as np
 
 

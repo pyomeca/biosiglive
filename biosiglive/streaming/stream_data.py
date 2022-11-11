@@ -1,4 +1,3 @@
-
 from typing import Union
 
 
@@ -31,6 +30,7 @@ from biosiglive.io.save_data import read_data
 from ..interfaces.param import Device, MarkerSet
 from ..enums import DeviceType, InterfaceType, InverseKinematicsMethods
 from ..gui.plot import LivePlot
+
 vicon_package, biorbd_package = True, True
 
 try:
@@ -131,7 +131,9 @@ class StreamData:
             self.device_queue_out[device_idx] = self.queue
             self.device_event.append(self.event)
 
-    def set_kinematics_reconstruction_from_markers(self, model: str, marker_set_name: str, process_method: callable, **kwargs):
+    def set_kinematics_reconstruction_from_markers(
+        self, model: str, marker_set_name: str, process_method: callable, **kwargs
+    ):
         marker_idx = [marker.name for marker in self.markers].index(marker_set_name)
         self.models[marker_idx] = model
         self.markers_processing_key[marker_idx] = kwargs
@@ -162,7 +164,7 @@ class StreamData:
         if device.interface not in self.interfaces_type:
             self.interfaces_type.append(device.interface)
 
-    def device_processing(self, device: Device, device_idx : int, **kwargs):
+    def device_processing(self, device: Device, device_idx: int, **kwargs):
         """
         Process the data from the device
         Parameters
@@ -194,7 +196,9 @@ class StreamData:
                 self.device_queue_out[device_idx].put({"processed_data": processed_data})
                 self.device_event[device_idx].set()
 
-    def recons_kin(self, marker_idx: int, kalman_frequency: int = 100, processing_windows: int = 100, smoothing: bool = True):
+    def recons_kin(
+        self, marker_idx: int, kalman_frequency: int = 100, processing_windows: int = 100, smoothing: bool = True
+    ):
         """
         Reconstruct kinematics from markers.
         Parameters
@@ -228,7 +232,9 @@ class StreamData:
                 states = markers_data["states"]
                 markers_tmp = markers_data["markers_tmp"]
                 if self.ik_methods[marker_idx]:
-                    q_tmp, dq_tmp = compute_inverse_kinematics(markers, model, self.ik_methods[marker_idx], kalman_frequency, kalman)
+                    q_tmp, dq_tmp = compute_inverse_kinematics(
+                        markers, model, self.ik_methods[marker_idx], kalman_frequency, kalman
+                    )
                     states_tmp = np.concatenate((q_tmp, dq_tmp), axis=0)
                     if len(states) == 0:
                         states = states_tmp
@@ -279,10 +285,20 @@ class StreamData:
         for d, device in enumerate(self.devices):
             if device.process_method is not None:
                 if not self.devices_processing_key[d]:
-                    raise ValueError("No processing method defined for this device. "
-                                     "Use set_device_process_method to define it.")
-                self.processes.append(self.process(name=f"process_{device.name}",
-                                                   target=StreamData.device_processing, args=(self, device, d,)))
+                    raise ValueError(
+                        "No processing method defined for this device. " "Use set_device_process_method to define it."
+                    )
+                self.processes.append(
+                    self.process(
+                        name=f"process_{device.name}",
+                        target=StreamData.device_processing,
+                        args=(
+                            self,
+                            device,
+                            d,
+                        ),
+                    )
+                )
         if self.start_server:
             for i in range(len(self.ports)):
                 processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self,)))
@@ -290,10 +306,27 @@ class StreamData:
 
         processes = [self.process(name="reader", target=LiveData.save_streamed_data, args=(self,))]
         for m, marker in enumerate(self.markers):
-            processes.append(self.process(name=f"process_{marker.name}", target=StreamData.recons_kin, args=(self, marker, m,)))
+            processes.append(
+                self.process(
+                    name=f"process_{marker.name}",
+                    target=StreamData.recons_kin,
+                    args=(
+                        self,
+                        marker,
+                        m,
+                    ),
+                )
+            )
 
         for i, funct in enumerate(self.custom_processes):
-            processes.append(self.process(name=self.custom_processes_names[i], target=funct, args=(self,), kwargs=self.custom_processes_kwargs[i]))
+            processes.append(
+                self.process(
+                    name=self.custom_processes_names[i],
+                    target=funct,
+                    args=(self,),
+                    kwargs=self.custom_processes_kwargs[i],
+                )
+            )
         for p in processes:
             p.start()
         self.multiprocess_started = True
@@ -320,7 +353,7 @@ class StreamData:
         self.custom_processes.append(funct)
         self.custom_processes_kwargs.append(kwargs)
 
-    def add_plot(self, plot: LivePlot, data_name:str, plot_rate: int = None, plot_windows: int = 100):
+    def add_plot(self, plot: LivePlot, data_name: str, plot_rate: int = None, plot_windows: int = 100):
         """
         Add a plot to the live data.
         Parameters
@@ -472,8 +505,3 @@ class StreamData:
             print(time() - tic)
             if not self.try_w_connection:
                 sleep(1 / self.acquisition_rate)
-
-
-
-
-

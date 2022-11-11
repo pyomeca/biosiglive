@@ -3,6 +3,7 @@ This file is part of biosiglive. It contains biorbd specific functions for muscu
 """
 try:
     import biorbd
+
     biordb_package = True
 except ModuleNotFoundError:
     biordb_package = False
@@ -11,8 +12,15 @@ from ..enums import InverseKinematicsMethods
 from typing import Union
 
 
-def compute_inverse_kinematics(markers: np.ndarray, model: callable, method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-                               kalman_freq: Union[int, float]=100, kalman: callable=None, custom_function: callable=None, **kwargs)->tuple:
+def compute_inverse_kinematics(
+    markers: np.ndarray,
+    model: callable,
+    method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+    kalman_freq: Union[int, float] = 100,
+    kalman: callable = None,
+    custom_function: callable = None,
+    **kwargs,
+) -> tuple:
     """
     Function to apply the Kalman filter to the markers.
     Parameters

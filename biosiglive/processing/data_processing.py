@@ -103,15 +103,18 @@ class GenericProcessing:
         """
         return np.dot(data, matrix)
 
-    def _process_emg(self, data: np.ndarray,
-                    mvc_list: Union[list, tuple] = None,
-                    band_pass_filter=True,
-                    low_pass_filter=False,
-                    moving_average=True,
-                    centering=True,
-                    absolute_value=True,
-                    normalization=False,
-                    moving_average_window=200):
+    def _process_emg(
+        self,
+        data: np.ndarray,
+        mvc_list: Union[list, tuple] = None,
+        band_pass_filter=True,
+        low_pass_filter=False,
+        moving_average=True,
+        centering=True,
+        absolute_value=True,
+        normalization=False,
+        moving_average_window=200,
+    ):
         """
         Process EMG data.
         Parameters
@@ -147,9 +150,7 @@ class GenericProcessing:
         if low_pass_filter and moving_average:
             raise RuntimeError("Please choose between low-pass filter and moving average.")
         if low_pass_filter:
-            data_proc = self.butter_lowpass_filter(
-                data_proc, self.lpf_lcut, self.data_rate, order=self.lp_butter_order
-            )
+            data_proc = self.butter_lowpass_filter(data_proc, self.lpf_lcut, self.data_rate, order=self.lp_butter_order)
         else:
             w = np.repeat(1, moving_average_window) / moving_average_window
             empty_ma = np.ndarray((data.shape[0], data.shape[1]))
@@ -183,14 +184,14 @@ class RealTimeProcessing(GenericProcessing):
         self,
         emg_data: np.ndarray,
         mvc_list: Union[list, tuple] = None,
-        band_pass_filter = True,
-        low_pass_filter = False,
-        moving_average = True,
-        centering = True,
-        absolute_value = True,
-        normalization = False,
-        moving_average_window = 200
-        )-> np.ndarray:
+        band_pass_filter=True,
+        low_pass_filter=False,
+        moving_average=True,
+        centering=True,
+        absolute_value=True,
+        normalization=False,
+        moving_average_window=200,
+    ) -> np.ndarray:
         """
         Process EMG data in real-time.
         Parameters
@@ -211,6 +212,8 @@ class RealTimeProcessing(GenericProcessing):
             Apply absolute value.
         normalization : bool
             Apply normalization.
+        moving_average_window : int
+            Moving average window.
         Returns
         -------
         np.ndarray
@@ -244,34 +247,42 @@ class RealTimeProcessing(GenericProcessing):
 
         elif self.raw_data_buffer.shape[1] < self.processing_window:
             self.raw_data_buffer = np.append(self.raw_data_buffer, emg_data, axis=1)
-            processed_shape = self.raw_data_buffer.shape[1] if not moving_average else self.raw_data_buffer.shape[1] // emg_sample
+            processed_shape = (
+                self.raw_data_buffer.shape[1] if not moving_average else self.raw_data_buffer.shape[1] // emg_sample
+            )
             self.processed_data_buffer = np.zeros((emg_data.shape[0], processed_shape))
 
         else:
-            self.raw_data_buffer = np.append(self.raw_data_buffer[:, -self.processing_window + emg_sample :], emg_data, axis=1)
-            emg_proc_tmp = self._process_emg(self.raw_data_buffer, band_pass_filter=band_pass_filter,
-                                                     centering=centering,
-                                                     absolute_value=absolute_value,
-                                                     low_pass_filter=False,
-                                                     moving_average=False,
-                                                     normalization=False
-                                                     )
+            self.raw_data_buffer = np.append(
+                self.raw_data_buffer[:, -self.processing_window + emg_sample :], emg_data, axis=1
+            )
+            emg_proc_tmp = self._process_emg(
+                self.raw_data_buffer,
+                band_pass_filter=band_pass_filter,
+                centering=centering,
+                absolute_value=absolute_value,
+                low_pass_filter=False,
+                moving_average=False,
+                normalization=False,
+            )
             if low_pass_filter:
-                self.processed_data_buffer = self.butter_lowpass_filter(
-                    emg_proc_tmp, self.lpf_lcut, self.data_rate, order=self.lp_butter_order
-                )/quot
+                self.processed_data_buffer = (
+                    self.butter_lowpass_filter(emg_proc_tmp, self.lpf_lcut, self.data_rate, order=self.lp_butter_order)
+                    / quot
+                )
             else:
                 average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)
         return self.processed_data_buffer
 
-    def process_imu(self,
+    def process_imu(
+        self,
         im_data: np.ndarray,
-        accel: bool =False,
-        squared: bool =False,
-        norm_min_bound:int=None,
-        norm_max_bound: int=None,
-    )->np.ndarray:
+        accel: bool = False,
+        squared: bool = False,
+        norm_min_bound: int = None,
+        norm_max_bound: int = None,
+    ) -> np.ndarray:
         """
         Process IMU data in real-time.
         Parameters
@@ -303,14 +314,18 @@ class RealTimeProcessing(GenericProcessing):
         elif self.raw_data_buffer.shape[2] < self.processing_window:
             self.raw_data_buffer = np.append(self.raw_data_buffer, im_data, axis=2)
             if squared is not True:
-                self.processed_data_buffer = np.zeros((im_data.shape[0], im_data.shape[1], self.raw_data_buffer.shape[2]))
+                self.processed_data_buffer = np.zeros(
+                    (im_data.shape[0], im_data.shape[1], self.raw_data_buffer.shape[2])
+                )
             else:
                 self.processed_data_buffer = np.zeros((im_data.shape[0], self.raw_data_buffer.shape[2]))
 
         else:
-            self.raw_data_buffer = np.append(self.raw_data_buffer[:, :, -self.processing_window + im_data.shape[2] :], im_data, axis=2)
+            self.raw_data_buffer = np.append(
+                self.raw_data_buffer[:, :, -self.processing_window + im_data.shape[2] :], im_data, axis=2
+            )
             im_proc_tmp = self.raw_data_buffer
-            average = np.mean(im_proc_tmp[:, :, -self.processing_window:], axis=2).reshape(-1, 3, 1)
+            average = np.mean(im_proc_tmp[:, :, -self.processing_window :], axis=2).reshape(-1, 3, 1)
             if squared:
                 if accel:
                     average = abs(np.linalg.norm(average, axis=1) - 9.81)
@@ -319,8 +334,8 @@ class RealTimeProcessing(GenericProcessing):
 
             if len(average.shape) == 3:
                 if norm_min_bound or norm_max_bound:
-                    for i in range(self.raw_data_buffer .shape[0]):
-                        for j in range(self.raw_data_buffer .shape[1]):
+                    for i in range(self.raw_data_buffer.shape[0]):
+                        for j in range(self.raw_data_buffer.shape[1]):
                             if average[i, j, :] < 0:
                                 average[i, j, :] = average[i, j, :] / abs(norm_min_bound)
                             elif average[i, j, :] >= 0:
@@ -340,11 +355,11 @@ class RealTimeProcessing(GenericProcessing):
         return self.processed_data_buffer
 
     def get_peaks(
-            self,
+        self,
         new_sample: np.ndarray,
         threshold: float,
         min_peaks_interval=None,
-    )-> tuple:
+    ) -> tuple:
         """
         Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
         Parameters
@@ -392,10 +407,14 @@ class RealTimeProcessing(GenericProcessing):
 
         else:
             self.raw_data_buffer = np.append(self.raw_data_buffer[:, new_sample.shape[1] :], new_sample, axis=1)
-            self.processed_data_buffer = np.append(self.processed_data_buffer[:, new_sample.shape[1] :], sample_proc, axis=1)
+            self.processed_data_buffer = np.append(
+                self.processed_data_buffer[:, new_sample.shape[1] :], sample_proc, axis=1
+            )
 
         if min_peaks_interval:
-            self.processed_data_buffer = RealTimeProcessing._check_and_adjust_interval(self.processed_data_buffer, min_peaks_interval)
+            self.processed_data_buffer = RealTimeProcessing._check_and_adjust_interval(
+                self.processed_data_buffer, min_peaks_interval
+            )
 
         if isinstance(nb_peaks, list):
             nb_peaks.append(np.count_nonzero(self.processed_data_buffer))
@@ -439,7 +458,7 @@ class OfflineProcessing(GenericProcessing):
         np.ndarray
             Processed EMG data.
         -------
-    """
+        """
         return self._process_emg(data, mvc_list, **kwargs)
 
     @staticmethod

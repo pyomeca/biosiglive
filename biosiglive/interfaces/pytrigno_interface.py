@@ -43,7 +43,7 @@ class PytrignoClient(GenericInterface):
         device_range : tuple
             Range of the device.
         """
-        device_tmp = self._add_device(nb_channels, device_type, name,  rate, device_range)
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range)
         device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
         if device_type == DeviceType.Emg:

@@ -2,8 +2,10 @@ from biosiglive.interfaces.generic_interface import GenericInterface
 from biosiglive.enums import DeviceType, InterfaceType, InverseKinematicsMethods
 from typing import Union
 import numpy as np
+
 try:
     import biorbd
+
     biorbd_installed = True
 except ModuleNotFoundError:
     biorbd_installed = False
@@ -13,21 +15,26 @@ class MyInterface(GenericInterface):
     def __init__(self, system_rate: float = 100):
         super().__init__(system_rate=system_rate, interface_type=InterfaceType.Custom)
 
-    def add_device(self, nb_channels: int = 1, device_type: Union[DeviceType, str] = DeviceType.Emg, name: str = None,  rate: float = 2000, device_range: tuple = None):
-        self.devices.append(self._add_device(nb_channels,device_type,  name,  rate, device_range))
+    def add_device(
+        self,
+        nb_channels: int = 1,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
+        name: str = None,
+        rate: float = 2000,
+        device_range: tuple = None,
+    ):
+        self.devices.append(self._add_device(nb_channels, device_type, name, rate, device_range))
 
-    def add_markers(self,
-                    nb_channels: int = 3,
-                    name: str = None,
-                    marker_names: list = None,
-                    rate: float = 100,
-                    unlabeled: bool = False,
-                    subject_name: str = None,):
-        self.markers.append(self._add_markers(nb_channels,
-        name,
-                                       marker_names,
-        rate,
-        unlabeled))
+    def add_markers(
+        self,
+        nb_channels: int = 3,
+        name: str = None,
+        marker_names: list = None,
+        rate: float = 100,
+        unlabeled: bool = False,
+        subject_name: str = None,
+    ):
+        self.markers.append(self._add_markers(nb_channels, name, marker_names, rate, unlabeled))
 
     def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None):
         """
@@ -109,11 +116,9 @@ class MyInterface(GenericInterface):
         return np.random.rand(nb_dof, marker_data.shape[2]), np.random.rand(nb_dof, marker_data.shape[2])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     interface = MyInterface(system_rate=100)
     interface.add_device(nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000)
     interface.add_markers(nb_channels=3, name="My markers", marker_names=["M1", "M2", "M3"], rate=100)
 
     print(interface.get_kinematics_from_markers("My markers", 3))
-
-
