@@ -35,9 +35,9 @@ class ViconClient(GenericInterface):
         system_rate: int
             Streaming rate of the nexus software.
         ip: str
-            IP address of the Vicon system.
+            IP address of the nexus software.
         port: int
-            Port of the Vicon system.
+            Port of the nexus software.
         """
         super(ViconClient, self).__init__(ip=ip, system_rate=system_rate, interface_type=InterfaceType.ViconClient)
         self.address = f"{ip}:{port}"
@@ -46,7 +46,7 @@ class ViconClient(GenericInterface):
         self.acquisition_rate = None
         self.system_rate = system_rate
 
-        # Add possibility to initialize the client after, as swig object are not pickable (multiprocessing).
+        # Add possibility to initialize the client after, as swig objects are not pickable (multiprocessing).
         if init_now:
             self._init_client()
 
@@ -69,6 +69,11 @@ class ViconClient(GenericInterface):
         self.vicon_client.EnableMarkerData()
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
+        if self.system_rate != self.vicon_client.GetFrameRate():
+            raise ValueError(
+                f"Vicon system rate ({self.vicon_client.GetFrameRate()}) does not match the system rate "
+                f"({self.system_rate})."
+            )
 
     def add_device(
         self,
