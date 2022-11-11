@@ -23,7 +23,25 @@ class GenericProcessing:
         self.data_rate = None
 
     @staticmethod
-    def _butter_bandpass(lowcut, highcut, fs, order=5):
+    def _butter_bandpass(lowcut: float, highcut: float, fs: float, order: int=5)->tuple:
+        """
+        Create a butter bandpass filter.
+        Parameters
+        ----------
+        lowcut : float
+            Low cut frequency.
+        highcut: float
+            High cut frequency.
+        fs: float
+            Sampling frequency.
+        order: int
+            Order of the filter.
+
+        Returns
+        -------
+        tuple
+            Filter coefficients.
+        """
         nyq = 0.5 * fs
         low = lowcut / nyq
         high = highcut / nyq
@@ -31,30 +49,115 @@ class GenericProcessing:
         return b, a
 
     @staticmethod
-    def _butter_lowpass(lowcut, fs, order=4):
+    def _butter_lowpass(lowcut, fs, order=4)->tuple:
+        """
+        Create a butter lowpass filter.
+        Parameters
+        ----------
+        lowcut : float
+            Low cut frequency.
+        fs: float
+            Sampling frequency.
+        order: int
+            Order of the filter.
+
+        Returns
+        -------
+        tuple
+            Filter coefficients.
+        """
         nyq = 0.5 * fs
         low = lowcut / nyq
         b, a = butter(order, [low], btype="low")
         return b, a
 
-    def _butter_bandpass_filter(self, data, lowcut, highcut, fs, order=5):
+    def _butter_bandpass_filter(self, data: np.ndarray, lowcut: float, highcut:float, fs: float, order: int=5):
+        """
+        Apply a butter bandpass filter.
+        Parameters
+        ----------
+        data: numpy.ndarray
+            Data to filter.
+        lowcut: float
+            Low cut frequency.
+        highcut: float
+            High cut frequency.
+        fs:     float
+            Sampling frequency.
+        order: int
+            Order of the filter.
+
+        Returns
+        -------
+        numpy.ndarray
+            Filtered data.
+
+        """
         b, a = self._butter_bandpass(lowcut, highcut, fs, order=order)
         y = lfilter(b, a, data)
         return y
 
-    def butter_lowpass_filter(self, data, lowcut, fs, order=4):
+    def butter_lowpass_filter(self, data: np.ndarray, lowcut: float, fs: float, order: int=4)->np.ndarray:
+        """
+        Apply a butter lowpass filter.
+        Parameters
+        ----------
+        data: numpy.ndarray
+            Data to filter.
+        lowcut: float
+            Low cut frequency.
+        fs:    float
+            Sampling frequency.
+        order: int
+            Order of the filter.
+
+        Returns
+        -------
+        numpy.ndarray
+            Filtered data.
+        """
         b, a = self._butter_lowpass(lowcut, fs, order=order)
         y = filtfilt(b, a, data)
         return y
 
     @staticmethod
-    def _moving_average(data: np.ndarray, w, empty_ma):
+    def _moving_average(data: np.ndarray, window: np.ndarray, empty_ma: np.ndarray)->np.ndarray:
+        """
+        Apply moving average.
+        Parameters
+        ----------
+        data: numpy.ndarray
+            Data to process.
+        w: numpy.ndarray
+            Window.
+        empty_ma: numpy.ndarray
+            Empty array to store the moving average.
+
+        Returns
+        -------
+        numpy.ndarray
+            Moving average.
+        """
         for i in range(data.shape[0]):
-            empty_ma[i, :] = convolve(data[i, :], w, mode="same", method="fft")
+            empty_ma[i, :] = convolve(data[i, :], window, mode="same", method="fft")
         return empty_ma
 
     @staticmethod
-    def center(emg_data, center_value=None):
+    def center(emg_data: np.ndarray, center_value: float =None)->np.ndarray:
+        """
+        Center the EMG data.
+        Parameters
+        ----------
+        emg_data : numpy.ndarray
+            EMG data.
+        center_value: int
+            Value to center the data.
+
+        Returns
+        -------
+        numpy.ndarray
+            Centered EMG data.
+        """
         center_value = center_value if center_value else emg_data.mean(axis=1)
         emg_centered = np.copy(emg_data)
         for i in range(emg_data.shape[0]):
@@ -62,7 +165,7 @@ class GenericProcessing:
         return emg_centered
 
     @staticmethod
-    def normalize_emg(emg_data: np.ndarray, mvc_list: list):
+    def normalize_emg(emg_data: np.ndarray, mvc_list: list)->np.ndarray:
         """
         Normalize EMG data.
 
@@ -87,7 +190,7 @@ class GenericProcessing:
         return norm_emg
 
     @staticmethod
-    def calibration_matrix(data: np.ndarray, matrix: np.ndarray):
+    def calibration_matrix(data: np.ndarray, matrix: np.ndarray)->np.ndarray:
         """
         Apply a calibration matrix to the data.
         Parameters
@@ -99,7 +202,8 @@ class GenericProcessing:
 
         Returns
         -------
-
+        numpy.ndarray
+            Calibrated data.
         """
         return np.dot(data, matrix)
 
@@ -114,7 +218,7 @@ class GenericProcessing:
         absolute_value=True,
         normalization=False,
         moving_average_window=200,
-    ):
+    )->np.ndarray:
         """
         Process EMG data.
         Parameters

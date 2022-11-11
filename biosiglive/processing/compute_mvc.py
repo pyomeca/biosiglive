@@ -272,7 +272,7 @@ class ComputeMvc:
             try:
                 if nb_frame == 0:
                     print(
-                        "Trial is running please press 'Ctrl+C' when trial is ended " "(it will not end the program)."
+                        "Trial is running please press 'Ctrl+C' when trial is ended (it will not end the program)."
                     )
 
                 if self.test_with_connection is True:
