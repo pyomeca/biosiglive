@@ -155,7 +155,7 @@ class LivePlot:
                     self.plot_buffer[i] = np.append(self.plot_buffer[i][:, size:], data[i], axis=1)
                 data[i] = self.plot_buffer[i]
         if self.rate and self.once_update:
-            if self.last_plot + 1 / self.rate < time.time():
+            if 1 / (time.time() - self.last_plot) > self.rate:
                 update = False
             else:
                 update = True
@@ -169,6 +169,7 @@ class LivePlot:
                 self._update_skeleton(data, self.viz)
             else:
                 raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+            self.last_plot = time.time()
 
     def _init_curve(
         self,

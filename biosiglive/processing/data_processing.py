@@ -6,10 +6,10 @@ from scipy.signal import butter, lfilter, filtfilt, convolve
 import numpy as np
 import scipy.io as sio
 import os
+import time
 from typing import Union
 
 
-# TODO: add a function to compute the mean process time
 class GenericProcessing:
     def __init__(self):
         """
@@ -21,6 +21,7 @@ class GenericProcessing:
         self.lp_butter_order = 4
         self.bp_butter_order = 2
         self.data_rate = None
+        self.process_time = []
 
     @staticmethod
     def _butter_bandpass(lowcut: float, highcut: float, fs: float, order: int=5)->tuple:
@@ -189,8 +190,7 @@ class GenericProcessing:
             norm_emg[emg, :] = emg_data[emg, :] / mvc_list[emg]
         return norm_emg
 
-    @staticmethod
-    def calibration_matrix(data: np.ndarray, matrix: np.ndarray)->np.ndarray:
+    def calibration_matrix(self, data: np.ndarray, matrix: np.ndarray)->np.ndarray:
         """
         Apply a calibration matrix to the data.
         Parameters
@@ -205,7 +205,10 @@ class GenericProcessing:
         numpy.ndarray
             Calibrated data.
         """
-        return np.dot(data, matrix)
+        tic = time.time()
+        data_cal = np.dot(matrix, data)
+        self.process_time.append(time.time() - tic)
+        return data_cal
 
     def _process_emg(
         self,
@@ -324,6 +327,7 @@ class RealTimeProcessing(GenericProcessing):
            processed EMG data.
 
         """
+        tic = time.time()
         if low_pass_filter and moving_average:
             raise RuntimeError("Please choose between low-pass filter and moving average.")
         ma_win = moving_average_window
@@ -377,6 +381,7 @@ class RealTimeProcessing(GenericProcessing):
             else:
                 average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)
+        self.process_time.append(time.time() - tic)
         return self.processed_data_buffer
 
     def process_imu(
@@ -407,7 +412,7 @@ class RealTimeProcessing(GenericProcessing):
         np.ndarray
             processed IMU data.
         """
-
+        tic = time.time()
         if len(self.raw_data_buffer) == 0:
             if squared is not True:
                 self.processed_data_buffer = np.zeros((im_data.shape[0], im_data.shape[1], 1))
@@ -455,7 +460,7 @@ class RealTimeProcessing(GenericProcessing):
                             elif average[i, :] >= 0:
                                 average[i, :] = average[i, :] / norm_max_bound
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average, axis=1)
-
+        self.process_time.append(time.time() - tic)
         return self.processed_data_buffer
 
     def get_peaks(
@@ -480,6 +485,7 @@ class RealTimeProcessing(GenericProcessing):
         tuple
             Number of peaks and the processed signal.
         """
+        tic = time.time()
         nb_peaks = []
         if len(new_sample.shape) == 1:
             new_sample = np.expand_dims(new_sample, 0)
@@ -522,6 +528,7 @@ class RealTimeProcessing(GenericProcessing):
 
         if isinstance(nb_peaks, list):
             nb_peaks.append(np.count_nonzero(self.processed_data_buffer))
+        self.process_time.append(time.time() - tic)
         return nb_peaks, self.processed_data_buffer
 
     @staticmethod
@@ -533,9 +540,14 @@ class RealTimeProcessing(GenericProcessing):
                     signal[j, -interval:][i] = 0
         return signal
 
-    @staticmethod
-    def custom_processing(funct, data_tmp, **kwargs):
-        return funct(data_tmp, **kwargs)
+    def custom_processing(self, funct, data_tmp, **kwargs):
+        tic = time.time()
+        data_tmp = funct(data_tmp, **kwargs)
+        self.process_time.append(time.time() - tic)
+        return data_tmp
+
+    def get_mean_process_time(self):
+        return np.mean(self.process_time)
 
 
 class OfflineProcessing(GenericProcessing):
