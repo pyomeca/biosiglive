@@ -107,7 +107,7 @@ class ViconClient(GenericInterface):
 
         self.devices.append(device_tmp)
 
-    def add_markers(
+    def add_marker_set(
         self,
         nb_markers: int,
         name: str = None,

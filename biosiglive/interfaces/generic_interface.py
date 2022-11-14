@@ -79,7 +79,7 @@ class GenericInterface:
         device_tmp.interface = self.interface_type
         return device_tmp
 
-    def _add_markers(
+    def _add_marker_set(
         self,
         nb_markers: int,
         name: str = None,
@@ -88,7 +88,7 @@ class GenericInterface:
         unlabeled: bool = False,
     ):
         """
-        Add markers set to stream from the Vicon system.
+        Add a marker set to stream from the Vicon system.
         Parameters
         ----------
         name: str
@@ -106,10 +106,10 @@ class GenericInterface:
         markers_tmp.interface = self.interface_type
         return markers_tmp
 
-    def add_markers(self, **kwargs):
+    def add_marker_set(self, **kwargs):
 
         """
-        Add markers set to stream from the interface system.
+        Add a marker set to stream from the interface system.
         """
         raise RuntimeError(f"Markers are not implemented with interface '{self.interface_type}'.")
 
@@ -159,7 +159,7 @@ class GenericInterface:
 
     def add_device(self, **kwargs):
         """
-        Add a device to the Vicon system.
+        Add a device to the interface.
         """
         raise RuntimeError(f"Devices are not implemented with interface '{self.interface_type}.")
 
@@ -170,7 +170,7 @@ class GenericInterface:
     def get_device_data(self, **kwargs):
         raise RuntimeError(f"You can not get device data from '{self.interface_type}'.")
 
-    def get_markers_data(self, **kwargs):
+    def get_marker_set_data(self, **kwargs):
         raise RuntimeError(f"You can not get merkers data from '{self.interface_type}'.")
 
     def get_latency(self):
@@ -182,7 +182,7 @@ class GenericInterface:
     def get_frame_number(self):
         raise RuntimeError(f"You can not get frame number from '{self.interface_type}'.")
 
-    def get_kinematics_from_markers(self, **kwargs):
+    def get_kinematics_from_marker_set(self, **kwargs):
         raise RuntimeError(f"You can not get kinematics from '{self.interface_type}'.")
 
     def init_client(self):

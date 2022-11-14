@@ -105,12 +105,3 @@ class PytrignoClient(GenericInterface):
                 device_data = device_data_idx
             all_device_data.append(device_data)
         return all_device_data
-
-    def get_markers_data(self, marker_names: list = None, subject_name: str = None):
-        raise RuntimeError("It's not possible to get markers data from pytrigno.")
-
-    def get_force_plate_data(self):
-        raise RuntimeError("It's not possible to get force plate data from pytrigno.")
-
-    def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
-        raise RuntimeError("It's not possible to get markers data from pytrigno.")

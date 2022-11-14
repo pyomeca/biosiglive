@@ -75,7 +75,7 @@ class TcpClient(GenericInterface):
     def get_message(self):
         return self.message
 
-    def add_markers(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
+    def add_marker_set(self, name: str = None, rate: int = 100, unlabeled: bool = False, subject_name: str = None):
         """
         Add a marker set to the client.
         Parameters
@@ -91,7 +91,7 @@ class TcpClient(GenericInterface):
         """
         if len(self.markers) != 0:
             raise ValueError("Only one marker set can be added for now.")
-        markers_tmp = self._add_markers(name, rate, unlabeled)
+        markers_tmp = self._add_marker_set(name, rate, unlabeled)
         markers_tmp.subject_name = subject_name
         markers_tmp.interface = self.interface_type
         self.markers.append(markers_tmp)
@@ -150,7 +150,7 @@ class TcpClient(GenericInterface):
                     all_device_data.append(np.array(data[key]))
         return all_device_data
 
-    def get_markers_data(self, get_names: bool = False):
+    def get_marker_set_data(self, get_names: bool = False):
         """
         Get the data from the markers.
 
