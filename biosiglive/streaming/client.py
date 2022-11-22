@@ -1,10 +1,12 @@
 """
 This file is part of biosiglive. It allows connecting to a biosiglive server and to receive data from it.
 """
+import enum
 
 import socket
 import json
 import struct
+from ..enums import CommandType
 from typing import Union
 
 Buff_size = 32767
@@ -13,82 +15,29 @@ Buff_size = 32767
 class Message:
     def __init__(
         self,
-        command: list = (),
-        read_frequency: float = 100,
+        command: Union[list, str] = "all",
         nb_frame_to_get: int = 1,
-        get_names: bool = None,
-        mvc_list: list = None,
-        kalman: bool = None,
-        get_raw_data: bool = False,
-        ratio: int = 1,
-        **kwargs,
+        down_sampling: dict = None,
+        custom_cmd: Union[str, list] = None,
     ):
         """
         Message class
-        """
 
+        Parameters
+        ----------
+        command: Union[list, str]
+            List of commands to send to the server.
+        nb_frame_to_get: int
+            Number of frames to get from the server.
+        down_sampling: dict
+            Dictionary containing the down sampling number for data in command.
+        """
+        if isinstance(command, str):
+            command = [command]
         self.command = command
-        self.emg_windows = 2000
-        self.get_names = False
-        self.nb_frames_to_get = 1
-        self.get_names = get_names
-        self.mvc_list = mvc_list
-        self.kalman = kalman
-        self.read_frequency = read_frequency
         self.nb_frames_to_get = nb_frame_to_get
-        self.raw_data = get_raw_data
-        self.ratio = ratio
-        for key in kwargs.keys():
-            self.__setattr__(key, kwargs[key])
-
-    def update_command(self, name: Union[str, list], value: Union[bool, int, float, list, str]):
-        """
-        Update the command.
-
-        Parameters
-        ----------
-        name: str
-            Name of the command to update.
-        value: bool, int, float, list, str
-            Value of the command to update.
-        """
-        names = [name] if not isinstance(name, list) else name
-        values = [value] if not isinstance(value, list) else value
-        values = [values] if name == "command" else values
-
-        for i, name in enumerate(names):
-            self.__setattr__(name, values[i])
-
-    def get_command(self):
-        """
-        Get the command.
-
-        Returns
-        -------
-        message: Message.dic
-            Message containing the command.
-        """
-        return self.command
-
-    def add_command(self, name: str, value: Union[bool, int, float, list, str]):
-        """
-        Add a command.
-
-        Parameters
-        ----------
-        name: str
-            Name of the command to add.
-        value: bool, int, float, list, str
-            Value of the command to add.
-        """
-        new_value = None
-        old_value = self.get_command()[name]
-        if isinstance(old_value, list):
-            old_value.append(value)
-            new_value = old_value
-        elif isinstance(old_value, (bool, int, float, str)):
-            new_value = value
-        return self.update_command(name, new_value)
+        self.down_sampling = down_sampling
+        self.custom_cmd = custom_cmd
 
 
 class Client:
@@ -166,7 +115,7 @@ class Client:
         data = json.loads(data)
         return data
 
-    def get_data(self, message: (Message, str) = Message(), buff: int = Buff_size, initialize=True):
+    def get_data(self, message: Message = Message(), buff: int = Buff_size):
         """
         Get the data from server using the command.
 
@@ -181,10 +130,7 @@ class Client:
         data: dict
             Data from server.
         """
-        if initialize:
-            self.client = self.client_sock(self.client_type)
-        if not isinstance(message, str):
-            message = message.__dict__
+        message = message.__dict__
         self._connect()
         self.client.sendall(json.dumps(message).encode())
         return self._recv_all(buff)

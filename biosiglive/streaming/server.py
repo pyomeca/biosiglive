@@ -34,144 +34,45 @@ class Connection:
         self.buff_size = 100000
         self.acquisition_rate = 100
 
-    def _prepare_data(self, message: dict, data: dict):
+    @staticmethod
+    def _prepare_data(command: list, data: dict, down_sampling: dict = None, nb_frames_to_get: int = None):
         """
         Prepare the data to send.
 
         Parameters
         ----------
-        message : dict
-            The message received from the client.
+        command : dict
+            The command received from the client.
         data : dict
             The data to prepared.
-
-        Returns
-        -------
-        prepared data : dict
-            The data prepared to be sent.
-
-        """
-        read_frequency = message["read_frequency"]
-        raw_data = message["raw_data"]
-        ratio = message["ratio"]
-        nb_frames_to_get = message["nb_frames_to_get"] if message["nb_frames_to_get"] else 1
-
-        if self.acquisition_rate < read_frequency:
-            raise RuntimeError(
-                f"Acquisition rate ({self.acquisition_rate}) is lower than read " f"frequency ({read_frequency})."
-            )
-        data_to_prepare = self.__data_to_prepare(message, data)
-        prepared_data = self.__check_and_adjust_dims(data_to_prepare, ratio, raw_data, nb_frames_to_get)
-
-        if "vicon_latency" in data.keys():
-            prepared_data["vicon_latency"] = data["vicon_latency"]
-        if message["get_names"]:
-            prepared_data["marker_names"] = data["marker_names"]
-            prepared_data["emg_names"] = data["emg_names"]
-        if "absolute_time_frame" in data.keys():
-            prepared_data["absolute_time_frame"] = data["absolute_time_frame"]
-        return prepared_data
-
-    @staticmethod
-    def __data_to_prepare(message: dict, data: dict):
-        """
-        Prepare the device data to send.
-
-        Parameters
-        ----------
-        message : dict
-            The message received from the client.
-        data : dict
-            The data to prepared.
-
-        Returns
-        -------
-        prepared data : dict
-            The data prepared to be sent.
-        """
-
-        data_to_prepare = {}
-        if len(message["command"]) != 0:
-            for i in message["command"]:
-                if i == "emg":
-                    if message["raw_data"]:
-                        raw_emg = data["raw_emg"]
-                        data_to_prepare["raw_emg"] = raw_emg
-                    emg = data["emg_proc"]
-                    if message["mvc_list"]:
-                        if isinstance(message["mvc_list"], np.ndarray) is True:
-                            if len(message["mvc_list"].shape) == 1:
-                                quot = message["mvc_list"].reshape(-1, 1)
-                            else:
-                                quot = message["mvc_list"]
-                        else:
-                            quot = np.array(message["mvc_list"]).reshape(-1, 1)
-                    else:
-                        quot = [1]
-                    data_to_prepare["emg_proc"] = emg / quot
-                    data_to_prepare["emg_sample"] = data["emg_sample"]
-
-                elif i == "markers":
-                    markers = data["markers"]
-                    data_to_prepare["markers"] = markers
-                elif i == "imu":
-                    if message["raw_data"]:
-                        raw_imu = data["raw_imu"]
-                        data_to_prepare["raw_imu"] = raw_imu
-                    imu = data["imu_proc"]
-                    data_to_prepare["imu"] = imu
-                    data_to_prepare["imu_sample"] = data["imu_sample"]
-
-                elif i == "force plate":
-                    raise RuntimeError("force plate not implemented yet.")
-                else:
-                    raise RuntimeError(f"Unknown command '{i}'. Command must be :'emg', 'markers' or 'imu' ")
-        else:
-            raise RuntimeError(f"No command received.")
-        if message["kalman"]:
-            data_to_prepare["kalman"] = data["kalman"]
-
-        return data_to_prepare
-
-    @staticmethod
-    def __check_and_adjust_dims(data: dict, ratio: int, raw_data: bool = False, nb_frames_to_get: int = 1):
-        """
-        Check and adjust the dimensions of the data to send.
-
-        Parameters
-        ----------
-        data : dict
-            The data to check and adjust.
-        ratio : int
-            The ratio between the acquisition rate and the read frequency.
-        raw_data : bool
-            If the raw data must be sent (default is False).
+        down_sampling : dict
+            The down sampling to apply to the data.
         nb_frames_to_get : int
-            The number of frames to get (default is 1).
+            The number of frames to get.
 
         Returns
         -------
-        data : dict
-            The data checked and adjusted.
-        """
+        prepared data : dict
+            The data prepared to be sent.
 
-        for key in data.keys():
-            if "sample" not in key:
-                if len(data[key].shape) == 2:
-                    if key != "raw_emg":
-                        data[key] = data[key][:, ::ratio]
-                        data[key] = data[key][:, -nb_frames_to_get:].tolist()
-                    if raw_data and key == "raw_emg":
-                        nb_frames_raw_data = data["emg_sample"] * nb_frames_to_get
-                        data[key] = data[key][:, -nb_frames_raw_data:].tolist()
-                elif len(data[key].shape) == 3:
-                    if key != "raw_imu":
-                        data[key] = data[key][:, :, ::ratio]
-                        data[key] = data[key][:, :, -nb_frames_to_get:].tolist()
-                    if raw_data and key == "raw_imu":
-                        nb_frames_raw_data = data["imu_sample"] * nb_frames_to_get
-                        data[key] = data[key][:, :, -nb_frames_raw_data:].tolist()
-        return data
+        """
+        data_tmp = {}
+        if command == "all":
+            command = list(data.keys())
+        for key in command:
+            if key in data.keys():
+                if key in down_sampling.keys():
+                    if not isinstance(down_sampling[key], int):
+                        raise ValueError("The down sampling must be an integer.")
+                    data[key] = data[key][..., ::down_sampling[key]]
+                if isinstance(data[key], np.ndarray):
+                    if nb_frames_to_get:
+                        data_tmp[key] = data[key][..., -nb_frames_to_get:].tolist()
+                else:
+                    data_tmp[key] = data[key]
+            else:
+                raise ValueError(f"The asked data '{key}' is not in the data dictionary.")
+        return data_tmp
 
 
 class Server(Connection):
@@ -203,7 +104,6 @@ class Server(Connection):
         """
         Start the server.
         """
-        # for i, port in enumerate(self.ports):
         if self.server_type == "TCP":
             self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         elif self.server_type == "UDP":
@@ -225,16 +125,12 @@ class Server(Connection):
     def client_listening(self):
         """
         Listen to the client.
-
-        Parameters
-        ----------
-        data : dict
-            Data to send to the client function of message
         """
         connection, ad = self.server.accept()
-        return connection, json.loads(connection.recv(self.buff_size))
+        message = json.loads(connection.recv(self.buff_size))  # Received message
+        return connection, message
 
-    def send_data(self, data, connection, message):
+    def send_data(self, data: dict, connection: socket.socket, message: dict = None):
         """
         Send the data to the client.
 
@@ -244,17 +140,23 @@ class Server(Connection):
             The data to send.
         connection : socket.socket
             The connection to send the data to.
+        message : dict
+            The message received from the client.
         """
-        data_to_send = self._prepare_data(message, data)
-        # if self.optim is not True:
-        #     print("Sending data to client...")
-        encoded_data = json.dumps(data_to_send).encode()
+        if message:
+            if "command" in message.keys() and "down_sampling" in message.keys() and "nb_frames_to_get" in message.keys():
+                data = self._prepare_data(message["command"], data,
+                                          message["down_sampling"],
+                                          message["nb_frames_to_get"])
+            else:
+                raise ValueError("The message should be a dictionary created from the Message class or contains the key"
+                                 " : 'command', down_sampling, nb_frames_to_get.")
+        encoded_data = json.dumps(data).encode()
         encoded_data = struct.pack(">I", len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)
-            print(f"data sended : {data_to_send}")
         except ConnectionError:
-            pass
+            raise RuntimeError("Unknown error. Data not sent.")
 
 
 class OscClient(Connection):
