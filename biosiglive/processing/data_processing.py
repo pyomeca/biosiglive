@@ -210,10 +210,10 @@ class GenericProcessing:
         self.process_time.append(time.time() - tic)
         return data_cal
 
-    def _process_emg(
+    def process_generic_signal(
         self,
         data: np.ndarray,
-        mvc_list: Union[list, tuple] = None,
+        norm_values: Union[list, tuple] = None,
         band_pass_filter=True,
         low_pass_filter=False,
         moving_average=True,
@@ -228,8 +228,8 @@ class GenericProcessing:
         ----------
         data : numpy.ndarray
             EMG data.
-        mvc_list : list
-            List of MVC values.
+        norm_values : list
+            Values to normalize the signal.
         band_pass_filter : bool
             Apply band pass filter.
         low_pass_filter : bool
@@ -264,7 +264,7 @@ class GenericProcessing:
             data_proc = self._moving_average(data_proc, w, empty_ma)
 
         if normalization:
-            data_proc = self.normalize_emg(data_proc, mvc_list)
+            data_proc = self.normalize_emg(data_proc, norm_values)
 
         return data_proc
 
@@ -364,7 +364,7 @@ class RealTimeProcessing(GenericProcessing):
             self.raw_data_buffer = np.append(
                 self.raw_data_buffer[:, -self.processing_window + emg_sample :], emg_data, axis=1
             )
-            emg_proc_tmp = self._process_emg(
+            emg_proc_tmp = self.process_generic_signal(
                 self.raw_data_buffer,
                 band_pass_filter=band_pass_filter,
                 centering=centering,
@@ -575,7 +575,7 @@ class OfflineProcessing(GenericProcessing):
             Processed EMG data.
         -------
         """
-        return self._process_emg(data, mvc_list, **kwargs)
+        return self.process_generic_signal(data, mvc_list, **kwargs)
 
     @staticmethod
     def compute_mvc(
