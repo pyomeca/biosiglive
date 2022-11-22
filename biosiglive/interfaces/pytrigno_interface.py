@@ -10,8 +10,8 @@ except ModuleNotFoundError:
 
 
 class PytrignoClient(GenericInterface):
-    def __init__(self, ip: str = "127.0.0.1"):
-        super(PytrignoClient, self).__init__(ip=ip, interface_type=InterfaceType.PytrignoClient)
+    def __init__(self, system_rate=100, ip: str = "127.0.0.1"):
+        super(PytrignoClient, self).__init__(ip=ip, interface_type=InterfaceType.PytrignoClient, system_rate=100)
         self.address = ip
         self.devices = []
         self.imu = []

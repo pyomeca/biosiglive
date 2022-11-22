@@ -7,7 +7,7 @@ from .param import *
 from typing import Union
 from .generic_interface import GenericInterface
 from ..enums import InverseKinematicsMethods, InterfaceType
-from ..processing.msk_functions import compute_inverse_kinematics
+from ..processing.msk_functions import MskFunctions
 
 try:
     from vicon_dssdk import ViconDataStream as VDS
@@ -52,7 +52,7 @@ class ViconClient(GenericInterface):
 
         self.devices = []
         self.imu = []
-        self.markers = []
+        self.marker_sets = []
         self.is_frame = False
         self.is_initialized = False
 
@@ -82,6 +82,8 @@ class ViconClient(GenericInterface):
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
+        process_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **process_kwargs
     ):
         """
         Add a device to the Vicon system.
@@ -97,8 +99,12 @@ class ViconClient(GenericInterface):
             Rate of the device.
         device_range: tuple
             Range of the device.
+        process_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
+            Method used to process the data.
+        **process_kwargs
+            Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(nb_channels, name, device_type, rate, device_range)
+        device_tmp = self._add_device(nb_channels, name, device_type, rate, device_range, process_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
@@ -115,6 +121,8 @@ class ViconClient(GenericInterface):
         rate: float = 100,
         unlabeled: bool = False,
         subject_name: str = None,
+        kinematics_method: InverseKinematicsMethods = None,
+        **kin_method_kwargs,
     ):
         """
         Add markers set to stream from the Vicon system.
@@ -132,16 +140,22 @@ class ViconClient(GenericInterface):
             Whether the markers set is unlabeled.
         subject_name: str
             Name of the subject. If None, the subject will be the first one in Nexus.
+        kinematics_method: InverseKinematicsMethods
+            Method used to compute the kinematics.
+        **kin_method_kwargs
+            Keyword arguments for the kinematics method.
         """
-        if len(self.markers) != 0:
+        if len(self.marker_sets) != 0:
             raise ValueError("Only one marker set can be added for now.")
 
-        markers_tmp = self._add_markers(
+        markers_tmp = self._add_marker_set(
             nb_markers=nb_markers,
             name=name,
             marker_names=marker_names,
             rate=rate,
             unlabeled=unlabeled,
+            kinematics_method=kinematics_method,
+            **kin_method_kwargs,
         )
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
@@ -151,7 +165,7 @@ class ViconClient(GenericInterface):
         else:
             markers_tmp.subject_name = subject_name
             markers_tmp.markers_names = marker_names
-        self.markers.append(markers_tmp)
+        self.marker_sets.append(markers_tmp)
 
     @staticmethod
     def get_force_plate_data():
@@ -214,7 +228,7 @@ class ViconClient(GenericInterface):
             return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(
+    def get_marker_set_data(
         self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = (), get_frame: bool = True
     ):
         """
@@ -233,7 +247,7 @@ class ViconClient(GenericInterface):
         markers_data: list
             All asked markers data.
         """
-        if len(self.markers) == 0:
+        if len(self.marker_sets) == 0:
             raise ValueError("No marker set has been added to the Vicon system.")
         if not self.is_initialized:
             raise RuntimeError("Vicon client is not initialized.")
@@ -248,7 +262,7 @@ class ViconClient(GenericInterface):
         all_occluded_data = []
         if subject_name:
             markers_set = [None] * len(subject_name)
-            for s, marker_set in enumerate(self.markers):
+            for s, marker_set in enumerate(self.marker_sets):
                 if marker_set.subject_name in subject_name:
                     idx = subject_name.index(marker_set.subject_name)
                     markers_set[idx] = marker_set
@@ -257,7 +271,7 @@ class ViconClient(GenericInterface):
                     for i in range(len(marker_names_tmp)):
                         markers_set[idx].markers_names.append(marker_names_tmp[i][0])
         else:
-            markers_set = self.markers
+            markers_set = self.marker_sets
 
         for markers in markers_set:
             markers_data = np.zeros((3, len(markers.markers_names), markers.sample))
@@ -289,7 +303,7 @@ class ViconClient(GenericInterface):
             for d, device in enumerate(self.devices):
                 if not device.infos:
                     device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
-            for m, marker_set in enumerate(self.markers):
+            for m, marker_set in enumerate(self.marker_sets):
                 if not marker_set.markers_names:
                     marker_set.markers_names = self.vicon_client.GetMarkerNames(marker_set.subject_name)
                 if not marker_set.subject_name:
@@ -306,6 +320,7 @@ class ViconClient(GenericInterface):
         self.is_frame = self.vicon_client.GetFrame()
         while self.is_frame is not True:
             self.is_frame = self.vicon_client.GetFrame()
+        return self.is_frame
 
     def get_frame_number(self):
         if not self.is_initialized:
@@ -331,8 +346,6 @@ class ViconClient(GenericInterface):
             Model of the kinematics.
         method: str
             Method to use to get the kinematics. Can be "kalman" or "custom".
-        markers_rate: int
-            Rate of the markers.
         kalman: biorbd.KalmanReconsMarkers
             Kalman filter to use.
         custom_func: function
@@ -342,5 +355,5 @@ class ViconClient(GenericInterface):
         kinematics: list
             List of kinematics.
         """
-        markerset_idx = [i for i, m in enumerate(self.markers) if m.name == markerset][0]
-        return self.markers[markerset_idx].get_kinematics(model, method, kalman=kalman, **kwargs)
+        markerset_idx = [i for i, m in enumerate(self.marker_sets) if m.name == markerset][0]
+        return self.marker_sets[markerset_idx].get_kinematics(model, method, kalman=kalman, custom_func=custom_func, **kwargs)

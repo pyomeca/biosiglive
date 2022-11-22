@@ -36,8 +36,7 @@ class GenericInterface:
         self.system_rate = system_rate
         self.acquisition_rate = None
         self.devices = []
-        self.imu = []
-        self.markers = []
+        self.marker_sets = []
         self.is_frame = False
         self.kalman = None
         if isinstance(interface_type, str):
@@ -54,6 +53,8 @@ class GenericInterface:
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **kwargs
     ):
         """
         Add a device to the Vicon system.
@@ -77,6 +78,8 @@ class GenericInterface:
         device_tmp = Device(device_type, nb_channels, name, rate, self.system_rate)
         device_tmp.device_range = device_range if device_range else (0, nb_channels)
         device_tmp.interface = self.interface_type
+        device_tmp.processing_method = processing_method
+        device_tmp.processing_method_kwargs = kwargs
         return device_tmp
 
     def _add_marker_set(
@@ -86,6 +89,8 @@ class GenericInterface:
         marker_names: Union[str, list] = None,
         rate: float = 100,
         unlabeled: bool = False,
+        kinematics_method: Union[InverseKinematicsMethods, str] = None,
+        **kwargs
     ):
         """
         Add a marker set to stream from the Vicon system.
@@ -100,9 +105,11 @@ class GenericInterface:
         unlabeled: bool
             Whether the markers set is unlabeled.
         """
-        if name in [marker.name for marker in self.markers]:
+        if name in [marker.name for marker in self.marker_sets]:
             raise RuntimeError(f"The marker set '{name}' already exists.")
         markers_tmp = MarkerSet(nb_markers, name, marker_names, rate, unlabeled, self.system_rate)
+        markers_tmp.kin_method = kinematics_method
+        markers_tmp.kin_method_kwargs = kwargs
         markers_tmp.interface = self.interface_type
         return markers_tmp
 
@@ -149,9 +156,9 @@ class GenericInterface:
         The device.
         """
         if idx is not None:
-            return self.markers[idx]
+            return self.marker_sets[idx]
         elif name is not None:
-            for marker_set in self.markers:
+            for marker_set in self.marker_sets:
                 if marker_set.name == name:
                     return marker_set
         else:
@@ -174,10 +181,10 @@ class GenericInterface:
         raise RuntimeError(f"You can not get merkers data from '{self.interface_type}'.")
 
     def get_latency(self):
-        raise RuntimeError(f"You can not get latency from '{self.interface_type}'.")
+        return -1
 
     def get_frame(self):
-        raise RuntimeError(f"You can not get frames from '{self.interface_type}'.")
+        return True
 
     def get_frame_number(self):
         raise RuntimeError(f"You can not get frame number from '{self.interface_type}'.")
