@@ -3,8 +3,6 @@ This file is part of biosiglive. It is used to plot the data in live or offline 
 """
 try:
     import pyqtgraph as pg
-    from pyqtgraph.Qt import QtGui
-    import pyqtgraph.widgets.RemoteGraphicsView as rgv
     from PyQt5.QtWidgets import *
 except ModuleNotFoundError:
     pass
@@ -19,12 +17,11 @@ import time
 class LivePlot:
     def __init__(
         self,
-        nb_subplots: int,
+        nb_subplots: int = 1,
         plot_type: Union[PlotType, str] = PlotType.Curve,
         name: str = None,
         channel_names: list = None,
         rate: int = None,
-        unit: str = None,
     ):
         """
         Initialize the plot class.
@@ -39,8 +36,6 @@ class LivePlot:
             list of the channel names
         nb_subplots : int
             number of subplots
-        unit : str
-            unit of the plot
         """
         if isinstance(plot_type, str):
             if plot_type not in [t.value for t in PlotType]:
@@ -55,10 +50,7 @@ class LivePlot:
         self.channel_names = channel_names
         self.figure_name = name
         self.nb_subplot = nb_subplots
-        self.unit = unit
         self.rate = rate
-        self.rplt = None
-        self.box = None
         self.layout = None
         self.app = None
         self.viz = None
@@ -69,14 +61,14 @@ class LivePlot:
         self.msk_model = None
         self.last_plot = None
         self.once_update = False
+        self.plots = []
+        self.curves = []
+        self.ptr = []
+        self.unit = ""
 
     def init(
         self,
         plot_windows: Union[int, list] = None,
-        use_checkbox: bool = True,
-        remote: bool = True,
-        bar_graph_max_value: Union[int, list] = None,
-        msk_model: str = None,
         **kwargs,
     ):
         """
@@ -85,30 +77,17 @@ class LivePlot:
         ----------
         plot_windows: Union[int, list]
             The number of frames ti plot. If is a list, the number of frames to plot for each subplot.
-        use_checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-        bar_graph_max_value: Union[int, list]
-            The maximum value of the progress bar.
         **kwargs:
             The arguments of the bioviz plot.
         """
-        self.msk_model = msk_model
         self.plot_buffer = [None] * self.nb_subplot
         if isinstance(plot_windows, int):
             plot_windows = [plot_windows] * self.nb_subplot
         self.plot_windows = plot_windows
         if self.plot_type == PlotType.Curve:
-            self.rplt, self.layout, self.app, self.box = self._init_curve(
-                self.figure_name, self.channel_names, self.nb_subplot, checkbox=use_checkbox
-            )
+            self._init_curve(self.figure_name, self.channel_names, self.nb_subplot, **kwargs)
         elif self.plot_type == PlotType.ProgressBar:
-            self.rplt, self.layout, self.app = self._init_progress_bar(
-                self.figure_name,
-                self.nb_subplot,
-                bar_graph_max_value,
-            )
+            self._init_progress_bar(self.figure_name, self.nb_subplot, **kwargs)
 
         elif self.plot_type == PlotType.Skeleton:
             if not self.msk_model:
@@ -162,9 +141,9 @@ class LivePlot:
         if update:
             self.once_update = True
             if self.plot_type == PlotType.ProgressBar:
-                self._update_progress_bar(data, self.app, self.rplt, self.channel_names, self.unit)
+                self._update_progress_bar(data)
             elif self.plot_type == PlotType.Curve:
-                self._update_curve(data, self.app, self.rplt, self.box)
+                self._update_curve(data)
             elif self.plot_type == PlotType.Skeleton:
                 self._update_skeleton(data, self.viz)
             else:
@@ -174,10 +153,12 @@ class LivePlot:
     def _init_curve(
         self,
         figure_name: str = "Figure",
-        subplot_label: Union[list, str] = None,
+        subplot_labels: Union[list, str] = None,
         nb_subplot: int = None,
-        checkbox: bool = True,
-        # remote: bool = True,
+        x_labels: Union[list, str] = None,
+        y_labels: Union[list, str] = None,
+        grid: bool = True,
+        colors: Union[list, tuple] = None,
     ):
         """
         This function is used to initialize the curve plot.
@@ -185,70 +166,59 @@ class LivePlot:
         ----------
         figure_name: str
             The name of the figure.
-        subplot_label: str or list
-            The label of the subplot.
+        subplot_labels: Union[list, str]
+            The labels of the subplots.
         nb_subplot: int
             The number of subplot.
-        checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: method
-            The plot.
-        layout:
-            The layout of the qt app.
-        box: QCheckBox
-            The checkbox.
+        x_labels: Union[list, str]
+            The labels of the x axis.
+        y_labels: Union[list, str]
+            The labels of the y axis.
+        grid: bool
+            If True, the grid is displayed.
         """
-        # TODO add remote statement
         # --- Curve graph --- #
-        resize = self.resize
-        move = self.move
-        layout, app = self._init_layout(figure_name, resize, move)
-        remote = []
-        label = QtGui.QLabel()
-        box = []
-        rplt = []
-        row_count = 0
-        col_span = 4 if nb_subplot > 8 else 8
-
-        if not isinstance(subplot_label, list):
-            subplot_label = [subplot_label]
-        if isinstance(subplot_label, list) and len(subplot_label) != nb_subplot:
-            raise ValueError("The length of the subplot_label list must be equal to the number of subplot")
-
-        for plot in range(nb_subplot):
-            remote.append(rgv.RemoteGraphicsView())
-            remote[plot].pg.setConfigOptions(antialias=True)
-            app.aboutToQuit.connect(remote[plot].close)
-            if checkbox:
-                if subplot_label:
-                    box.append(QtGui.QCheckBox(subplot_label[plot]))
-                else:
-                    box.append(QtGui.QCheckBox(f"plot_{plot}"))
-            if plot >= 8:
-                if checkbox:
-                    layout.addWidget(box[plot], row=1, col=plot - 8)
-                layout.addWidget(remote[plot], row=plot - 8 + 2, col=4, colspan=col_span)
-            else:
-                if checkbox:
-                    layout.addWidget(box[plot], row=0, col=plot)
-                layout.addWidget(remote[plot], row=plot + 2, col=0, colspan=col_span)
-            rplt.append(remote[plot].pg.PlotItem())
-            rplt[plot]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
-            remote[plot].setCentralItem(rplt[plot])
-            layout.addWidget(label)
-            layout.show()
-            row_count += 1
-        return rplt, layout, app, box
+        self.app = pg.mkQApp("Curve_plot")
+        pg.setConfigOption('background', 'w')
+        pg.setConfigOption('foreground', 'k')
+        self.win = pg.GraphicsLayoutWidget(show=True)
+        self.win.setWindowTitle(figure_name)
+        nb_line = 4
+        nb_col = ceil(nb_subplot / nb_line)
+        line_count = 0
+        self.win.resize(self.resize[0], self.resize[1])
+        self.win.move(self.move[0], self.move[1])
+        if colors:
+            if isinstance(colors, tuple):
+                colors = [colors] * nb_subplot
+            elif isinstance(colors, list):
+                if len(colors) != nb_subplot:
+                    raise ValueError("The number of colors is not equal to the number of subplots.")
+        else:
+            colors = [(0, 128, 232)] * nb_subplot  # Blue
+        if not x_labels:
+            x_labels = ["Frames"] * nb_subplot
+        if not y_labels:
+            y_labels = ["Amplitude"] * nb_subplot
+        if not subplot_labels:
+            subplot_labels = [f"Subplot {i}" for i in range(nb_subplot)]
+        for subplot in range(nb_subplot):
+            self.ptr.append(0)
+            if line_count == nb_col:
+                self.win.nextRow()
+                line_count = 0
+            self.plots.append(self.win.addPlot(title=subplot_labels[subplot]))
+            self.plots[-1].setDownsampling(mode='peak')
+            self.plots[-1].setClipToView(True)
+            self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
+            self.plots[-1].setLabel('bottom', x_labels[subplot])
+            self.plots[-1].setLabel('left', y_labels[subplot])
+            self.plots[-1].showGrid(x=grid, y=grid)
+            line_count += 1
 
     def _init_progress_bar(
-        self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100
+            self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100,
+            unit: Union[str, list] = ""
     ):
         """
         This function is used to initialize the curve plot.
@@ -258,90 +228,64 @@ class LivePlot:
             The name of the figure.
         nb_subplot: int
             The number of subplot.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: Plot
-            The plot.
-        layout: pg.LayoutWidget
-            The layout of the qt app.
-        bar_graph_max_value: Union[int, list]
-            The maximum value of the progress bar.
+        bar_graph_max_value: int or list
+            The maximum value of the bar graph.
+        unit: str or list
+            The unit of the bar graph.
         """
         # --- Progress bar graph --- #
-        layout, app = self._init_layout(figure_name, resize=self.resize, move=self.move)
-        rplt = []
+        if isinstance(unit, str):
+            self.unit = [unit] * nb_subplot
+        self.layout, self.app = self._init_layout(figure_name, resize=self.resize, move=self.move)
         row_count = 0
+        if bar_graph_max_value is None:
+            bar_graph_max_value = [100] * nb_subplot
         if isinstance(bar_graph_max_value, int):
             bar_graph_max_value = [bar_graph_max_value] * nb_subplot
         for plot in range(nb_subplot):
-            rplt.append(QProgressBar())
-            rplt[plot].setMaximum(bar_graph_max_value[plot])
-            layout.addWidget(rplt[plot], row=plot, col=0)
-            layout.show()
+            self.plots.append(QProgressBar())
+            self.plots[-1].setMaximum(bar_graph_max_value[plot])
+            self.layout.addWidget(self.plots[-1], row=plot, col=0)
+            self.layout.show()
             row_count += 1
 
-        return rplt, layout, app
-
-    @staticmethod
-    def _update_curve(data: list, app, rplt: list, box: list):
+    def _update_curve(self, data: list):
         """
         This function is used to update the curve plot.
         Parameters
         ----------
         data: list
             The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
-            The plot.
-        box: QCheckBox
-            The checkbox.
-
-        Returns
-        -------
-
         """
+        if len(data) != len(self.curves):
+            raise ValueError(f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)}).")
         for i in range(len(data)):
-            if len(box) != 0:
-                if box[i].isChecked() is True:
-                    rplt[i].plot(data[i][0, :], clear=True, _callSync="off")
-            else:
-                rplt[i].plot(data[i][0, :], clear=True, _callSync="off")
-        app.processEvents()
+            self.ptr[i] += 1
+            self.curves[i].setData(data[i][0, :])
+            self.curves[i].setPos(self.ptr[i], 0)
+        self.app.processEvents()
 
-    @staticmethod
-    def _update_progress_bar(data: list, app, rplt: list, subplot_label: list, unit: str = ""):
+    def _update_progress_bar(self, data: list):
         """
         This function is used to update the progress bar plot.
         Parameters
         ----------
         data: list
             The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
-            The plot.
-        subplot_label: list
-            The subplot label.
-        unit: str
-            The unit of the data to plot.
         """
 
-        if subplot_label and len(subplot_label) != len(data):
+        if self.channel_names and len(self.channel_names) != len(data):
             raise RuntimeError(
-                f"The length of Subplot labels ({len(subplot_label)}) is different than"
+                f"The length of Subplot labels ({len(self.channel_names)}) is different than"
                 f" the first dimension of your data ({len(data)})."
             )
 
         for i in range(len(data)):
             value = np.mean(data[i][0, :])
-            rplt[i].setValue(int(value))
-            name = subplot_label[i] if subplot_label else f"plot_{i}"
-            rplt[i].setFormat(f"{name}: {int(value)} {unit}")
-        app.processEvents()
+            self.plots[i].setValue(int(value))
+            name = self.channel_names[i] if self.channel_names else f"plot_{i}"
+            self.plots[i].setFormat(f"{name}: {int(value)} {self.unit[i]}")
+        self.app.processEvents()
 
     @staticmethod
     def _update_skeleton(data: list, viz):
