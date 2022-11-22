@@ -4,7 +4,7 @@ This file is part of biosiglive. It contains the Parameter class and introduce t
 from math import ceil
 from ..enums import DeviceType, MarkerType, InverseKinematicsMethods, RealTimeProcessingMethod, OfflineProcessingMethod
 from ..processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
-from ..processing.msk_functions import compute_inverse_kinematics
+from ..processing.msk_functions import MskFunctions
 from typing import Union
 
 try:
@@ -43,7 +43,6 @@ class Param:
         self.system_rate = system_rate
         self.sample = ceil(rate / self.system_rate)
         self.range = None
-        self.process_method = None
         self.raw_data = []
         self.processed_data = None
         self.data_windows = data_windows if data_windows else int(rate)
@@ -58,18 +57,6 @@ class Param:
             self.raw_data = np.append(
                 self.raw_data[..., new_data.shape[len(new_data.shape) - 1] :], new_data, axis=len(new_data.shape) - 1
             )
-
-    def set_name(self, name: str):
-        self.name = name
-
-    def set_rate(self, rate: int):
-        self.rate = rate
-
-    def get_process_method(self):
-        return self.process_method
-
-    def set_process_method(self, processing_class):
-        self.process_method = processing_class
 
 
 class Device(Param):
@@ -97,10 +84,12 @@ class Device(Param):
         self.channel_names = channel_names
         self.interface = None
         self.device_type = device_type
+        self.process_method = None
+        self.process_method_kwargs = {}
 
     def process(
         self,
-        method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod],
+        method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         custom_function: callable = None,
         **kwargs
     ):
@@ -115,28 +104,37 @@ class Device(Param):
         kwargs: dict
             Keyword arguments to pass to the method.
         """
+        method = method if method else self.process_method
+        self.process_method_kwargs.update(kwargs)
+        if "custom_function" in self.process_method_kwargs.keys():
+            custom_function = custom_function if custom_function else self.process_method_kwargs["custom_function"]
         if "processing_windows" in kwargs:
-            if kwargs["processing_windows"] != self.data_windows:
+            if self.process_method_kwargs["processing_windows"] != self.data_windows:
                 raise ValueError("The processing windows is different than the data windows.")
-            kwargs.pop("moving_average_window")
         if self.new_data is None:
             raise RuntimeError("No data to process. Please run first the function get_device_data.")
+        if not method:
+            raise RuntimeError("No method to process the data. Please specify a method.")
         if isinstance(method, str):
             if method in [t.value for t in RealTimeProcessingMethod]:
                 method = RealTimeProcessingMethod(method)
             elif method not in [t.value for t in OfflineProcessingMethod]:
-                method = RealTimeProcessingMethod(method)
+                method = OfflineProcessingMethod(method)
+            else:
+                raise ValueError("The method is not valid.")
 
         if not self.process_method:
-            self._init_process_method(method, **kwargs)
+            self._init_process_method(method)
         if method == RealTimeProcessingMethod.Custom:
-            self.process_method(self.new_data, custom_function, **kwargs)
+            if not custom_function:
+                raise ValueError("No custom function to process the data.")
+            self.process_method(custom_function, self.new_data, **self.process_method_kwargs)
         else:
-            self.processed_data = self.process_method(self.new_data, **kwargs)
+            self.processed_data = self.process_method(self.new_data, **self.process_method_kwargs)
         self._append_data(self.new_data)
         return self.processed_data
 
-    def _init_process_method(self, method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod], **kwargs):
+    def _init_process_method(self, method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod]):
         if method == RealTimeProcessingMethod.ProcessEmg:
             self.process_method = RealTimeProcessing(self.rate, self.data_windows).process_emg
         elif method == RealTimeProcessingMethod.ProcessImu:
@@ -153,8 +151,6 @@ class Device(Param):
             self.process_method = GenericProcessing().calibration_matrix
         elif method == RealTimeProcessingMethod.Custom:
             self.process_method = RealTimeProcessing(self.rate, self.data_windows).custom_processing
-        else:
-            raise ValueError("The method is not a valid method.")
 
 
 class MarkerSet(Param):
@@ -182,11 +178,14 @@ class MarkerSet(Param):
         self.subject_name = None
         self.interface = None
         self.marker_type = marker_type
+        self.kin_method = None
+        self.kin_method_kwargs = {}
+        self.biorbd_model_path = None
 
     def get_kinematics(
         self,
-        model: callable,
-        method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+        model: callable = None,
+        method: Union[InverseKinematicsMethods, str] = None,
         kalman: callable = None,
         custom_function: callable = None,
         **kwargs
@@ -212,4 +211,28 @@ class MarkerSet(Param):
             raise RuntimeError(
                 "No markers data to compute the kinematics." " Please run first the function get_markers_data."
             )
-        return compute_inverse_kinematics(self.raw_data, model, method, self.rate, kalman, custom_function, **kwargs)
+        method = method if method else self.kin_method
+        self.kin_method_kwargs.update(kwargs)
+        if "custom_function" in self.kin_method_kwargs.keys():
+            custom_function = custom_function if custom_function else self.kin_method_kwargs["custom_function"]
+        if self.new_data is None:
+            raise RuntimeError("No data to process. Please run first the function get_markers_data.")
+        if not method:
+            raise RuntimeError("No method to compute the kinematics. Please specify a method.")
+        if isinstance(method, str):
+            if method in [t.value for t in InverseKinematicsMethods]:
+                method = InverseKinematicsMethods(method)
+            else:
+                raise ValueError("The method is not valid.")
+        model = model if model else self.biorbd_model_path
+        if model is None:
+            raise ValueError("No model to compute the kinematics.")
+        msk_class = MskFunctions(model)
+        if method == InverseKinematicsMethods.Custom:
+            if not custom_function:
+                raise ValueError("No custom function to process the data.")
+            self.processed_data = msk_class.compute_inverse_kinematics(self.new_data, method, self.rate, custom_function, **self.kin_method_kwargs)
+        else:
+            self.processed_data = msk_class.compute_inverse_kinematics(self.new_data, method, self.rate, **self.kin_method_kwargs)
+        self._append_data(self.new_data)
+        return self.processed_data
