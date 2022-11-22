@@ -36,9 +36,7 @@ class ComputeMvc:
         Parameters
         ----------
         stream_mode : str
-            The mode of the stream.
-            'pytrigno' : use the pytrigno
-            'server_data' : use the server data
+            The mode of the stream. 'pytrigno' : use the pytrigno 'server_data' : use the server data
             'vicon' : use the vicon
         interface_ip : str
             The ip of the interface.
@@ -48,7 +46,7 @@ class ComputeMvc:
             The path of the output file.
         muscle_names : list
             The list of the muscle names.
-        frequency : float
+        emg_frequency : float
             The frequency of the device.
         acquisition_rate : float
             The acquisition rate of the acquisition.
@@ -441,7 +439,7 @@ class ComputeMvc:
                 self.muscle_names.append(f"Muscle_{i}")
 
         self.emg_interface = PytrignoClient(self.interface_ip)
-        self.emg_interface.add_device("EMG_trigno", self.range_muscle, type="emg", rate=self.frequency)
+        self.emg_interface.add_device("EMG_trigno", self.range_muscle, device_type="emg", rate=self.frequency)
         # self.emg_interface.devices[-1].set
 
     def _init_vicon_emg(self):
@@ -455,7 +453,7 @@ class ComputeMvc:
         """
         Initialize the server EMG object.
         """
-        self.emg_interface = TcpClient(self.interface_ip, self.interface_port, type="TCP")
+        self.emg_interface = TcpClient(self.interface_ip, self.interface_port, client_type="TCP")
         self.emg_interface.add_device(self.device_name, type="emg", rate=self.frequency)
 
     def get_data(self):
