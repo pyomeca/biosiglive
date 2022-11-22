@@ -38,9 +38,11 @@ class RealTimeProcessingMethod(Enum):
     CalibrationMatrix = "calibration_matrix"
     GetPeaks = "get_peaks"
     Custom = "custom"
+    ProcessGenericSignal = "process_generic_signal"
 
 
 class OfflineProcessingMethod(Enum):
     ProcessEmg = "process_emg"
     CalibrationMatrix = "calibration_matrix"
     ComputeMvc = "compute_mvc"
+
