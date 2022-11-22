@@ -13,15 +13,17 @@ import time
 
 
 class MskFunctions:
-    def __init__(self, model: object):
+    def __init__(self, model: str):
         """
         Initialize the MskFunctions class.
         Parameters
         ----------
-        model : object
-            Biorbd model used to compute the kinematics.
+        model : str
+            Path to the biorbd model used to compute the kinematics.
         """
-        self.model = model
+        if not biordb_package:
+            raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
+        self.model = biorbd.Model(model)
         self.process_time = []
 
     def compute_inverse_kinematics(
@@ -53,8 +55,6 @@ class MskFunctions:
             The joint angle and velocity.
         """
         tic = time.time()
-        if not biordb_package:
-            raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
         if isinstance(method, str):
             if method in [t.value for t in InverseKinematicsMethods]:
                 method = InverseKinematicsMethods(method)
