@@ -10,7 +10,7 @@ from .interfaces.param import Param, Device, MarkerSet
 from .io.save_data import read_data, add_data_to_pickle
 
 from .processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
-from .processing.msk_functions import compute_inverse_kinematics
+from .processing.msk_functions import MskFunctions
 
 from .streaming.client import Client, Message
 from .streaming.server import Server
