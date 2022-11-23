@@ -79,6 +79,7 @@ class ViconClient(GenericInterface):
         self,
         nb_channels: int,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
+        data_buffer_size: int = None,
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
@@ -91,6 +92,8 @@ class ViconClient(GenericInterface):
         ----------
         nb_channels: int
             Number of channels of the device.
+        data_buffer_size: int
+            Size of the buffer for the device.
         name: str
             Name of the device.
         device_type: Union[DeviceType, str]
@@ -110,13 +113,14 @@ class ViconClient(GenericInterface):
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
         else:
             device_tmp.info = None
-
+        device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
 
     def add_marker_set(
         self,
         nb_markers: int,
         name: str = None,
+        data_buffer_size: int = None,
         marker_names: Union[str, list] = None,
         rate: float = 100,
         unlabeled: bool = False,
@@ -132,6 +136,8 @@ class ViconClient(GenericInterface):
             Number of markers.
         name: str
             Name of the markers set.
+        data_buffer_size: int
+            Size of the buffer for the markers set.
         marker_names: Union[list, str]
             List of markers names.
         rate: int
@@ -165,6 +171,7 @@ class ViconClient(GenericInterface):
         else:
             markers_tmp.subject_name = subject_name
             markers_tmp.markers_names = marker_names
+        markers_tmp.data_windows = data_buffer_size
         self.marker_sets.append(markers_tmp)
 
     @staticmethod
@@ -205,24 +212,19 @@ class ViconClient(GenericInterface):
 
         for d, device in enumerate(self.devices):
             if device_name[0] == "all" or device.name in device_name:
-                device_data = (
-                    np.zeros((len(channel_idx), device.sample))
-                    if channel_idx
-                    else np.zeros((device.nb_channels, device.sample))
-                )
+                device.new_data = np.zeros((device.nb_channels, device.sample))
+                device_data = np.zeros((len(channel_idx), device.sample))
                 count = 0
-                device_chanel_names = []
                 for output_name, chanel_name, unit in device.infos:
                     data_tmp, _ = self.vicon_client.GetDeviceOutputValues(device.name, output_name, chanel_name)
-                    if count in channel_idx:
-                        idx = channel_idx.index(count)
-                        device_data[idx, :] = data_tmp
-                        device_chanel_names.append(chanel_name)
-                    else:
-                        device_data[count, :] = data_tmp
-                        device_chanel_names.append(chanel_name)
-                    device.chanel_names = device_chanel_names
+                    device.new_data[count, :] = data_tmp
+                    device.chanel_names.append(chanel_name)
                     count += 1
+                for idx in range(device.nb_channels):
+                    if idx in channel_idx:
+                        device_data[channel_idx.index(idx), :] = device.new_data[idx, :]
+                device_data = device_data if channel_idx else device.new_data
+                device.append_data(device.new_data)
                 all_device_data.append(device_data)
         if len(all_device_data) == 1:
             return all_device_data[0]
@@ -261,34 +263,27 @@ class ViconClient(GenericInterface):
         all_markers_data = []
         all_occluded_data = []
         if subject_name:
-            markers_set = [None] * len(subject_name)
+            marker_sets = [None] * len(subject_name)
             for s, marker_set in enumerate(self.marker_sets):
                 if marker_set.subject_name in subject_name:
-                    idx = subject_name.index(marker_set.subject_name)
-                    markers_set[idx] = marker_set
-                    marker_names_tmp = self.vicon_client.GetMarkerNames(marker_set.subject_name)
-                    markers_set[idx].marker_names = []
-                    for i in range(len(marker_names_tmp)):
-                        markers_set[idx].markers_names.append(marker_names_tmp[i][0])
+                    marker_sets[subject_name.index(marker_set.subject_name)] = marker_set
         else:
-            markers_set = self.marker_sets
+            marker_sets = self.marker_sets
 
-        for markers in markers_set:
-            markers_data = np.zeros((3, len(markers.markers_names), markers.sample))
+        for markers in marker_sets:
+            markers_data = np.zeros((3, len(marker_names), markers.sample))
+            markers.new_data = np.zeros((3, len(markers.marker_names), markers.sample))
             count = 0
-            for m, marker_name in enumerate(markers.markers_names):
+            for m, marker_name in enumerate(markers.marker_names):
                 markers_data_tmp, occluded_tmp = self.vicon_client.GetMarkerGlobalTranslation(
                     markers.subject_name, marker_name
                 )
-                if marker_names:
-                    if marker_name in marker_names:
-                        idx = marker_names.index(marker_name)
-                        markers_data[:, idx, :] = markers_data_tmp[:, np.newaxis]
-                        occluded.append(occluded_tmp)
-                else:
-                    markers_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis]
-                    occluded.append(occluded_tmp)
-                count += 1
+                markers.new_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis]
+                occluded.append(occluded_tmp)
+            for n, name in enumerate(markers.marker_names):
+                if name in marker_names:
+                    markers_data[:, marker_names.index(name), :] = markers.new_data[:, n, :]
+            markers.append_data(markers.new_data)
             all_markers_data.append(markers_data)
             all_occluded_data.append(occluded)
         if len(all_markers_data) == 1:
@@ -299,7 +294,7 @@ class ViconClient(GenericInterface):
         if self.is_initialized:
             raise RuntimeError("Vicon client is already initialized.")
         else:
-            self.init_client()
+            self._init_client()
             for d, device in enumerate(self.devices):
                 if not device.infos:
                     device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
@@ -329,10 +324,9 @@ class ViconClient(GenericInterface):
 
     def get_kinematics_from_markers(
         self,
-        markerset: str,
-        model: callable,
+        marker_set_name: str,
+        model_path: str = None,
         method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-        kalman: callable = None,
         custom_func: callable = None,
         **kwargs,
     ):
@@ -340,14 +334,12 @@ class ViconClient(GenericInterface):
         Get the kinematics from markers.
         Parameters
         ----------
-        markerset: str
+        marker_set_name: str
             name of the markerset.
-        model: biorbd.Model
-            Model of the kinematics.
+        model_path: str
+            biorbd model of the kinematics.
         method: str
             Method to use to get the kinematics. Can be "kalman" or "custom".
-        kalman: biorbd.KalmanReconsMarkers
-            Kalman filter to use.
         custom_func: function
             Custom function to get the kinematics.
         Returns
@@ -355,5 +347,5 @@ class ViconClient(GenericInterface):
         kinematics: list
             List of kinematics.
         """
-        markerset_idx = [i for i, m in enumerate(self.marker_sets) if m.name == markerset][0]
-        return self.marker_sets[markerset_idx].get_kinematics(model, method, kalman=kalman, custom_func=custom_func, **kwargs)
+        marker_set_idx = [i for i, m in enumerate(self.marker_sets) if m.name == marker_set_name][0]
+        return self.marker_sets[marker_set_idx].get_kinematics(model_path, method, custom_func=custom_func, **kwargs)
