@@ -13,7 +13,7 @@ import time
 
 
 class MskFunctions:
-    def __init__(self, model: str):
+    def __init__(self, model: str, data_buffer_size: int = 1):
         """
         Initialize the MskFunctions class.
         Parameters
@@ -25,6 +25,10 @@ class MskFunctions:
             raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
         self.model = biorbd.Model(model)
         self.process_time = []
+        self.markers_buffer = []
+        self.kin_buffer = []
+        self.data_windows = data_buffer_size
+        self.kalman = None
 
     def compute_inverse_kinematics(
         self,
@@ -62,10 +66,11 @@ class MskFunctions:
                 raise ValueError(f"Method {method} is not supported")
 
         if method == InverseKinematicsMethods.BiorbdKalman:
-            if not kalman:
+            self.kalman = kalman if kalman else self.kalman
+            if not kalman and not self.kalman:
                 freq = kalman_freq  # Hz
                 params = biorbd.KalmanParam(freq)
-                kalman = biorbd.KalmanReconsMarkers(self.model, params)
+                self.kalman = biorbd.KalmanReconsMarkers(self.model, params)
             markers_over_frames = []
             q = biorbd.GeneralizedCoordinates(self.model)
             q_dot = biorbd.GeneralizedVelocity(self.model)
@@ -77,7 +82,7 @@ class MskFunctions:
             q_dot_recons = np.zeros((self.model.nbQ(), len(markers_over_frames)))
 
             for i, targetMarkers in enumerate(markers_over_frames):
-                kalman.reconstructFrame(self.model, targetMarkers, q, q_dot, qd_dot)
+                self.kalman.reconstructFrame(self.model, targetMarkers, q, q_dot, qd_dot)
                 q_recons[:, i] = q.to_array()
                 q_dot_recons[:, i] = q_dot.to_array()
 
@@ -92,9 +97,17 @@ class MskFunctions:
                 raise ValueError("No custom function provided.")
             q_recons = custom_function(markers, **kwargs)
             q_dot_recons = np.zerros((q_recons.shape()))
+        else:
+            raise ValueError(f"Method {method} is not supported")
+        if len(self.kin_buffer) == 0:
+            self.kin_buffer = [q_recons, q_dot_recons]
+        else:
+            self.kin_buffer[0] = np.append(self.kin_buffer[0], q_recons, axis=1)
+            self.kin_buffer[1] = np.append(self.kin_buffer[1], q_dot_recons, axis=1)
+        for i in range(len(self.kin_buffer)):
+            self.kin_buffer[i] = self.kin_buffer[i][:, -self.data_windows:]
         self.process_time.append(time.time() - tic)
-        # compute markers from
-        return q_recons, q_dot_recons
+        return self.kin_buffer[0], self.kin_buffer[1]
 
     def compute_direct_kinematics(self, states: np.ndarray) -> np.ndarray:
         """
@@ -121,8 +134,13 @@ class MskFunctions:
         markers = np.zeros((3, self.model.nbMarkers(), states.shape[1]))
         for i in range(states.shape[1]):
             markers[:, :, i] = np.array([mark.to_array() for mark in self.model.markers(states[:, i])]).T
+        if len(self.markers_buffer) == 0:
+            self.markers_buffer = markers
+        else:
+            self.markers_buffer = np.append(self.markers_buffer, markers, axis=2)
+        self.markers_buffer = self.markers_buffer[:, :, -self.data_windows:]
         self.process_time.append(time.time() - tic)
-        return markers
+        return self.markers_buffer
 
     def get_mean_process_time(self):
         """
