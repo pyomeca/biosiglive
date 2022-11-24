@@ -14,8 +14,9 @@ from biosiglive import (
 class MyInterface(GenericInterface):
     def __init__(self, system_rate: float = 100, data_path: str = None):
         super().__init__(system_rate=system_rate, interface_type=InterfaceType.Custom)
-        self.data_path = data_path
-        self.offline_data = read_data(self.data_path)
+        self.offline_data = None
+        if data_path:
+            self.offline_data = read_data(data_path)
         self.device_data_key = []
         self.marker_data_key = []
         self.c = 0
@@ -36,6 +37,9 @@ class MyInterface(GenericInterface):
         device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs)
         device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
+        if self.offline_data is not None:
+            if not device_data_file_key:
+                raise ValueError("You need to specify the device data file key.")
         self.device_data_key.append(device_data_file_key)
 
     def add_marker_set(
@@ -63,12 +67,15 @@ class MyInterface(GenericInterface):
             kinematics_method=kinematics_method,
             **kin_method_kwargs,
         )
+        if self.offline_data is not None:
+            if not marker_data_file_key:
+                raise ValueError("You need to specify the marker data file key.")
         markers_tmp.subject_name = subject_name
         markers_tmp.data_windows = data_buffer_size
         self.marker_sets.append(markers_tmp)
         self.marker_data_key.append(marker_data_file_key)
 
-    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None):
+    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None, **kwargs):
         """
         Get random data.
         Parameters
@@ -95,9 +102,12 @@ class MyInterface(GenericInterface):
             devices = self.devices
 
         for d, device in enumerate(devices):
-            if self.data_path:
+            if self.offline_data:
                 device.new_data = self.offline_data[self.device_data_key[d]][:device.nb_channels, self.c: self.c + device.sample]
-                self.c = self.c + device.sample if self.c + device.sample < self.offline_data[self.device_data_key[d]].shape[1] else 0
+                if self.c + device.sample - self.offline_data[self.device_data_key[d]].shape[1] > - device.sample:
+                    self.c = self.c + device.sample
+                else:
+                    self.c = 0
             else:
                 device.new_data = np.random.rand(device.nb_channels, device.sample)
             device.append_data(device.new_data)
@@ -107,7 +117,7 @@ class MyInterface(GenericInterface):
             return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, marker_set_name: Union[list, str] = None):
+    def get_marker_set_data(self, marker_set_name: Union[list, str] = None, **kwargs):
         """
         Get the markers data from Vicon.
         Parameters
@@ -131,11 +141,13 @@ class MyInterface(GenericInterface):
             marker_set_name = [marker_set_name]
         for m, marker in enumerate(self.marker_sets):
             if marker.name == marker_set_name[m]:
-                if self.data_path:
+                if self.offline_data:
                     marker.new_data = self.offline_data[self.marker_data_key[m]][:, :marker.nb_channels,
                                       self.d: self.d + marker.sample]
-                    self.d = self.d + marker.sample if self.c + marker.sample < \
-                                                       self.offline_data[self.marker_data_key[m]].shape[2] else 0
+                    if self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2] > - marker.sample:
+                        self.d = self.d + marker.sample
+                    else:
+                        self.d = 0
                 else:
                     marker.new_data = np.random.rand(3, nb_markers, marker.sample)
                 marker.append_data(marker.new_data)
@@ -154,8 +166,8 @@ class MyInterface(GenericInterface):
                                     **kwargs,
                                     ):
         if get_markers_data:
-            self.get_markers_data(marker_set_name)
-        if not self.data_path:
+            self.get_marker_set_data(marker_set_name)
+        if not self.offline_data:
             if not nb_dof:
                 raise Exception("You need to specify the number of dof")
             return np.random.rand(nb_dof, 1), np.random.rand(nb_dof, 1)
