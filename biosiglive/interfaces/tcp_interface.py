@@ -8,15 +8,10 @@ from .generic_interface import GenericInterface
 from ..enums import DeviceType, InterfaceType, RealTimeProcessingMethod, OfflineProcessingMethod, InverseKinematicsMethods
 from typing import Union
 
-try:
-    from vicon_dssdk import ViconDataStream as VDS
-except ModuleNotFoundError:
-    pass
-
 
 class TcpClient(GenericInterface):
     """
-    Class for interfacing with the client.
+    Class for interfacing with the client.100
     """
 
     def __init__(self, ip: str = "127.0.0.1", port: int = 801, client_type: str = "TCP", read_frequency: int = 100):
@@ -37,16 +32,18 @@ class TcpClient(GenericInterface):
         self.devices = []
         self.imu = []
         self.marker_sets = []
-        self.data_to_stream = []
         self.read_frequency = read_frequency
         self.ip = ip
         self.port = port
+        self.device_cmd_names = []
+        self.marker_cmd_names = []
         self.client = Client(server_ip=ip, port=port, client_type=client_type)
 
     def add_device(
         self,
         nb_channels: int,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
+        command_name: Union[str, list] = "",
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
@@ -61,6 +58,8 @@ class TcpClient(GenericInterface):
             Number of channels of the device.
         device_type: Union[DeviceType, str]
             Type of the device. (emg, imu, etc.)
+        command_name: Union[str, list]
+            Name of the command to send to the server.
         name: str
             Name of the device.
         rate: float
@@ -75,6 +74,7 @@ class TcpClient(GenericInterface):
         device_tmp = self._add_device(nb_channels, name, device_type, rate, device_range, process_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
+        self.device_cmd_names.append(command_name)
 
     def add_marker_set(
         self,
@@ -121,72 +121,108 @@ class TcpClient(GenericInterface):
             **kin_method_kwargs,
         )
         self.marker_sets.append(markers_tmp)
+        self.marker_cmd_names.append(subject_name)
 
-    def get_data_from_server(self, command: str = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
+    def get_data_from_server(self, command: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
         """
         Get the data from the server.
         Returns
         -------
-        data: list
+        data: Union[str, list]
             ALL the data asked from the server.
+        nb_frame_to_get: int
+            Number of frame to get.
+        down_sampling: dict
+            Down sampling parameters. Keys are the names of the devices and values are the down sampling rate.
         """
         all_data = []
         data = self.client.get_data(
             message=Message(command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling)
         )
-        for stream_data in self.data_to_stream:
-            for key in data:
-                if key == stream_data:
-                    all_data.append(np.array(data[key]))
+        for key in data:
+            if isinstance(data[key], list):
+                all_data.append(np.array(data[key]))
+            else:
+                all_data.append(data[key])
         return all_data
 
-    def get_device_data(self, device_name: str = "all"):
+    def get_device_data(self, device_name: Union[list, str] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
         """
         Get the data from a device.
 
         Parameters
         ----------
-        device_name: str
+        device_name:  Union[list, str]
             Name of the device. all for all the devices.
+        nb_frame_to_get: int
+            Number of frame to get.
+        down_sampling: dict
+            Down sampling parameters. Keys are the names of the devices and values are the down sampling rate.
 
         Returns
         -------
         data: list
             The data asked from the server.
         """
-        devices = []
-        all_device_data = []
-        if not isinstance(device_name, list):
-            device_name = [device_name]
+        command = self._prepare_cmd(device_name, True)
+        data = self.get_data_from_server(command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling)
 
-        if device_name != "all":
-            for d, device in enumerate(self.devices):
-                if device.name == device_name[d]:
-                    devices.append(device)
-        else:
-            devices = self.devices
-        data = self.client.get_data(self.message)
-        for device in devices:
-            for key in data:
-                if key == device.device_type:
-                    all_device_data.append(np.array(data[key]))
-        return all_device_data
+        for d, device in enumerate(self.devices):
+            if device_name == "all" or device.name in device_name:
+                if device.name in command:
+                    device.new_data = data[command.index(device.name)]
+                device.append_data(device.new_data)
+        return data
 
-    def get_marker_set_data(self, get_names: bool = False):
+    def get_marker_set_data(self, marker_set_name: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
         """
         Get the data from the markers.
 
         Parameters
         ----------
-        get_names: bool
-            If the names of the markers should be returned.
+        marker_set_name:  Union[list, str]
+            Name of the markers set. all for all the markers sets.
+        nb_frame_to_get: int
+            Number of frame to get.
+        down_sampling: dict
+            Down sampling parameters. Keys are the names of the devices and values are the down sampling rate.
 
         Returns
         -------
         data: list
             The data asked from the server.
         """
-        self.message.update_command(name="get_names", value=get_names)
-        self.message.update_command(name="command", value="markers")
-        data = self.client.get_data(self.message)
-        return np.array(data["markers"])
+        command = self._prepare_cmd(marker_set_name, False)
+        data = self.get_data_from_server(command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling)
+        for m, marker_set in enumerate(self.marker_sets):
+            if marker_set_name == "all" or marker_set.name in marker_set_name:
+                if marker_set.name in command:
+                    marker_set.new_data = data[command.index(marker_set.name)]
+                marker_set.append_data(marker_set.new_data)
+        return data
+
+    def _prepare_cmd(self, name: Union[str, list], device: bool = True):
+        """
+        Prepare the command to send to the server.
+        Parameters
+        ----------
+        name: Union[str, list]
+            Name of the device or marker set.
+        Returns
+        -------
+        cmd: str
+            Command to send to the server.
+        """
+        if not isinstance(name, list):
+            name = [name]
+
+        command = self.device_cmd_names if device else self.marker_cmd_names
+        stream_param = self.devices if device else self.marker_sets
+
+        if name != "all":
+            command = []
+            for s, param in enumerate(stream_param):
+                if param.name == name[s]:
+                    stream_param.append(device)
+                    command.append(command[s])
+        return command

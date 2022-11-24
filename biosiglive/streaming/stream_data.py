@@ -1,102 +1,68 @@
 from typing import Union
-
-try:
-    from pythonosc.udp_client import SimpleUDPClient
-
-    osc_package = True
-except ModuleNotFoundError:
-    osc_package = False
-
-try:
-    import pytrigno
-except ModuleNotFoundError:
-    pass
-
-
 from time import time, sleep, strftime
 import datetime
-import scipy.io as sio
 import numpy as np
 import multiprocessing as mp
-import os
 from biosiglive.streaming.server import Server
 from biosiglive.io import save_data
-from biosiglive.interfaces import pytrigno_interface, vicon_interface
-from biosiglive.processing.data_processing import RealTimeProcessing
 from biosiglive.processing.msk_functions import MskFunctions
 from ..interfaces.generic_interface import GenericInterface
-from biosiglive.gui.plot import LivePlot
-from biosiglive.io.save_data import read_data
 from ..interfaces.param import Device, MarkerSet
 from ..enums import InterfaceType, DeviceType, MarkerType, InverseKinematicsMethods, RealTimeProcessingMethod
 from ..gui.plot import LivePlot
 from .utils import dic_merger
-
-vicon_package, biorbd_package = True, True
 
 try:
     import biorbd
 except ModuleNotFoundError:
     biorbd_package = False
 
-try:
-    from vicon_dssdk import ViconDataStream as VDS
-except ModuleNotFoundError:
-    vicon_package = False
-
 
 class StreamData:
-    def __init__(self, stream_rate: int = 100, multiprocess: bool = True):
+    def __init__(self, stream_rate: int = 100):
         """
         Initialize the StreamData class.
         Parameters
         ----------
         stream_rate: int
             The stream rate of the data.
-        multiprocess:
-            If True, the data will be processed, disseminate and plot in separate processes.
         """
         self.process = mp.Process
-        self.pool = mp.Pool
-        self.queue = mp.Queue
-        self.event = mp.Event
+        self.queue = mp.Queue()
+        self.event = mp.Event()
         self.devices = []
-        self.devices_processing = []
         self.marker_sets = []
         self.plots = []
         self.stream_rate = stream_rate
         self.interfaces_type = []
         self.processes = []
-        self.devices_processing_key = []
-        self.marker_sets_processing_key = []
         self.interfaces = []
-        self.multiprocess = multiprocess
 
         # Multiprocessing stuff
-        self.queue = mp.Queue()
-        self.event = mp.Event()
-        self.device_queue_in = []
-        self.device_queue_out = []
-        self.kin_queue_in = []
-        self.kin_queue_out = []
-        self.plots_queue_in = []
-        self.plots_queue_out = []
+        self.device_queue = []
+        self.kin_queue = []
+        self.plots_queue = []
         self.server_queue_in = []
         self.server_queue_out = []
         self.device_event = []
+        self.is_device_data = self.event
+        self.is_kin_data = self.event
         self.interface_event = []
-        self.marker_event = []
+        self.kin_event = []
         self.custom_processes = []
         self.custom_processes_kwargs = []
         self.custom_processes_names = []
         self.custom_queue_in = []
         self.custom_queue_out = []
         self.custom_event = []
-        self.models = []
-        self.ik_methods = []
         self.save_data = None
         self.save_path = None
         self.save_frequency = None
+        self.plots_multiprocess = False
+        self.device_buffer_size = []
+        self.marker_set_buffer_size = []
+        self.raw_plot = None
+        self.data_to_plot = None
 
         # Server stuff
         self.start_server = None
@@ -110,6 +76,9 @@ class StreamData:
         for p in range(len(self.ports)):
             self.server_queue.append(self.queue)
 
+        self.device_decimals = 6
+        self.kin_decimals = 4
+
     def _add_device(self, device: Device):
         """
         Add a device to the stream.
@@ -119,11 +88,8 @@ class StreamData:
             Device to add.
         """
         self.devices.append(device)
-        self.devices_processing_key.append(None)
-        if self.multiprocess:
-            self.device_queue_in.append(None)
-            self.device_queue_out.append(None)
-            self.device_event.append(None)
+        self.device_queue.append(None)
+        self.device_event.append(None)
 
     def add_interface(self, interface: callable):
         """
@@ -140,12 +106,13 @@ class StreamData:
         self.interface_event.append(self.event)
         for device in interface.devices:
             self._add_device(device)
-        for marker in interface.markers:
+        for marker in interface.marker_sets:
             self._add_marker_set(marker)
         if len(self.interfaces) > 1:
             raise ValueError("Only one interface can be added for now.")
 
-    def add_server(self, server_ip: str = "127.0.0.1", ports: Union[int, list] = 50000, client_type: str = "TCP"):
+    def add_server(self, server_ip: str = "127.0.0.1", ports: Union[int, list] = 50000, client_type: str = "TCP",
+                   device_buffer_size: Union[int, list] = None, marker_set_buffer_size: [int, list] = None):
         """
         Add a server to the stream.
         Parameters
@@ -156,12 +123,34 @@ class StreamData:
             The port(s) of the server.
         client_type: str
             The type of client to use. Can be TCP.
+        device_buffer_size: int or list
+            The size of the buffer for the devices.
+        marker_set_buffer_size: int or list
+            The size of the buffer for the marker sets.
         """
         if self.multiprocess_started:
             raise Exception("Cannot add interface after the stream has started.")
         self.server_ip = server_ip
         self.ports = ports
         self.client_type = client_type
+
+        if not device_buffer_size:
+            device_buffer_size = [None] * len(self.devices)
+        if isinstance(device_buffer_size, list):
+            if len(device_buffer_size) != len(self.devices):
+                raise ValueError("The device buffer size list should have the same length as the number of devices.")
+            self.device_buffer_size = device_buffer_size
+        elif isinstance(device_buffer_size, int):
+            self.device_buffer_size = [device_buffer_size] * len(self.devices)
+
+        if not marker_set_buffer_size:
+            marker_set_buffer_size = [None] * len(self.marker_sets)
+        if isinstance(marker_set_buffer_size, list):
+            if len(marker_set_buffer_size) != len(self.marker_sets):
+                raise ValueError("The marker set buffer size list should have the same length as the number of marker sets.")
+            self.marker_set_buffer_size = marker_set_buffer_size
+        elif isinstance(marker_set_buffer_size, int):
+            self.marker_set_buffer_size = [marker_set_buffer_size] * len(self.marker_sets)
 
     def start(self, save_streamed_data: bool = False, save_path: str = None, save_frequency: int = None):
         """
@@ -180,17 +169,6 @@ class StreamData:
         self.save_frequency = save_frequency if save_frequency else self.stream_rate
         self._init_multiprocessing()
 
-    # def set_kinematics_reconstruction_from_markers(
-    #     self, model: str, marker_set_name: str, process_method: callable, **kwargs
-    # ):
-    #     marker_idx = [marker.name for marker in self.marker_sets].index(marker_set_name)
-    #     self.models[marker_idx] = model
-    #     self.marker_sets_processing_key[marker_idx] = kwargs
-    #     self.ik_methods[marker_idx] = process_method
-    #     if self.multiprocess:
-    #         self.kin_queue_in[marker_idx] = self.queue
-    #         self.kin_queue_out[marker_idx] = self.queue
-
     def _add_marker_set(self, marker: MarkerSet):
         """
         Add a marker set to the stream.
@@ -200,11 +178,8 @@ class StreamData:
             Marker set to add from given interface.
         """
         self.marker_sets.append(marker)
-        self.models.append(None)
-        self.ik_methods.append(None)
-        if self.multiprocess:
-            self.kin_queue_in.append(None)
-            self.kin_queue_out.append(None)
+        self.kin_queue.append(None)
+        self.kin_event.append(None)
 
     def device_processing(self, device: Device, device_idx: int, **kwargs):
         """
@@ -221,85 +196,36 @@ class StreamData:
         -------
 
         """
+        if not self.device_buffer_size[device_idx]:
+            self.device_buffer_size[device_idx] = device.sample
         if device.process_method is None:
             raise ValueError("No processing method defined for this device.")
-        process_method = device.get_process_method()
-        device_data = {}
         while True:
-            try:
-                device_data = self.device_queue_in[device_idx].get_nowait()
-                is_working = True
-            except mp.Queue().empty:
-                is_working = False
+            self.is_device_data.wait()
+            processed_data = device.process(**kwargs)
+            self.device_queue[device_idx].put({"processed_data": processed_data[: -self.device_buffer_size[device_idx]:]})
+            self.device_event[device_idx].set()
 
-            if is_working:
-                device_data = device_data["device_data"]
-                processed_data = process_method(device_data, **kwargs)
-                self.device_queue_out[device_idx].put({"processed_data": processed_data})
-                self.device_event[device_idx].set()
-
-    def recons_kin(
-        self, marker_idx: int, kalman_frequency: int = 100, processing_windows: int = 100, smoothing: bool = True
-    ):
+    def recons_kin(self, marker_set: MarkerSet, marker_set_idx: int, **kwargs):
         """
         Reconstruct kinematics from markers.
         Parameters
         ----------
-        marker_idx: int
+        marker_set: MarkerSet
+            The marker set to reconstruct kinematics from.
+        marker_set_idx: int
             Index of the marker set in the list of markers.
-        kalman_frequency: int
-            Frequency of the Kalman filter.
-        processing_windows: int
-            Size of the processing windows.
-        smoothing: bool
-            If True, the data will be smoothed in case of occlusion.
         Returns
         -------
 
         """
-        model = biorbd.Model(self.models[marker_idx])
-        markers_data = {}
-        freq = kalman_frequency  # Hz
-        params = biorbd.KalmanParam(freq)
-        kalman = biorbd.KalmanReconsMarkers(model, params)
+        if not self.marker_set_buffer_size[marker_set_idx]:
+            self.marker_set_buffer_size[marker_set_idx] = marker_set.sample
         while True:
-            # If the queue is empty, the process is not working. Cannot use is_empty function as it is not trustable.
-            try:
-                markers_data = self.kin_queue_in[marker_idx].get_nowait()
-                is_working = True
-            except mp.Queue().empty:
-                is_working = False
-            if is_working:
-                markers = markers_data["markers"]
-                states = markers_data["states"]
-                markers_tmp = markers_data["markers_tmp"]
-                if self.ik_methods[marker_idx]:
-                    q_tmp, dq_tmp = MskFunctions.compute_inverse_kinematics(
-                        markers, model, self.ik_methods[marker_idx], kalman_frequency, kalman
-                    )
-                    states_tmp = np.concatenate((q_tmp, dq_tmp), axis=0)
-                    if len(states) == 0:
-                        states = states_tmp
-                    else:
-                        if states.shape[1] < processing_windows:
-                            states = np.append(states, states_tmp, axis=1)
-                        else:
-                            states = np.append(states[:, 1:], states_tmp, axis=1)
-
-                if len(markers) != 0:
-                    if smoothing:
-                        for i in range(markers_tmp.shape[1]):
-                            if np.product(markers_tmp[:, i, :]) == 0:
-                                markers_tmp[:, i, :] = markers[:, i, -1:]
-                if len(markers) == 0:
-                    markers = markers_tmp
-                else:
-                    if markers.shape[2] < processing_windows:
-                        markers = np.append(markers, markers_tmp, axis=2)
-                    else:
-                        markers = np.append(markers[:, :, 1:], markers_tmp[:, :, -1:], axis=2)
-                self.kin_queue_out[marker_idx].put({"states": states, "markers": markers})
-                self.marker_event[marker_idx].set()
+            self.is_kin_data.wait()
+            states = marker_set.kin_method(**kwargs)
+            self.kin_queue[marker_set_idx].put({"kinematics": states[:, -self.device_buffer_size[marker_set_idx]:]})
+            self.kin_event[marker_set_idx].set()
 
     def open_server(self):
         """
@@ -311,12 +237,13 @@ class StreamData:
             connection, message = server.client_listening()
             data_queue = []
             while len(data_queue) == 0:
+                # use Try statement as the queue can be empty and is_empty function is not reliable.
                 try:
                     data_queue = self.server_queue[self.count_server].get_nowait()
                     is_working = True
                 except mp.Queue().empty:
                     is_working = False
-                if is_working:  # use this method to avoid blocking the server with Windows os
+                if is_working:  # use this method to avoid blocking the server with Windows os.
                     server.send_data(data_queue, connection, message)
 
     def _init_multiprocessing(self):
@@ -326,10 +253,6 @@ class StreamData:
         processes = []
         for d, device in enumerate(self.devices):
             if device.process_method is not None:
-                if not self.devices_processing_key[d]:
-                    raise ValueError(
-                        "No processing method defined for this device. " "Use set_device_process_method to define it."
-                    )
                 self.processes.append(
                     self.process(
                         name=f"process_{device.name}",
@@ -347,18 +270,31 @@ class StreamData:
                 self.count_server += 1
         for interface in self.interfaces:
             processes.append(self.process(name="reader", target=StreamData.save_streamed_data, args=(self, interface)))
+
+        for p, plot in enumerate(self.plots):
+            for device in self.devices:
+                for marker_set in self.marker_sets:
+                    if self.data_to_plot[p] not in device.name or self.data_to_plot[p] not in marker_set.name:
+                        raise ValueError(f"The name of the data to plot {self.data_to_plot[p]} is not correct.")
+            if self.plots_multiprocess:
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, plot)))
+            else:
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, self.plots)))
+                break
+
         for m, marker in enumerate(self.marker_sets):
-            processes.append(
-                self.process(
-                    name=f"process_{marker.name}",
-                    target=StreamData.recons_kin,
-                    args=(
-                        self,
-                        marker,
-                        m,
-                    ),
+            if marker.kin_method:
+                processes.append(
+                    self.process(
+                        name=f"process_{marker.name}",
+                        target=StreamData.recons_kin,
+                        args=(
+                            self,
+                            marker,
+                            m,
+                        ),
+                    )
                 )
-            )
 
         for i, funct in enumerate(self.custom_processes):
             processes.append(
@@ -375,39 +311,80 @@ class StreamData:
         for p in processes:
             p.join()
 
-    def add_plot(self, plot: Union[LivePlot, list]):
+    def _check_nb_processes(self):
+        """
+        compute the number of process.
+        """
+        nb_processes = 0
+        for device in self.devices:
+            if device.process_method is not None:
+                nb_processes += 1
+        if self.start_server:
+            nb_processes += len(self.ports)
+        nb_processes += len(self.plots)
+        nb_processes += len(self.interfaces)
+        for marker in self.marker_sets:
+            if marker.kin_method:
+                nb_processes += 1
+        nb_processes += len(self.custom_processes)
+        return nb_processes
+
+    def add_plot(self, plot: Union[LivePlot, list], data_to_plot:Union[str, list], raw: Union[bool, list]=None, multiprocess=False):
         """
         Add a plot to the live data.
         Parameters
         ----------
         plot: Union[LivePlot, list]
             Plot to add.
+        multiprocess: bool
+            If True, if several plot each plot will be on a separate process. If False, each plot will be on the same one.
         """
+        if isinstance(data_to_plot, str):
+            data_to_plot = [data_to_plot]
+        if isinstance(raw, bool):
+            raw = [raw]
+        if len(data_to_plot) != len(raw):
+            raise ValueError("The length of the data to plot and the raw list must be the same.")
+        if not raw:
+            raw = [True] * len(data_to_plot)
+        self.raw_plot = raw
+        self.data_to_plot = data_to_plot
         if self.multiprocess_started:
-            raise Exception("Cannot add interface after the stream has started.")
+            raise Exception("Cannot add plot after the stream has started.")
+        self.plots_multiprocess = multiprocess
+        if not isinstance(plot, list):
+            plot = [plot]
         for plt in plot:
             if plt.rate:
                 if plt.rate > self.stream_rate:
                     raise ValueError("Plot rate cannot be higher than stream rate.")
             self.plots.append(plt)
 
-    def plot_update(self, data: Union[list, np.ndarray]):
+    def plot_update(self, plots: Union[LivePlot, list]):
         """
         Update the plots.
 
         Parameters
         ----------
-        data: Union[list, np.ndarray]
-            Data to plot. If list, length should be the number of total plots.
+        plots: Union[LivePlot, list]
+            Plot to update.
         """
-        if isinstance(data, list):
-            if len(data) != len(self.plots):
-                raise ValueError("Data length should be the same as the number of plots.")
-        if len(self.plots) == 1:
-            if isinstance(data, np.ndarray):
-                data = [data]
-        for p, plot in enumerate(self.plots):
-            plot.update(data[p])
+        if not isinstance(plots, list):
+            plots = [plots]
+        plot_idx = 0
+        data_to_plot = None
+        while True:
+            for p, plot in enumerate(plots):
+                for plt in self.plots:
+                    if plot == plt:
+                        plot_idx = p
+                for device in self.devices:
+                    for marker_set in self.marker_sets:
+                        if self.data_to_plot[plot_idx] in device.name:
+                            data_to_plot = device.processed_data if not self.raw_plot[plot_idx] else device.raw_data
+                        if self.data_to_plot[plot_idx] in marker_set.name:
+                            data_to_plot = marker_set.kin_data[0] if not self.raw_plot[plot_idx] else marker_set.raw_data
+                plot.update(data_to_plot)
 
     def save_streamed_data(self, interface: GenericInterface):
         """
@@ -447,54 +424,51 @@ class StreamData:
                 "millisecond": int(absolute_time_frame.microsecond / 1000),
                 "millisecond_s": int(absolute_time_frame.microsecond / 1000) * 0.001,
             }
-
+            self.is_kin_data.clear()
+            self.is_device_data.clear()
             if is_frame:
                 if iteration == 0:
                     print("Data start streaming")
                     iteration = 1
                 if len(interface.devices) != 0:
                     all_device_data = interface.get_device_data(device_name="all", get_frame=False)
-                    for i in range(len(interface.devices)):
-                        self.device_queue_in[i].put_nowait({"device_data_tmp": all_device_data[i]})
-                if len(interface.markers) != 0:
+                    self.is_device_data.set()
+                if len(interface.marker_sets) != 0:
                     all_markers_tmp, _ = interface.get_marker_set_data(get_frame=False)
-                    for i in range(len(interface.devices)):
-                        self.kin_queue_in[i].put_nowait({"markers_tmp": all_markers_tmp[i]})
+                    self.is_kin_data.set()
                 time_to_get_data = time() - tic
                 tic_process = time()
                 if len(interface.devices) != 0:
                     for i in range(len(interface.devices)):
                         if self.devices[i].process_method is not None:
                             self.device_event[i].wait()
-                            device_data = self.device_queue_out[i].get_nowait()
+                            device_data = self.device_queue[i].get_nowait()
                             self.device_event[i].clear()
-                            raw_device_data.append(np.around(device_data["raw_device_data"], decimals=self.device_decimal))
-                            proc_device_data.append(np.around(device_data["proc_device_data"], decimals=self.device_decimal))
-                    if len(raw_device_data) == 0:
-                        raw_device_data = all_device_data
-                    else:
-                        data_dic["proc_device_data"] = proc_device_data
-                data_dic["raw_device_data"] = raw_device_data
+                            proc_device_data.append(np.around(device_data["proc_device_data"], decimals=self.device_decimals))
+                        if not self.device_buffer_size[i]:
+                            buffer_size = self.devices[i].sample
+                        else:
+                            buffer_size = self.device_buffer_size[i]
+                        raw_device_data.append(np.around(all_device_data[i][..., -buffer_size:], decimals=self.device_decimals))
+                    data_dic["proc_device_data"] = proc_device_data
+                    data_dic["raw_device_data"] = raw_device_data
 
-                if len(interface.markers) != 0:
-                    for i in range(len(interface.markers)):
-                        if self.marker_sets[i].process is not None:
-                            self.marker_event[i].wait()
-                            markers_data = self.kin_queue_out[i].get_nowait()
-                            self.marker_event[i].clear()
-                            raw_markers_data.append(np.around(markers_data["raw_markers_data"], decimals=self.kin_dec))
-                            kin_data.append(np.around(markers_data["kinematics_data"], decimals=self.kin_dec))
-                    if len(raw_markers_data) == 0:
-                        raw_markers_data = all_markers_tmp
-                    else:
-                        data_dic["kinematics_data"] = kin_data
-                    data_dic["raw_device_data"] = raw_markers_data
+                if len(interface.marker_sets) != 0:
+                    for i in range(len(interface.marker_sets)):
+                        if self.marker_sets[i].kin_method is not None:
+                            self.kin_event[i].wait()
+                            kin_data = self.kin_queue[i].get_nowait()
+                            self.kin_event[i].clear()
+                            kin_data.append(np.around(kin_data["kinematics_data"], decimals=self.kin_decimals))
+                        raw_markers_data.append(np.around(all_markers_tmp[i], decimals=self.kin_decimals))
+                    data_dic["kinematics_data"] = kin_data
+                    data_dic["marker_set_data"] = raw_markers_data
                 process_time = time() - tic_process  # time to process all data + time to get data
 
                 for i in range(len(self.ports)):
                     try:
                         self.server_queue[i].get_nowait()
-                    except:
+                    except mp.Queue().empty:
                         pass
                     self.server_queue[i].put_nowait(data_dic)
 
@@ -512,3 +486,9 @@ class StreamData:
                         dic_to_save = {}
                         save_count = 0
                     save_count += 1
+
+                if tic - time() < 1 / self.stream_rate:
+                    sleep(1 / self.stream_rate - (tic - time()))
+                else:
+                    print(f"WARNING: Stream rate ({self.stream_rate}) is too high for the computer."
+                          f"The actual stream rate is {1 / (tic - time())}")

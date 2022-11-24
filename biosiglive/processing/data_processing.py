@@ -221,6 +221,7 @@ class GenericProcessing:
         absolute_value=True,
         normalization=False,
         moving_average_window=200,
+        **kwargs,
     )->np.ndarray:
         """
         Process EMG data.
@@ -242,11 +243,14 @@ class GenericProcessing:
             Apply absolute value.
         normalization : bool
             Apply normalization.
+        moving_average_window : int
+            Moving average window.
         Returns
         -------
         numpy.ndarray
             Processed EMG data.
         """
+        self.update_signal_processing_parameters(**kwargs)
         data_proc = data
         if band_pass_filter:
             data_proc = self._butter_bandpass_filter(data, self.bpf_lcut, self.bpf_hcut, self.data_rate)
@@ -267,6 +271,18 @@ class GenericProcessing:
             data_proc = self.normalize_emg(data_proc, norm_values)
 
         return data_proc
+
+    def update_signal_processing_parameters(self, **kwargs):
+        """
+        update the signal processing parameters.
+        Parameters
+        ----------
+        kwargs: dict
+            Dictionary of parameters.
+        """
+        for key, value in kwargs.items():
+            if key in self.__dict__:
+                self.__dict__[key] = value
 
 
 class RealTimeProcessing(GenericProcessing):
@@ -298,6 +314,7 @@ class RealTimeProcessing(GenericProcessing):
         absolute_value=True,
         normalization=False,
         moving_average_window=200,
+        **kwargs,
     ) -> np.ndarray:
         """
         Process EMG data in real-time.
@@ -327,6 +344,7 @@ class RealTimeProcessing(GenericProcessing):
            processed EMG data.
 
         """
+        self.update_signal_processing_parameters(**kwargs)
         tic = time.time()
         if low_pass_filter and moving_average:
             raise RuntimeError("Please choose between low-pass filter and moving average.")
@@ -391,6 +409,7 @@ class RealTimeProcessing(GenericProcessing):
         squared: bool = False,
         norm_min_bound: int = None,
         norm_max_bound: int = None,
+        **kwargs,
     ) -> np.ndarray:
         """
         Process IMU data in real-time.
@@ -412,6 +431,7 @@ class RealTimeProcessing(GenericProcessing):
         np.ndarray
             processed IMU data.
         """
+        self.update_signal_processing_parameters(**kwargs)
         tic = time.time()
         if len(self.raw_data_buffer) == 0:
             if squared is not True:
@@ -434,7 +454,7 @@ class RealTimeProcessing(GenericProcessing):
                 self.raw_data_buffer[:, :, -self.processing_window + im_data.shape[2] :], im_data, axis=2
             )
             im_proc_tmp = self.raw_data_buffer
-            average = np.mean(im_proc_tmp[:, :, -self.processing_window :], axis=2).reshape(-1, 3, 1)
+            average = np.mean(im_proc_tmp[:, :, -self.processing_window:], axis=2).reshape(-1, 3, 1)
             if squared:
                 if accel:
                     average = abs(np.linalg.norm(average, axis=1) - 9.81)

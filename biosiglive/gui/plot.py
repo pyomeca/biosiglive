@@ -3,7 +3,7 @@ This file is part of biosiglive. It is used to plot the data in live or offline 
 """
 try:
     import pyqtgraph as pg
-    from PyQt5.QtWidgets import *
+    from PyQt5.QtWidgets import QProgressBar
 except ModuleNotFoundError:
     pass
 import numpy as np
@@ -126,12 +126,12 @@ class LivePlot:
         if self.plot_windows:
             for i in range(self.nb_subplot):
                 if self.plot_buffer[i] is None:
-                    self.plot_buffer[i] = data[i]
+                    self.plot_buffer[i] = data[i][..., -self.plot_windows[i]:]
                 elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
-                    self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=1)
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=-1)
                 elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
                     size = data[i].shape[1]
-                    self.plot_buffer[i] = np.append(self.plot_buffer[i][:, size:], data[i], axis=1)
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i][..., size:], data[i], axis=-1)
                 data[i] = self.plot_buffer[i]
         if self.rate and self.once_update:
             if 1 / (time.time() - self.last_plot) > self.rate:
@@ -307,7 +307,8 @@ class LivePlot:
             data_mat[i, :] = d
         viz.set_q(data, refresh_window=True)
 
-    def _init_skeleton(self, model_path: str, **kwargs):
+    @staticmethod
+    def _init_skeleton(model_path: str, **kwargs):
         try:
             import bioviz
         except ImportError:
