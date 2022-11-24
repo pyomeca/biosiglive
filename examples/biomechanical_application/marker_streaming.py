@@ -1,46 +1,42 @@
 import numpy as np
-from biosiglive.interfaces.vicon_interface import ViconClient
+# from biosiglive.interfaces.vicon_interface import ViconClient
 from biosiglive.io.save_data import add_data_to_pickle, read_data
 from time import sleep, time
-
-try:
-    import biorbd
-except ImportError:
-    pass
-
+from custom_interface import MyInterface
+from biosiglive import (LivePlot, PlotType)
 
 if __name__ == "__main__":
     try_offline = True
-    init_now = False if try_offline else True
+
+    output_file_path = "trial_x.bio"
     if try_offline:
-        # Get prerecorded data from pickle file for a shoulder abduction
-        offline_markers = read_data("abd")["markers"][:3, :, :]
-
-    output_file_path = "trial_x"
-
-    # init Vicon Client
-    vicon_interface = ViconClient(init_now=init_now)
+        interface = MyInterface(system_rate=100)
+    else:
+        # init trigno community client
+        interface = ViconClient(ip="localhost", system_rate=100)
 
     # Add markerSet to Vicon interface
-    vicon_interface.add_markers(rate=100, unlabeled=False, subject_name="subject_1")
+    n_markers = 15
 
-    time_to_sleep = 1 / vicon_interface.markers[0].rate
+    # Add device to Vicon interface
+    interface.add_marker_set(nb_markers=n_markers,
+                            data_buffer_size=100,
+                         name="markers",
+                         rate=100,)
+
+    # Add plot
+    marker_plot = LivePlot(name="markers", plot_type=PlotType.Scatter3D)
+    marker_plot.init()
+
+    time_to_sleep = 1 / 100
+
     offline_count = 0
+    mark_to_plot = []
     while True:
         tic = time()
+        mark_tmp, _ = interface.get_markers_data()
 
-        if try_offline:
-            # Get prerecorded data
-            markers_tmp = offline_markers[:, :, offline_count][:, :, np.newaxis]
-            offline_count = 0 if offline_count == offline_markers.shape[2] - 1 else offline_count + 1
-
-        else:
-            # Get last vicon frame and get markers data from it
-            vicon_interface.get_frame()
-            markers_tmp = vicon_interface.get_markers_data()[0]
-
-        # Save binary file
-        add_data_to_pickle({"markers": markers_tmp}, output_file_path)
+        marker_plot.update(mark_tmp[:, :, -1].T, size=0.1)
 
         loop_time = time() - tic
         real_time_to_sleep = time_to_sleep - loop_time

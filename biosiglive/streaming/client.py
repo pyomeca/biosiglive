@@ -6,7 +6,6 @@ import enum
 import socket
 import json
 import struct
-from ..enums import CommandType
 from typing import Union
 
 Buff_size = 32767

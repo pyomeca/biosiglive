@@ -1,40 +1,72 @@
-from biosiglive.interfaces.generic_interface import GenericInterface
-from biosiglive.enums import DeviceType, InterfaceType, InverseKinematicsMethods
 from typing import Union
 import numpy as np
-
-try:
-    import biorbd
-
-    biorbd_installed = True
-except ModuleNotFoundError:
-    biorbd_installed = False
+from biosiglive import (
+    GenericInterface,
+    DeviceType,
+    InterfaceType,
+    RealTimeProcessingMethod,
+    OfflineProcessingMethod,
+    InverseKinematicsMethods,
+    read_data
+)
 
 
 class MyInterface(GenericInterface):
-    def __init__(self, system_rate: float = 100):
+    def __init__(self, system_rate: float = 100, data_path: str = None):
         super().__init__(system_rate=system_rate, interface_type=InterfaceType.Custom)
+        self.data_path = data_path
+        self.offline_data = read_data(self.data_path)
+        self.device_data_key = []
+        self.marker_data_key = []
+        self.c = 0
+        self.d = 0
 
     def add_device(
         self,
         nb_channels: int = 1,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
         name: str = None,
+        data_buffer_size: int = None,
         rate: float = 2000,
         device_range: tuple = None,
+        device_data_file_key: str = None,
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **process_kwargs
     ):
-        self.devices.append(self._add_device(nb_channels, device_type, name, rate, device_range))
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs)
+        device_tmp.data_windows = data_buffer_size
+        self.devices.append(device_tmp)
+        self.device_data_key.append(device_data_file_key)
 
-    def add_markers(
+    def add_marker_set(
         self,
-        nb_channels: int = 3,
+        nb_markers: int = 3,
         name: str = None,
-        marker_names: list = None,
+        data_buffer_size: int = None,
+        marker_names: Union[str, list] = None,
         rate: float = 100,
         unlabeled: bool = False,
         subject_name: str = None,
+        marker_data_file_key: str = None,
+        kinematics_method: InverseKinematicsMethods = None,
+        **kin_method_kwargs,
     ):
-        self.markers.append(self._add_markers(nb_channels, name, marker_names, rate, unlabeled))
+        if len(self.marker_sets) != 0:
+            raise ValueError("Only one marker set can be added for now.")
+
+        markers_tmp = self._add_marker_set(
+            nb_markers=nb_markers,
+            name=name,
+            marker_names=marker_names,
+            rate=rate,
+            unlabeled=unlabeled,
+            kinematics_method=kinematics_method,
+            **kin_method_kwargs,
+        )
+        markers_tmp.subject_name = subject_name
+        markers_tmp.data_windows = data_buffer_size
+        self.marker_sets.append(markers_tmp)
+        self.marker_data_key.append(marker_data_file_key)
 
     def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None):
         """
@@ -62,63 +94,84 @@ class MyInterface(GenericInterface):
         else:
             devices = self.devices
 
-        for device in devices:
-            data_tmp = np.random.rand(device.nb_channels, device.sample)
-            device.new_data = data_tmp
-            all_device_data.append(data_tmp)
+        for d, device in enumerate(devices):
+            if self.data_path:
+                device.new_data = self.offline_data[self.device_data_key[d]][:device.nb_channels, self.c: self.c + device.sample]
+                self.c = self.c + device.sample if self.c + device.sample < self.offline_data[self.device_data_key[d]].shape[1] else 0
+            else:
+                device.new_data = np.random.rand(device.nb_channels, device.sample)
+            device.append_data(device.new_data)
+            all_device_data.append(device.new_data)
 
         if len(all_device_data) == 1:
             return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, marker_names: Union[list, str] = None, subject_name: str = None):
+    def get_markers_data(self, marker_set_name: Union[list, str] = None):
         """
         Get the markers data from Vicon.
         Parameters
         ----------
-        marker_names: Union[list, str]
-            List of markers names.
-        subject_name: str
-            Name of the subject. If None, the subject will be the first one in Nexus.
-
+        marker_set_name: Union[list, str]
+            List of the marker set.
         Returns
         -------
         markers_data: list
             All asked markers data.
         """
-        markers_set = []
         occluded = []
         all_markers_data = []
         all_occluded_data = []
-        if not isinstance(marker_names, list):
-            marker_names = [marker_names]
-        if not marker_names:
-            nb_markers = self.markers[0].nb_channels
+        if not marker_set_name:
+            nb_markers = self.marker_sets[0].nb_channels
+            marker_set_name = self.marker_sets[0].name
         else:
-            nb_markers = len(marker_names)
-        for m, marker in enumerate(self.markers):
-            if marker.name == marker_names[m]:
-                marker.marker_data = np.random.rand(3, nb_markers, marker.sample)
-                all_markers_data.append(marker.marker_data)
+            nb_markers = len(marker_set_name)
+        if not isinstance(marker_set_name, list):
+            marker_set_name = [marker_set_name]
+        for m, marker in enumerate(self.marker_sets):
+            if marker.name == marker_set_name[m]:
+                if self.data_path:
+                    marker.new_data = self.offline_data[self.marker_data_key[m]][:, :marker.nb_channels,
+                                      self.d: self.d + marker.sample]
+                    self.d = self.d + marker.sample if self.c + marker.sample < \
+                                                       self.offline_data[self.marker_data_key[m]].shape[2] else 0
+                else:
+                    marker.new_data = np.random.rand(3, nb_markers, marker.sample)
+                marker.append_data(marker.new_data)
+                all_markers_data.append(marker.new_data)
                 all_occluded_data.append(occluded)
         if len(all_markers_data) == 1:
             return all_markers_data[0], all_occluded_data[0]
         return all_markers_data, all_occluded_data
 
-    def get_kinematics_from_markers(self, marker_name: str, nb_dof: int):
-        self.get_markers_data(marker_name)
-        marker_data = None
-        for marker in self.markers:
-            if marker.name == marker_name:
-                marker_data = marker.marker_data
-            else:
-                raise Exception("No marker with this name")
-        return np.random.rand(nb_dof, marker_data.shape[2]), np.random.rand(nb_dof, marker_data.shape[2])
+    def get_kinematics_from_markers(self, marker_set_name: str,
+                                    nb_dof: int=None,
+                                    model_path: str = None,
+                                    method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+                                    custom_func: callable = None,
+                                    get_markers_data: bool = False,
+                                    **kwargs,
+                                    ):
+        if get_markers_data:
+            self.get_markers_data(marker_set_name)
+        if not self.data_path:
+            if not nb_dof:
+                raise Exception("You need to specify the number of dof")
+            return np.random.rand(nb_dof, 1), np.random.rand(nb_dof, 1)
+        else:
+            marker_set_idx = [i for i, m in enumerate(self.marker_sets) if m.name == marker_set_name][0]
+            return self.marker_sets[marker_set_idx].get_kinematics(model_path, method, custom_func=custom_func,
+                                                                   **kwargs)
 
 
 if __name__ == "__main__":
-    interface = MyInterface(system_rate=100)
-    interface.add_device(nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000)
-    interface.add_markers(nb_channels=3, name="My markers", marker_names=["M1", "M2", "M3"], rate=100)
+    interface = MyInterface(system_rate=100, data_path="abd.bio")
+    interface.add_device(nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000,
+                         device_data_file_key="emg")
+    interface.add_marker_set(nb_channels=15, name="My markers", rate=100,
+                             data_buffer_size=100,
+                             marker_data_file_key="markers",
+                             model_path="model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod", kinematics_method=InverseKinematicsMethods.BiorbdKalman)
 
-    print(interface.get_kinematics_from_markers("My markers", 3))
+    print(interface.get_kinematics_from_markers("My markers", get_markers_data=True))

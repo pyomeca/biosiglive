@@ -3,6 +3,7 @@ This file is part of biosiglive. It is used to plot the data in live or offline 
 """
 try:
     import pyqtgraph as pg
+    import pyqtgraph.opengl as gl
     from PyQt5.QtWidgets import QProgressBar
 except ModuleNotFoundError:
     pass
@@ -88,6 +89,10 @@ class LivePlot:
             self._init_curve(self.figure_name, self.channel_names, self.nb_subplot, **kwargs)
         elif self.plot_type == PlotType.ProgressBar:
             self._init_progress_bar(self.figure_name, self.nb_subplot, **kwargs)
+        elif self.plot_type == PlotType.Scatter3D:
+            if self.nb_subplot != 1:
+                raise ValueError("The number of subplots should be 1 for 3DScatter plot.")
+            self._init_3d_scatter(self.figure_name, **kwargs)
 
         elif self.plot_type == PlotType.Skeleton:
             if not self.msk_model:
@@ -97,7 +102,7 @@ class LivePlot:
         else:
             raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
 
-    def update(self, data: Union[np.ndarray, list]):
+    def update(self, data: Union[np.ndarray, list], **kwargs):
         """
         This function is used to update the qt app.
         Parameters
@@ -106,22 +111,23 @@ class LivePlot:
             The data to plot. if list, the data to plot for each subplot.
         """
         update = True
-        if isinstance(data, list):
-            if len(data) != self.nb_subplot:
-                raise ValueError("The number of subplots is not equal to the number of data.")
-            for d in data:
-                if isinstance(d, np.ndarray):
-                    if len(d.shape) != 2:
+        if self.plot_type != PlotType.Scatter3D:
+            if isinstance(data, list):
+                if len(data) != self.nb_subplot:
+                    raise ValueError("The number of subplots is not equal to the number of data.")
+                for d in data:
+                    if isinstance(d, np.ndarray):
+                        if len(d.shape) != 2:
+                            raise ValueError("The data should be a 2D array.")
+                    else:
                         raise ValueError("The data should be a 2D array.")
-                else:
-                    raise ValueError("The data should be a 2D array.")
-        if isinstance(data, np.ndarray):
-            data_mat = data
-            data = []
-            if data_mat.shape[0] != self.nb_subplot:
-                raise ValueError("The number of subplots is not equal to the number of data.")
-            for d in data_mat:
-                data.append(d[np.newaxis, :])
+            if isinstance(data, np.ndarray):
+                data_mat = data
+                data = []
+                if data_mat.shape[0] != self.nb_subplot:
+                    raise ValueError("The number of subplots is not equal to the number of data.")
+                for d in data_mat:
+                    data.append(d[np.newaxis, :])
 
         if self.plot_windows:
             for i in range(self.nb_subplot):
@@ -146,6 +152,8 @@ class LivePlot:
                 self._update_curve(data)
             elif self.plot_type == PlotType.Skeleton:
                 self._update_skeleton(data, self.viz)
+            elif self.plot_type == PlotType.Scatter3D:
+                self._update_3d_scatter(data, **kwargs)
             else:
                 raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
             self.last_plot = time.time()
@@ -248,6 +256,59 @@ class LivePlot:
             self.layout.addWidget(self.plots[-1], row=plot, col=0)
             self.layout.show()
             row_count += 1
+
+    def _init_3d_scatter(self, figure_name: str = "Figure",
+                         colors: Union[list, tuple] = (1.0, 0.0, 0.0, 0.5),
+                         size: Union[int, list] = 0.1):
+        """
+        This function is used to initialize the 3d scatter plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        colors: Union[list, tuple]
+            The color of the scatter.
+        """
+        # --- 3D scatter graph --- #
+        self.app = pg.mkQApp("3D_scatter_plot")
+        w = gl.GLViewWidget()
+        w.opts['bgcolor'] = (0.2, 0.2, 0.2, 10)
+        w.opts['distance'] = 50
+        w.show()
+        w.setWindowTitle(figure_name)
+        g = gl.GLGridItem()
+        # g.setColor((1, 1, 1, 100))
+        w.addItem(g)
+        pos = np.zeros((1, 3))
+        self.plots.append(gl.GLScatterPlotItem(pos=pos, color=colors, size=size, pxMode=False))
+        w.addItem(self.plots[-1])
+
+    def _update_3d_scatter(self, data: Union[np.ndarray, list], colors: Union[list, tuple] = (0, 1.0, 0.0, 50), size: Union[list, float] = 0.1):
+        """
+        This function is used to update the 3d scatter plot.
+        Parameters
+        ----------
+        data: np.ndarray
+            The data to plot. (N, 3)
+        colors: Union[list, tuple]
+            The color of the scatter.
+        size: float
+            The size of the scatter.
+        """
+        if isinstance(data, np.ndarray):
+            if len(data.shape) != 2:
+                raise ValueError("The data must be a 2D array.")
+            if data.shape[1] != 3:
+                raise ValueError("The data must be a (N, 3) array.")
+        if isinstance(colors, list):
+            if len(colors) != len(data):
+                raise ValueError("The number of colors is not equal to the number of data.")
+        if isinstance(size, list):
+            if len(size) != len(data):
+                raise ValueError("The number of size is not equal to the number of data.")
+        for plot in self.plots:
+            plot.setData(pos=data, color=colors, size=size)
+        self.app.processEvents()
 
     def _update_curve(self, data: list):
         """

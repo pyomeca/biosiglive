@@ -6,12 +6,13 @@ from ..enums import DeviceType, MarkerType, InverseKinematicsMethods, RealTimePr
 from ..processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
 from ..processing.msk_functions import MskFunctions
 from typing import Union
-
-try:
-    import biorbd
-except ModuleNotFoundError:
-    pass
 import numpy as np
+
+# try:
+#     # import biorbd
+# except ModuleNotFoundError:
+#     pass
+# import numpy as np
 
 
 class Param:
@@ -84,11 +85,11 @@ class Device(Param):
         self.interface = None
         self.device_type = device_type
         self.processed_data = None
-        self.process_method = None
-        self.process_function = None
-        self.process_method_kwargs = {}
-        self.process_method_changed = False
-        self.processing_windows = None
+        self.processing_method = None
+        self.processing_function = None
+        self.processing_method_kwargs = {}
+        self.processing_method_changed = False
+        self.processing_window = None
 
     def process(
         self,
@@ -107,68 +108,71 @@ class Device(Param):
         kwargs: dict
             Keyword arguments to pass to the method.
         """
-        self.process_method_kwargs.update(kwargs)
-        has_changed = self._check_if_has_changed(method, self.process_method_kwargs)
-        if "custom_function" in self.process_method_kwargs.keys():
-            custom_function = custom_function if custom_function else self.process_method_kwargs["custom_function"]
-            self.process_method_kwargs.pop("custom_function")
+        self.processing_method_kwargs.update(kwargs)
+        if "processing_method" in self.processing_method_kwargs.keys():
+            if method and method != self.processing_method_kwargs["processing_method"]:
+                raise ValueError("You have enter two different type of method for the same function.")
+            method = self.processing_method_kwargs["processing_method"]
+        if not method and not self.processing_method and "processing_method" not in self.processing_method_kwargs.keys():
+            raise RuntimeError("No method to process the data. Please specify a method.")
+        has_changed = self._check_if_has_changed(method, self.processing_method_kwargs)
+        if "custom_function" in self.processing_method_kwargs.keys():
+            custom_function = custom_function if custom_function else self.processing_method_kwargs["custom_function"]
+            self.processing_method_kwargs.pop("custom_function")
 
-        if not self.process_function or has_changed:
-            self._init_process_method()
+        if not self.processing_function or has_changed:
+            self._init_processing_method()
 
         if method == RealTimeProcessingMethod.Custom:
             if not custom_function:
                 raise ValueError("No custom function to process the data.")
-            self.process_function(custom_function, self.new_data, **self.process_method_kwargs)
+            self.processing_function(custom_function, self.new_data, **self.processing_method_kwargs)
         else:
-            self.processed_data = self.process_function(self.new_data, **self.process_method_kwargs)
+            self.processed_data = self.processing_function(self.new_data, **self.processing_method_kwargs)
         return self.processed_data
 
-    def _init_process_method(self):
-        self.processing_windows = self.processing_windows if self.processing_windows else self.data_windows
-        if self.process_method == RealTimeProcessingMethod.ProcessEmg:
-            self.process_function = RealTimeProcessing(self.rate, self.processing_windows).process_emg
-        elif self.process_method == RealTimeProcessingMethod.ProcessImu:
-            self.process_function = RealTimeProcessing(self.rate, self.processing_windows).process_imu
-        elif self.process_method == RealTimeProcessingMethod.GetPeaks:
-            self.process_function = RealTimeProcessing(self.rate, self.processing_windows).get_peaks
-        elif self.process_method == OfflineProcessingMethod.ProcessEmg:
-            self.process_function = OfflineProcessing(self.rate, self.processing_windows).process_emg
-        elif self.process_method == OfflineProcessingMethod.ComputeMvc:
-            self.process_function = OfflineProcessing(self.rate, self.processing_windows).compute_mvc
+    def _init_processing_method(self):
+        self.processing_window = self.processing_window if self.processing_window else self.data_windows
+        if self.processing_method == RealTimeProcessingMethod.ProcessEmg:
+            self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_emg
+        elif self.processing_method == RealTimeProcessingMethod.ProcessImu:
+            self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_imu
+        elif self.processing_method == RealTimeProcessingMethod.GetPeaks:
+            self.processing_function = RealTimeProcessing(self.rate, self.processing_window).get_peaks
+        elif self.processing_method == OfflineProcessingMethod.ProcessEmg:
+            self.processing_function = OfflineProcessing(self.rate, self.processing_window).process_emg
+        elif self.processing_method == OfflineProcessingMethod.ComputeMvc:
+            self.processing_function = OfflineProcessing(self.rate, self.processing_window).compute_mvc
         elif (
-            self.process_method == RealTimeProcessingMethod.CalibrationMatrix or self.process_method == OfflineProcessingMethod.CalibrationMatrix
+            self.processing_method == RealTimeProcessingMethod.CalibrationMatrix or self.processing_method == OfflineProcessingMethod.CalibrationMatrix
         ):
-            self.process_function = GenericProcessing().calibration_matrix
-        elif self.process_method == RealTimeProcessingMethod.Custom:
-            self.process_function = RealTimeProcessing(self.rate, self.processing_windows).custom_processing
+            self.processing_function = GenericProcessing().calibration_matrix
+        elif self.processing_method == RealTimeProcessingMethod.Custom:
+            self.processing_function = RealTimeProcessing(self.rate, self.processing_window).custom_processing
 
     def _check_if_has_changed(self, method, kwargs):
+        if isinstance(method, str):
+            if method in [t.value for t in RealTimeProcessingMethod]:
+                self.processing_method = RealTimeProcessingMethod(method)
+            elif method not in [t.value for t in OfflineProcessingMethod]:
+                self.processing_method = OfflineProcessingMethod(method)
+            else:
+                raise ValueError("The method is not valid.")
         has_changed = False
-        if method and method != self.process_method:
+        if method and method != self.processing_method:
             has_changed = True
-            self.process_method = method
+            self.processing_method = method
 
-        if "processing_windows" in kwargs:
-            if kwargs["processing_windows"] > self.data_windows:
+        if "processing_window" in kwargs:
+            if kwargs["processing_window"] > self.data_windows:
                 raise ValueError("The processing windows is higher than the data buffer windows.")
-            if kwargs["processing_windows"] != self.processing_windows:
+            if kwargs["processing_window"] != self.processing_window:
                 has_changed = True
-                self.processing_windows = kwargs["processing_windows"]
-            self.process_method_kwargs.pop("processing_windows")
+                self.processing_window = kwargs["processing_window"]
+            self.processing_method_kwargs.pop("processing_window")
 
         if self.new_data is None:
             raise RuntimeError("No data to process. Please run first the function get_device_data.")
-        if not method:
-            raise RuntimeError("No method to process the data. Please specify a method.")
-
-        if isinstance(method, str):
-            if method in [t.value for t in RealTimeProcessingMethod]:
-                self.process_method = RealTimeProcessingMethod(method)
-            elif method not in [t.value for t in OfflineProcessingMethod]:
-                self.process_method = OfflineProcessingMethod(method)
-            else:
-                raise ValueError("The method is not valid.")
         return has_changed
 
 
@@ -230,7 +234,7 @@ class MarkerSet(Param):
         tuple
             The joint angle and velocity.
         """
-        if not self.raw_data:
+        if self.raw_data is None:
             raise RuntimeError(
                 "No markers data to compute the kinematics." 
                 " Please run first the function get_markers_data."
@@ -250,7 +254,7 @@ class MarkerSet(Param):
                 raise ValueError("The method is not valid.")
         kin_data_window = kin_data_window if kin_data_window else self.data_windows
         model_path = model_path if model_path else self.biorbd_model_path
-        if model_path is None:
+        if model_path is None and not "model_path" in self.kin_method_kwargs.keys():
             raise ValueError("No model to compute the kinematics.")
         msk_class = MskFunctions(model_path, kin_data_window)
         if method == InverseKinematicsMethods.Custom:
