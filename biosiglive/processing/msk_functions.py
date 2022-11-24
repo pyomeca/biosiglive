@@ -23,7 +23,10 @@ class MskFunctions:
         """
         if not biordb_package:
             raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
-        self.model = biorbd.Model(model)
+        if isinstance(model, str):
+            self.model = biorbd.Model(model)
+        else:
+            self.model = model
         self.process_time = []
         self.markers_buffer = []
         self.kin_buffer = []

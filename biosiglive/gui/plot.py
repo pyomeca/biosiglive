@@ -15,6 +15,7 @@ from ..enums import PlotType
 import time
 
 
+# TODO: Add plot class to be able to plot several curves in the same plot. And do several plot in the same app.
 class LivePlot:
     def __init__(
         self,
@@ -66,6 +67,7 @@ class LivePlot:
         self.curves = []
         self.ptr = []
         self.unit = ""
+        self.size_to_append = []
 
     def init(
         self,
@@ -95,9 +97,7 @@ class LivePlot:
             self._init_3d_scatter(self.figure_name, **kwargs)
 
         elif self.plot_type == PlotType.Skeleton:
-            if not self.msk_model:
-                raise ValueError("Please provide the path to the model.")
-            self.viz = self._init_skeleton(self.msk_model, **kwargs)
+            self.viz = self._init_skeleton(**kwargs)
 
         else:
             raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
@@ -133,12 +133,16 @@ class LivePlot:
             for i in range(self.nb_subplot):
                 if self.plot_buffer[i] is None:
                     self.plot_buffer[i] = data[i][..., -self.plot_windows[i]:]
+                    if self.plot_buffer[i].shape[1] < self.plot_windows[i]:
+                        size = self.plot_windows[i] - self.plot_buffer[i].shape[1]
+                        self.plot_buffer[i] = np.append(np.zeros((self.plot_buffer[i].shape[0], size)), self.plot_buffer[i],
+                                            axis=-1)
                 elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
                     self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=-1)
                 elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
                     size = data[i].shape[1]
                     self.plot_buffer[i] = np.append(self.plot_buffer[i][..., size:], data[i], axis=-1)
-                data[i] = self.plot_buffer[i]
+            data = self.plot_buffer
         if self.rate and self.once_update:
             if 1 / (time.time() - self.last_plot) > self.rate:
                 update = False
@@ -212,12 +216,13 @@ class LivePlot:
             subplot_labels = [f"Subplot {i}" for i in range(nb_subplot)]
         for subplot in range(nb_subplot):
             self.ptr.append(0)
+            self.size_to_append.append(0)
             if line_count == nb_col:
                 self.win.nextRow()
                 line_count = 0
             self.plots.append(self.win.addPlot(title=subplot_labels[subplot]))
             self.plots[-1].setDownsampling(mode='peak')
-            self.plots[-1].setClipToView(True)
+            self.plots[-1].setClipToView(False)
             self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
             self.plots[-1].setLabel('bottom', x_labels[subplot])
             self.plots[-1].setLabel('left', y_labels[subplot])
@@ -259,7 +264,7 @@ class LivePlot:
 
     def _init_3d_scatter(self, figure_name: str = "Figure",
                          colors: Union[list, tuple] = (1.0, 0.0, 0.0, 0.5),
-                         size: Union[int, list] = 0.1):
+                         size: Union[int, list] = 0.03):
         """
         This function is used to initialize the 3d scatter plot.
         Parameters
@@ -273,7 +278,7 @@ class LivePlot:
         self.app = pg.mkQApp("3D_scatter_plot")
         w = gl.GLViewWidget()
         w.opts['bgcolor'] = (0.2, 0.2, 0.2, 10)
-        w.opts['distance'] = 50
+        w.opts['distance'] = 8
         w.show()
         w.setWindowTitle(figure_name)
         g = gl.GLGridItem()
@@ -283,7 +288,7 @@ class LivePlot:
         self.plots.append(gl.GLScatterPlotItem(pos=pos, color=colors, size=size, pxMode=False))
         w.addItem(self.plots[-1])
 
-    def _update_3d_scatter(self, data: Union[np.ndarray, list], colors: Union[list, tuple] = (0, 1.0, 0.0, 50), size: Union[list, float] = 0.1):
+    def _update_3d_scatter(self, data: Union[np.ndarray, list], colors: Union[list, tuple] = (0, 1.0, 0.0, 50), size: Union[list, float] = 0.03):
         """
         This function is used to update the 3d scatter plot.
         Parameters
@@ -321,9 +326,11 @@ class LivePlot:
         if len(data) != len(self.curves):
             raise ValueError(f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)}).")
         for i in range(len(data)):
-            self.ptr[i] += 1
+            if self.ptr[i] == 0:
+                self.size_to_append[i] = data[i].shape[1]
+            self.ptr[i] += self.size_to_append[i] * 2
             self.curves[i].setData(data[i][0, :])
-            self.curves[i].setPos(self.ptr[i], 0)
+            # self.curves[i].setPos(self.ptr[i], 0)
         self.app.processEvents()
 
     def _update_progress_bar(self, data: list):
@@ -369,12 +376,15 @@ class LivePlot:
         viz.set_q(data, refresh_window=True)
 
     @staticmethod
-    def _init_skeleton(model_path: str, **kwargs):
+    def _init_skeleton(**kwargs):
         try:
             import bioviz
         except ImportError:
             raise ImportError("Please install bioviz (github.com/pyomeca/bioviz) to use the skeleton plot.")
-        plot = bioviz.Viz(model_path, **kwargs)
+        if not "model_path" in kwargs or "model" in kwargs:
+            raise ValueError("You must provide a model_path or a model to use the skeleton plot through"
+                             " the keyword arguments 'model_path' or 'model' respectively.")
+        plot = bioviz.Viz(**kwargs)
         return plot
 
     @staticmethod

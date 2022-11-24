@@ -173,7 +173,7 @@ class GenericInterface:
         raise RuntimeError(f"You can not get device data from '{self.interface_type}'.")
 
     def get_marker_set_data(self, **kwargs):
-        raise RuntimeError(f"You can not get merkers data from '{self.interface_type}'.")
+        raise RuntimeError(f"You can not get markers data from '{self.interface_type}'.")
 
     def get_latency(self):
         return -1

@@ -22,7 +22,7 @@ class Param:
         name: str = None,
         rate: float = None,
         system_rate: float = 100,
-        data_windows: int = None,
+        data_window: int = None,
     ):
         """
         initialize the parameter class
@@ -45,13 +45,13 @@ class Param:
         self.sample = ceil(rate / self.system_rate)
         self.range = None
         self.raw_data = []
-        self.data_windows = data_windows if data_windows else int(rate)
+        self.data_window = data_window if data_window else int(rate)
         self.new_data = None
 
     def append_data(self, new_data: np.ndarray):
         if len(self.raw_data) == 0:
             self.raw_data = new_data
-        elif self.raw_data.shape[len(new_data.shape) - 1] < self.data_windows:
+        elif self.raw_data.shape[len(new_data.shape) - 1] < self.data_window:
             self.raw_data = np.append(self.raw_data, new_data, axis=len(new_data.shape) - 1)
         else:
             self.raw_data = np.append(
@@ -114,7 +114,7 @@ class Device(Param):
                 raise ValueError("You have enter two different type of method for the same function.")
             method = self.processing_method_kwargs["processing_method"]
         if not method and not self.processing_method and "processing_method" not in self.processing_method_kwargs.keys():
-            raise RuntimeError("No method to process the data. Please specify a method.")
+            raise RuntimeError("No method to process the data. Please specify a method with the argument 'processing_method'.")
         has_changed = self._check_if_has_changed(method, self.processing_method_kwargs)
         if "custom_function" in self.processing_method_kwargs.keys():
             custom_function = custom_function if custom_function else self.processing_method_kwargs["custom_function"]
@@ -126,13 +126,13 @@ class Device(Param):
         if method == RealTimeProcessingMethod.Custom:
             if not custom_function:
                 raise ValueError("No custom function to process the data.")
-            self.processing_function(custom_function, self.new_data, **self.processing_method_kwargs)
+            self.processed_data = self.processing_function(custom_function, self.new_data, **self.processing_method_kwargs)
         else:
             self.processed_data = self.processing_function(self.new_data, **self.processing_method_kwargs)
         return self.processed_data
 
     def _init_processing_method(self):
-        self.processing_window = self.processing_window if self.processing_window else self.data_windows
+        self.processing_window = self.processing_window if self.processing_window else self.data_window
         if self.processing_method == RealTimeProcessingMethod.ProcessEmg:
             self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_emg
         elif self.processing_method == RealTimeProcessingMethod.ProcessImu:
@@ -164,7 +164,7 @@ class Device(Param):
             self.processing_method = method
 
         if "processing_window" in kwargs:
-            if kwargs["processing_window"] > self.data_windows:
+            if kwargs["processing_window"] > self.data_window:
                 raise ValueError("The processing windows is higher than the data buffer windows.")
             if kwargs["processing_window"] != self.processing_window:
                 has_changed = True
@@ -234,7 +234,7 @@ class MarkerSet(Param):
         tuple
             The joint angle and velocity.
         """
-        if self.raw_data is None:
+        if len(self.raw_data) == 0:
             raise RuntimeError(
                 "No markers data to compute the kinematics." 
                 " Please run first the function get_markers_data."
@@ -252,7 +252,7 @@ class MarkerSet(Param):
                 method = InverseKinematicsMethods(method)
             else:
                 raise ValueError("The method is not valid.")
-        kin_data_window = kin_data_window if kin_data_window else self.data_windows
+        kin_data_window = kin_data_window if kin_data_window else self.data_window
         model_path = model_path if model_path else self.biorbd_model_path
         if model_path is None and not "model_path" in self.kin_method_kwargs.keys():
             raise ValueError("No model to compute the kinematics.")

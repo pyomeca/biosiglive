@@ -286,7 +286,7 @@ class GenericProcessing:
 
 
 class RealTimeProcessing(GenericProcessing):
-    def __init__(self, data_rate: Union[int, float], processing_window: int):
+    def __init__(self, data_rate: Union[int, float], processing_window: int = None):
         """
         Initialize the class for real time processing.
         Parameters
@@ -298,7 +298,7 @@ class RealTimeProcessing(GenericProcessing):
         """
         super().__init__()
         self.data_rate = data_rate
-        self.processing_window = processing_window
+        self.processing_window = processing_window if processing_window else data_rate
         self.raw_data_buffer = []
         self.processed_data_buffer = []
         self._is_one = None
@@ -352,6 +352,8 @@ class RealTimeProcessing(GenericProcessing):
         if ma_win > self.processing_window:
             raise RuntimeError(f"Moving average windows ({ma_win}) higher than emg windows ({self.processing_window}).")
         emg_sample = emg_data.shape[1]
+        if emg_sample == 0:
+            raise RuntimeError("EMG data are empty.")
 
         if normalization:
             if not mvc_list:
@@ -373,10 +375,11 @@ class RealTimeProcessing(GenericProcessing):
 
         elif self.raw_data_buffer.shape[1] < self.processing_window:
             self.raw_data_buffer = np.append(self.raw_data_buffer, emg_data, axis=1)
-            processed_shape = (
-                self.raw_data_buffer.shape[1] if not moving_average else self.raw_data_buffer.shape[1] // emg_sample
-            )
-            self.processed_data_buffer = np.zeros((emg_data.shape[0], processed_shape))
+            if not moving_average:
+                self.processed_data_buffer = np.append(self.processed_data_buffer, np.zeros((emg_data.shape[0], emg_sample)), axis=1)
+            else:
+                self.processed_data_buffer = np.append(self.processed_data_buffer,
+                                                       np.zeros((emg_data.shape[0], 1)), axis=1)
 
         else:
             self.raw_data_buffer = np.append(
