@@ -12,11 +12,6 @@ from ..enums import InterfaceType, DeviceType, MarkerType, InverseKinematicsMeth
 from ..gui.plot import LivePlot
 from .utils import dic_merger
 
-try:
-    import biorbd
-except ModuleNotFoundError:
-    biorbd_package = False
-
 
 class StreamData:
     def __init__(self, stream_rate: int = 100):

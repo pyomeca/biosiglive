@@ -286,19 +286,19 @@ class GenericProcessing:
 
 
 class RealTimeProcessing(GenericProcessing):
-    def __init__(self, data_rate: Union[int, float], processing_windows: int):
+    def __init__(self, data_rate: Union[int, float], processing_window: int):
         """
         Initialize the class for real time processing.
         Parameters
         ----------
         data_rate : int
             Data rate.
-        processing_windows : int
+        processing_window : int
             Processing windows.
         """
         super().__init__()
         self.data_rate = data_rate
-        self.processing_window = processing_windows
+        self.processing_window = processing_window
         self.raw_data_buffer = []
         self.processed_data_buffer = []
         self._is_one = None

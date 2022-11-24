@@ -24,6 +24,7 @@ class PlotType(Enum):
     Curve = "curve"
     ProgressBar = "progress_bar"
     Skeleton = "skeleton"
+    Scatter3D = "scatter3d"
 
 
 class InverseKinematicsMethods(Enum):

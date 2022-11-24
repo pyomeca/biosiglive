@@ -7,11 +7,6 @@ from .param import *
 from typing import Union
 from ..enums import DeviceType, InverseKinematicsMethods, InterfaceType
 
-try:
-    import biorbd
-except ModuleNotFoundError:
-    pass
-
 
 class GenericInterface:
     """

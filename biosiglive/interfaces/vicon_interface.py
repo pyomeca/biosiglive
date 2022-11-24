@@ -14,13 +14,6 @@ try:
 except ModuleNotFoundError:
     pass
 
-try:
-    import biorbd
-
-    is_biorbd = True
-except ModuleNotFoundError:
-    is_biorbd = False
-
 
 class ViconClient(GenericInterface):
     """
