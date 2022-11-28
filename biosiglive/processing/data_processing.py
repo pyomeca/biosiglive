@@ -582,7 +582,7 @@ class OfflineProcessing(GenericProcessing):
         self.data_rate = data_rate
         self.processing_window = processing_window
 
-    def process_emg(self, data: np.ndarray, mvc_list: list, **kwargs) -> np.ndarray:
+    def process_emg(self, data: np.ndarray, mvc_list: list = None, **kwargs) -> np.ndarray:
         """
         Process EMG data.
         Parameters
@@ -605,7 +605,6 @@ class OfflineProcessing(GenericProcessing):
         nb_muscles: int,
         mvc_trials: np.ndarray,
         window_size: int,
-        mvc_list_max: np.ndarray,
         tmp_file: str = None,
         output_file: str = None,
         save: bool = False,
@@ -621,8 +620,6 @@ class OfflineProcessing(GenericProcessing):
             EMG data for all trials.
         window_size : int
             Size of the window.
-        mvc_list_max : numpy.ndarray
-            List of maximum MVC for each muscle.
         tmp_file : str
             Name of the temporary file.
         output_file : str
@@ -635,6 +632,7 @@ class OfflineProcessing(GenericProcessing):
             MVC for each muscle.
 
         """
+        mvc_list_max = []
         for i in range(nb_muscles):
             mvc_temp = -np.sort(-mvc_trials, axis=1)
             if i == 0:

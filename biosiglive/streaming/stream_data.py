@@ -68,8 +68,8 @@ class StreamData:
         self.client_type = None
         self.count_server = 0
         self.server_queue = []
-        self.device_decimals = 6
-        self.kin_decimals = 4
+        self.device_decimals = 8
+        self.kin_decimals = 6
 
     def _add_device(self, device: Device):
         """
@@ -210,11 +210,9 @@ class StreamData:
                 is_working = False
             if is_working:
                 self.devices[device_idx].new_data = device_data
-                # print(device_data)
                 self.devices[device_idx].append_data(device_data)
                 processed_data = self.devices[device_idx].process(**self.devices[device_idx].processing_method_kwargs)
-                # print(processed_data)
-                self.device_queue_out[device_idx].put_nowait({"processed_data": processed_data[: -buffer_size:]})
+                self.device_queue_out[device_idx].put_nowait({"processed_data": processed_data[:, -buffer_size:]})
                 self.device_event[device_idx].set()
 
     def recons_kin(self, marker_set_idx: int):
@@ -400,21 +398,32 @@ class StreamData:
         else:
             plots = self.plots[plot_idx]
             queue = self.plots_queue[plot_idx]
-        data_to_plot = None
+        data_to_plot = []
+        data = None
+        device_names = []
+        marker_set_names = []
+        for device in self.devices:
+            device_names.append(device.name)
+        for marker in self.marker_sets:
+            marker_set_names.append(marker.name)
         while True:
             try:
-                data_to_plot = queue.get_nowait()
+                data = queue.get_nowait()
                 is_working = True
             except Exception:
                 is_working = False
             if is_working:
                 for p, plot in enumerate(plots):
-                    for device in self.devices:
-                        for marker_set in self.marker_sets:
-                            if self.data_to_plot[plot_idx] in device.name:
-                                data_to_plot = device.processed_data if not self.raw_plot[plot_idx] else device.raw_data
-                            if self.data_to_plot[plot_idx] in marker_set.name:
-                                data_to_plot = marker_set.kin_data[0] if not self.raw_plot[plot_idx] else marker_set.raw_data
+                    if self.data_to_plot[p] in device_names:
+                        if not self.raw_plot[p]:
+                            data_to_plot = data["proc_device_data"][device_names.index(self.data_to_plot[p])]
+                        else:
+                            data_to_plot = data["raw_device_data"][device_names.index(self.data_to_plot[p])]
+                    if self.data_to_plot[p] in marker_set_names:
+                        if not self.raw_plot[p]:
+                            data_to_plot = data["kinematics_data"][marker_set_names.index(self.data_to_plot[p])]
+                        else:
+                            data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])]
                     plot.update(data_to_plot)
 
     def save_streamed_data(self, interface_idx: int):
@@ -527,7 +536,7 @@ class StreamData:
                 if self.save_data is True:
                     dic_to_save = dic_merger(data_dic, dic_to_save)
                     if save_count == int(self.stream_rate / self.save_frequency):
-                        save_data.add_data_to_pickle(data_dic, self.save_path)
+                        save_data.save(data_dic, self.save_path)
                         dic_to_save = {}
                         save_count = 0
                     save_count += 1

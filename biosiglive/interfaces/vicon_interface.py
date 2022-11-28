@@ -76,7 +76,7 @@ class ViconClient(GenericInterface):
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
-        process_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **process_kwargs
     ):
         """
@@ -100,7 +100,7 @@ class ViconClient(GenericInterface):
         **process_kwargs
             Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(nb_channels, name, device_type, rate, device_range, process_method, **process_kwargs)
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         if self.vicon_client:
             device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)

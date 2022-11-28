@@ -210,10 +210,27 @@ class LivePlot:
             colors = [(0, 128, 232)] * nb_subplot  # Blue
         if not x_labels:
             x_labels = ["Frames"] * nb_subplot
+        else:
+            if isinstance(x_labels, str):
+                x_labels = [x_labels] * nb_subplot
+            elif isinstance(x_labels, list):
+                if len(x_labels) != nb_subplot:
+                    raise ValueError("The number of x labels is not equal to the number of subplots.")
+
         if not y_labels:
             y_labels = ["Amplitude"] * nb_subplot
+        else:
+            if isinstance(y_labels, str):
+                y_labels = [y_labels] * nb_subplot
+            elif isinstance(y_labels, list):
+                if len(y_labels) != nb_subplot:
+                    raise ValueError("The number of y labels is not equal to the number of subplots.")
         if not subplot_labels:
             subplot_labels = [f"Subplot {i}" for i in range(nb_subplot)]
+        else:
+            if isinstance(subplot_labels, list):
+                if len(subplot_labels) != nb_subplot:
+                    raise ValueError("The number of subplot labels is not equal to the number of subplots.")
         for subplot in range(nb_subplot):
             self.ptr.append(0)
             self.size_to_append.append(0)
