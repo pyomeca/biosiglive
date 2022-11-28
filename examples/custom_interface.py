@@ -7,7 +7,7 @@ from biosiglive import (
     RealTimeProcessingMethod,
     OfflineProcessingMethod,
     InverseKinematicsMethods,
-    read_data
+    load,
 )
 
 
@@ -16,7 +16,7 @@ class MyInterface(GenericInterface):
         super().__init__(system_rate=system_rate, interface_type=InterfaceType.Custom)
         self.offline_data = None
         if data_path:
-            self.offline_data = read_data(data_path)
+            self.offline_data = load(data_path)
         self.device_data_key = []
         self.marker_data_key = []
         self.c = 0
@@ -32,9 +32,11 @@ class MyInterface(GenericInterface):
         device_range: tuple = None,
         device_data_file_key: str = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
-        **process_kwargs
+        **process_kwargs,
     ):
-        device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs)
+        device_tmp = self._add_device(
+            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
+        )
         device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
         if self.offline_data is not None:
@@ -103,8 +105,10 @@ class MyInterface(GenericInterface):
 
         for d, device in enumerate(devices):
             if self.offline_data:
-                device.new_data = self.offline_data[self.device_data_key[d]][:device.nb_channels, self.c: self.c + device.sample]
-                if self.c + device.sample - self.offline_data[self.device_data_key[d]].shape[1] > - device.sample:
+                device.new_data = self.offline_data[self.device_data_key[d]][
+                    : device.nb_channels, self.c : self.c + device.sample
+                ]
+                if self.c + device.sample - self.offline_data[self.device_data_key[d]].shape[1] < -device.sample:
                     self.c = self.c + device.sample
                 else:
                     self.c = 0
@@ -142,9 +146,10 @@ class MyInterface(GenericInterface):
         for m, marker in enumerate(self.marker_sets):
             if marker.name == marker_set_name[m]:
                 if self.offline_data:
-                    marker.new_data = self.offline_data[self.marker_data_key[m]][:, :marker.nb_channels,
-                                      self.d: self.d + marker.sample]
-                    if self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2] > - marker.sample:
+                    marker.new_data = self.offline_data[self.marker_data_key[m]][
+                        :, : marker.nb_channels, self.d : self.d + marker.sample
+                    ]
+                    if self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2] > -marker.sample:
                         self.d = self.d + marker.sample
                     else:
                         self.d = 0
@@ -157,14 +162,16 @@ class MyInterface(GenericInterface):
             return all_markers_data[0], all_occluded_data[0]
         return all_markers_data, all_occluded_data
 
-    def get_kinematics_from_markers(self, marker_set_name: str,
-                                    nb_dof: int=None,
-                                    model_path: str = None,
-                                    method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
-                                    custom_func: callable = None,
-                                    get_markers_data: bool = False,
-                                    **kwargs,
-                                    ):
+    def get_kinematics_from_markers(
+        self,
+        marker_set_name: str,
+        nb_dof: int = None,
+        model_path: str = None,
+        method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+        custom_func: callable = None,
+        get_markers_data: bool = False,
+        **kwargs,
+    ):
         if get_markers_data:
             self.get_marker_set_data(marker_set_name)
         if not self.offline_data:
@@ -173,17 +180,24 @@ class MyInterface(GenericInterface):
             return np.random.rand(nb_dof, 1), np.random.rand(nb_dof, 1)
         else:
             marker_set_idx = [i for i, m in enumerate(self.marker_sets) if m.name == marker_set_name][0]
-            return self.marker_sets[marker_set_idx].get_kinematics(model_path, method, custom_func=custom_func,
-                                                                   **kwargs)
+            return self.marker_sets[marker_set_idx].get_kinematics(
+                model_path, method, custom_func=custom_func, **kwargs
+            )
 
 
 if __name__ == "__main__":
     interface = MyInterface(system_rate=100, data_path="abd.bio")
-    interface.add_device(nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000,
-                         device_data_file_key="emg")
-    interface.add_marker_set(nb_channels=15, name="My markers", rate=100,
-                             data_buffer_size=100,
-                             marker_data_file_key="markers",
-                             model_path="model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod", kinematics_method=InverseKinematicsMethods.BiorbdKalman)
+    interface.add_device(
+        nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000, device_data_file_key="emg"
+    )
+    interface.add_marker_set(
+        nb_channels=15,
+        name="My markers",
+        rate=100,
+        data_buffer_size=100,
+        marker_data_file_key="markers",
+        model_path="model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod",
+        kinematics_method=InverseKinematicsMethods.BiorbdKalman,
+    )
 
     print(interface.get_kinematics_from_markers("My markers", get_markers_data=True))

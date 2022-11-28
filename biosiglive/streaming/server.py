@@ -64,7 +64,7 @@ class Connection:
                 if key in down_sampling.keys():
                     if not isinstance(down_sampling[key], int):
                         raise ValueError("The down sampling must be an integer.")
-                    data[key] = data[key][..., ::down_sampling[key]]
+                    data[key] = data[key][..., :: down_sampling[key]]
                 if isinstance(data[key], np.ndarray):
                     if nb_frames_to_get:
                         data_tmp[key] = data[key][..., -nb_frames_to_get:].tolist()
@@ -144,13 +144,19 @@ class Server(Connection):
             The message received from the client.
         """
         if message:
-            if "command" in message.keys() and "down_sampling" in message.keys() and "nb_frames_to_get" in message.keys():
-                data = self._prepare_data(message["command"], data,
-                                          message["down_sampling"],
-                                          message["nb_frames_to_get"])
+            if (
+                "command" in message.keys()
+                and "down_sampling" in message.keys()
+                and "nb_frames_to_get" in message.keys()
+            ):
+                data = self._prepare_data(
+                    message["command"], data, message["down_sampling"], message["nb_frames_to_get"]
+                )
             else:
-                raise ValueError("The message should be a dictionary created from the Message class or contains the key"
-                                 " : 'command', down_sampling, nb_frames_to_get.")
+                raise ValueError(
+                    "The message should be a dictionary created from the Message class or contains the key"
+                    " : 'command', down_sampling, nb_frames_to_get."
+                )
         encoded_data = json.dumps(data).encode()
         encoded_data = struct.pack(">I", len(encoded_data)) + encoded_data
         try:

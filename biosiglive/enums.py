@@ -46,4 +46,3 @@ class OfflineProcessingMethod(Enum):
     ProcessEmg = "process_emg"
     CalibrationMatrix = "calibration_matrix"
     ComputeMvc = "compute_mvc"
-

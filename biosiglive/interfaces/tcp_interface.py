@@ -5,7 +5,13 @@ This file is part of biosiglive. It contains a wrapper to use a tcp client more 
 import numpy as np
 from ..streaming.client import Client, Message
 from .generic_interface import GenericInterface
-from ..enums import DeviceType, InterfaceType, RealTimeProcessingMethod, OfflineProcessingMethod, InverseKinematicsMethods
+from ..enums import (
+    DeviceType,
+    InterfaceType,
+    RealTimeProcessingMethod,
+    OfflineProcessingMethod,
+    InverseKinematicsMethods,
+)
 from typing import Union
 
 
@@ -47,8 +53,8 @@ class TcpClient(GenericInterface):
         name: str = None,
         rate: float = 2000,
         device_range: tuple = None,
-        process_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
-        **process_kwargs
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **process_kwargs,
     ):
         """
         Add a device to the client.
@@ -71,7 +77,9 @@ class TcpClient(GenericInterface):
         process_kwargs: dict
             Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(nb_channels, name, device_type, rate, device_range, process_method, **process_kwargs)
+        device_tmp = self._add_device(
+            nb_channels, name, device_type, rate, device_range, processing_method, **process_kwargs
+        )
         device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
         self.device_cmd_names.append(command_name)
@@ -123,7 +131,9 @@ class TcpClient(GenericInterface):
         self.marker_sets.append(markers_tmp)
         self.marker_cmd_names.append(subject_name)
 
-    def get_data_from_server(self, command: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
+    def get_data_from_server(
+        self, command: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None
+    ):
         """
         Get the data from the server.
         Returns
@@ -146,7 +156,9 @@ class TcpClient(GenericInterface):
                 all_data.append(data[key])
         return all_data
 
-    def get_device_data(self, device_name: Union[list, str] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
+    def get_device_data(
+        self, device_name: Union[list, str] = "all", nb_frame_to_get: int = None, down_sampling: dict = None
+    ):
         """
         Get the data from a device.
 
@@ -174,7 +186,9 @@ class TcpClient(GenericInterface):
                 device.append_data(device.new_data)
         return data
 
-    def get_marker_set_data(self, marker_set_name: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None):
+    def get_marker_set_data(
+        self, marker_set_name: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None
+    ):
         """
         Get the data from the markers.
 

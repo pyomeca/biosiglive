@@ -113,8 +113,14 @@ class Device(Param):
             if method and method != self.processing_method_kwargs["processing_method"]:
                 raise ValueError("You have enter two different type of method for the same function.")
             method = self.processing_method_kwargs["processing_method"]
-        if not method and not self.processing_method and "processing_method" not in self.processing_method_kwargs.keys():
-            raise RuntimeError("No method to process the data. Please specify a method with the argument 'processing_method'.")
+        if (
+            not method
+            and not self.processing_method
+            and "processing_method" not in self.processing_method_kwargs.keys()
+        ):
+            raise RuntimeError(
+                "No method to process the data. Please specify a method with the argument 'processing_method'."
+            )
         has_changed = self._check_if_has_changed(method, self.processing_method_kwargs)
         if "custom_function" in self.processing_method_kwargs.keys():
             custom_function = custom_function if custom_function else self.processing_method_kwargs["custom_function"]
@@ -126,7 +132,9 @@ class Device(Param):
         if method == RealTimeProcessingMethod.Custom:
             if not custom_function:
                 raise ValueError("No custom function to process the data.")
-            self.processed_data = self.processing_function(custom_function, self.new_data, **self.processing_method_kwargs)
+            self.processed_data = self.processing_function(
+                custom_function, self.new_data, **self.processing_method_kwargs
+            )
         else:
             self.processed_data = self.processing_function(self.new_data, **self.processing_method_kwargs)
         return self.processed_data
@@ -144,7 +152,8 @@ class Device(Param):
         elif self.processing_method == OfflineProcessingMethod.ComputeMvc:
             self.processing_function = OfflineProcessing(self.rate, self.processing_window).compute_mvc
         elif (
-            self.processing_method == RealTimeProcessingMethod.CalibrationMatrix or self.processing_method == OfflineProcessingMethod.CalibrationMatrix
+            self.processing_method == RealTimeProcessingMethod.CalibrationMatrix
+            or self.processing_method == OfflineProcessingMethod.CalibrationMatrix
         ):
             self.processing_function = GenericProcessing().calibration_matrix
         elif self.processing_method == RealTimeProcessingMethod.Custom:
@@ -236,8 +245,7 @@ class MarkerSet(Param):
         """
         if len(self.raw_data) == 0:
             raise RuntimeError(
-                "No markers data to compute the kinematics." 
-                " Please run first the function get_markers_data."
+                "No markers data to compute the kinematics." " Please run first the function get_markers_data."
             )
         method = method if method else self.kin_method
         self.kin_method_kwargs.update(kwargs)
@@ -260,7 +268,11 @@ class MarkerSet(Param):
         if method == InverseKinematicsMethods.Custom:
             if not custom_function:
                 raise ValueError("No custom function to process the data.")
-            self.kin_data = msk_class.compute_inverse_kinematics(self.new_data, method, self.rate, custom_function=custom_function, **self.kin_method_kwargs)
+            self.kin_data = msk_class.compute_inverse_kinematics(
+                self.new_data, method, self.rate, custom_function=custom_function, **self.kin_method_kwargs
+            )
         else:
-            self.kin_data = msk_class.compute_inverse_kinematics(self.new_data, method, self.rate, **self.kin_method_kwargs)
+            self.kin_data = msk_class.compute_inverse_kinematics(
+                self.new_data, method, self.rate, **self.kin_method_kwargs
+            )
         return self.kin_data

@@ -104,8 +104,14 @@ class StreamData:
         if len(self.interfaces) > 1:
             raise ValueError("Only one interface can be added for now.")
 
-    def add_server(self, server_ip: str = "127.0.0.1", ports: Union[int, list] = 50000, client_type: str = "TCP",
-                   device_buffer_size: Union[int, list] = None, marker_set_buffer_size: [int, list] = None):
+    def add_server(
+        self,
+        server_ip: str = "127.0.0.1",
+        ports: Union[int, list] = 50000,
+        client_type: str = "TCP",
+        device_buffer_size: Union[int, list] = None,
+        marker_set_buffer_size: [int, list] = None,
+    ):
         """
         Add a server to the stream.
         Parameters
@@ -145,7 +151,9 @@ class StreamData:
             marker_set_buffer_size = [None] * len(self.marker_sets)
         if isinstance(marker_set_buffer_size, list):
             if len(marker_set_buffer_size) != len(self.marker_sets):
-                raise ValueError("The marker set buffer size list should have the same length as the number of marker sets.")
+                raise ValueError(
+                    "The marker set buffer size list should have the same length as the number of marker sets."
+                )
             self.marker_set_buffer_size = marker_set_buffer_size
         elif isinstance(marker_set_buffer_size, int):
             self.marker_set_buffer_size = [marker_set_buffer_size] * len(self.marker_sets)
@@ -180,7 +188,7 @@ class StreamData:
         self.kin_queue_out.append(self.queue())
         self.kin_event.append(self.event())
 
-# TODO : add buffer directly in the server
+    # TODO : add buffer directly in the server
     def device_processing(self, device_idx: int):
         """
         Process the data from the device
@@ -245,7 +253,9 @@ class StreamData:
             if is_working:
                 self.marker_sets[marker_set_idx].new_data = markers
                 self.marker_sets[marker_set_idx].append_data(markers)
-                states, _ = self.marker_sets[marker_set_idx].get_kinematics(**self.marker_sets[marker_set_idx].kin_method_kwargs)
+                states, _ = self.marker_sets[marker_set_idx].get_kinematics(
+                    **self.marker_sets[marker_set_idx].kin_method_kwargs
+                )
                 self.kin_queue_out[marker_set_idx].put_nowait({"kinematics_data": states[:, -buffer_size:]})
                 self.kin_event[marker_set_idx].set()
 
@@ -351,7 +361,13 @@ class StreamData:
         nb_processes += len(self.custom_processes)
         return nb_processes
 
-    def add_plot(self, plot: Union[LivePlot, list], data_to_plot:Union[str, list], raw: Union[bool, list]=None, multiprocess=False):
+    def add_plot(
+        self,
+        plot: Union[LivePlot, list],
+        data_to_plot: Union[str, list],
+        raw: Union[bool, list] = None,
+        multiprocess=False,
+    ):
         """
         Add a plot to the live data.
         Parameters
@@ -495,7 +511,9 @@ class StreamData:
                             self.device_event[i].wait()
                             device_data = self.device_queue_out[i].get_nowait()
                             self.device_event[i].clear()
-                            proc_device_data.append(np.around(device_data["processed_data"], decimals=self.device_decimals))
+                            proc_device_data.append(
+                                np.around(device_data["processed_data"], decimals=self.device_decimals)
+                            )
                         raw_device_data.append(np.around(all_device_data[i], decimals=self.device_decimals))
                     data_dic["proc_device_data"] = proc_device_data
                     data_dic["raw_device_data"] = raw_device_data
@@ -544,5 +562,7 @@ class StreamData:
                 if tic - time() < 1 / self.stream_rate:
                     sleep(1 / self.stream_rate - (tic - time()))
                 else:
-                    print(f"WARNING: Stream rate ({self.stream_rate}) is too high for the computer."
-                          f"The actual stream rate is {1 / (tic - time())}")
+                    print(
+                        f"WARNING: Stream rate ({self.stream_rate}) is too high for the computer."
+                        f"The actual stream rate is {1 / (tic - time())}"
+                    )

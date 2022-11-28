@@ -1,16 +1,17 @@
 import numpy as np
+
 # from biosiglive.interfaces.vicon_interface import ViconClient
-from biosiglive.io.save_data import add_data_to_pickle, read_data
+from biosiglive.io.save_data import save, load
 from time import sleep, time
 from custom_interface import MyInterface
-from biosiglive import (LivePlot, PlotType)
+from biosiglive import LivePlot, PlotType, ViconClient
 
 if __name__ == "__main__":
     try_offline = True
 
     output_file_path = "trial_x.bio"
     if try_offline:
-        interface = MyInterface(system_rate=100, data_path="abd.bio")
+        interface = MyInterface(system_rate=100, data_path="abd_raw.bio")
     else:
         # init trigno community client
         interface = ViconClient(ip="localhost", system_rate=100)
@@ -19,11 +20,13 @@ if __name__ == "__main__":
     n_markers = 15
 
     # Add device to Vicon interface
-    interface.add_marker_set(nb_markers=n_markers,
-                            data_buffer_size=100,
-                             marker_data_file_key="markers",
-                         name="markers",
-                         rate=100,)
+    interface.add_marker_set(
+        nb_markers=n_markers,
+        data_buffer_size=100,
+        marker_data_file_key="markers",
+        name="markers",
+        rate=100,
+    )
 
     # Add plot
     marker_plot = LivePlot(name="markers", plot_type=PlotType.Scatter3D)

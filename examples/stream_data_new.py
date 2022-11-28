@@ -1,4 +1,3 @@
-
 from custom_interface import MyInterface
 from biosiglive import (
     ViconClient,
@@ -9,7 +8,7 @@ from biosiglive import (
     InverseKinematicsMethods,
     RealTimeProcessingMethod,
     InterfaceType,
-    PlotType
+    PlotType,
 )
 
 try:
@@ -40,25 +39,35 @@ if __name__ == "__main__":
 
     model_path = "model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
     nb_electrode = 5
-    interface.add_device(name="EMG",
-                         device_type=DeviceType.Emg,
-                         rate=2000,
-                         nb_channels=nb_electrode,
-                         device_data_file_key="emg",
-                         data_buffer_size=2000,
-                         processing_method=RealTimeProcessingMethod.ProcessEmg,
-                         processing_window=2000,
-                         low_pass_filter=False,
-                         band_pass_filter=True,
-                         normalization=False)
+    interface.add_device(
+        name="EMG",
+        device_type=DeviceType.Emg,
+        rate=2000,
+        nb_channels=nb_electrode,
+        device_data_file_key="emg",
+        data_buffer_size=2000,
+        processing_method=RealTimeProcessingMethod.ProcessEmg,
+        processing_window=2000,
+        low_pass_filter=False,
+        band_pass_filter=True,
+        normalization=False,
+    )
     interface.get_device("EMG").process_method = RealTimeProcessingMethod.ProcessEmg
-    interface.get_device("EMG").process_method_kwargs = {"processing_window": 2000, "low_pass_filter": False, "band_pass_filter": True,}
+    interface.get_device("EMG").process_method_kwargs = {
+        "processing_window": 2000,
+        "low_pass_filter": False,
+        "band_pass_filter": True,
+    }
 
-    interface.add_marker_set(name="markers", rate=100, data_buffer_size=100,
-                             kinematics_method=InverseKinematicsMethods.BiorbdLeastSquare,
-                             model_path=model_path,
-                             marker_data_file_key="markers",
-                             nb_markers=16)
+    interface.add_marker_set(
+        name="markers",
+        rate=100,
+        data_buffer_size=100,
+        kinematics_method=InverseKinematicsMethods.BiorbdLeastSquare,
+        model_path=model_path,
+        marker_data_file_key="markers",
+        nb_markers=16,
+    )
 
     # Initialize plot
     emg_plot = LivePlot(name="emg", rate=50, plot_type=PlotType.ProgressBar, nb_subplots=nb_electrode)
@@ -69,6 +78,8 @@ if __name__ == "__main__":
     # Initialize StreamData
     data_streaming = StreamData(stream_rate=100)
     data_streaming.add_interface(interface)
-    data_streaming.add_plot([emg_plot, marker_plot], data_to_plot=["EMG", "markers"], raw=[False, False], multiprocess=False)
+    data_streaming.add_plot(
+        [emg_plot, marker_plot], data_to_plot=["EMG", "markers"], raw=[False, False], multiprocess=False
+    )
     data_streaming.add_server(server_ip, server_port, device_buffer_size=20, marker_set_buffer_size=1)
     data_streaming.start(save_streamed_data=True, save_path="data_streamed")

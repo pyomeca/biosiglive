@@ -20,13 +20,13 @@ import scipy.io as sio
 import numpy as np
 import multiprocessing as mp
 import os
-from biosiglive.streaming.connection import Server
+from biosiglive.streaming.server import Server
 from biosiglive.io import save_data
 from biosiglive.interfaces import pytrigno_interface, vicon_interface
 from biosiglive.processing.data_processing import RealTimeProcessing
 from biosiglive.processing.msk_functions import kalman_func
 from biosiglive.gui.plot import LivePlot
-from biosiglive.io.save_data import read_data
+from biosiglive.io.save_data import load
 
 vicon_package, biorbd_package = True, True
 
@@ -205,7 +205,7 @@ class LiveData:
             try:
                 data_exp = sio.loadmat(self.offline_file_path)
             except:
-                data_exp = read_data(self.offline_file_path)
+                data_exp = load(self.offline_file_path)
 
         if self.try_w_connection is not True:
             if self.stream_emg:
@@ -468,7 +468,7 @@ class LiveData:
 
                     if self.recons_kalman:
                         data_to_save["kalman"] = states[:, -1:]
-                    save_data.add_data_to_pickle(data_to_save, self.output_file_path)
+                    save_data.save(data_to_save, self.output_file_path)
 
                 self.iter += 1
             print(time() - tic)

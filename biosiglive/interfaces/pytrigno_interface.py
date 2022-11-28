@@ -11,7 +11,9 @@ except ModuleNotFoundError:
 
 class PytrignoClient(GenericInterface):
     def __init__(self, system_rate=100, ip: str = "127.0.0.1", init_now: bool = True):
-        super(PytrignoClient, self).__init__(ip=ip, interface_type=InterfaceType.PytrignoClient, system_rate=system_rate)
+        super(PytrignoClient, self).__init__(
+            ip=ip, interface_type=InterfaceType.PytrignoClient, system_rate=system_rate
+        )
         self.address = ip
         self.devices = []
         self.imu = []
@@ -54,7 +56,9 @@ class PytrignoClient(GenericInterface):
         **process_kwargs
             Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs)
+        device_tmp = self._add_device(
+            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
+        )
         device_tmp.interface = self.interface_type
         device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
@@ -124,15 +128,15 @@ class PytrignoClient(GenericInterface):
         self.is_initialized = True
         for d, device in self.devices:
             if device.type == DeviceType.Emg:
-                self.emg_client.append(pytrigno.TrignoEMG(
-                    channel_range=device.range, samples_per_read=device.sample, host=self.address
-                ))
+                self.emg_client.append(
+                    pytrigno.TrignoEMG(channel_range=device.range, samples_per_read=device.sample, host=self.address)
+                )
                 self.emg_client[-1].start()
             elif device.type == DeviceType.Imu:
                 imu_range = (device.range[0] * 9, device.range[1] * 9)
-                self.imu_client.append(pytrigno.TrignoIM(
-                    channel_range=imu_range, samples_per_read=device.sample, host=self.address
-                ))
+                self.imu_client.append(
+                    pytrigno.TrignoIM(channel_range=imu_range, samples_per_read=device.sample, host=self.address)
+                )
                 self.imu_client[-1].start()
             else:
                 raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")

@@ -13,30 +13,42 @@ import multiprocessing as mp
 
 
 def stream(foot_strike):
-    vicon_interface = ViconClient(init_now=True)
-    vicon_interface.add_device("Treadmill", "generic_device", rate=2000, system_rate=100)
-    vicon_interface.devices[-1].set_process_method(RealTimeProcessing().get_peaks)
-    nb_min_frame = vicon_interface.devices[-1].rate * 10
-    time_to_sleep = 1 / vicon_interface.devices[-1].system_rate
-    count = 0
-    force_z, force_z_process = [], []
-    is_one = [False, False]
+    show_plot = False
+    interface = None
+    plot = []
+    interface_type = InterfaceType.Custom
+    if interface_type == InterfaceType.Custom:
+        interface = MyInterface(system_rate=100, data_path="walk.bio")
+    elif interface_type == InterfaceType.ViconClient:
+        interface = ViconClient(system_rate=100)
 
+    interface.add_device(
+        9,
+        name="Treadmill",
+        device_type="generic_device",
+        rate=2000,
+        processing_method=RealTimeProcessingMethod.GetPeaks,
+        threshold=0.2,
+        min_peaks_interval=1300,
+    )
+    if show_plot:
+        plot = LivePlot(
+            name="strikes",
+            rate=100,
+            plot_type=PlotType.Curve,
+            nb_subplots=4,
+            channel_names=["Rigth strike", "Left strike", "Rigth force", "Left force"],
+        )
+        plot.init(plot_windows=1000, y_labels=["Strikes", "Strikes", "Force (N)", "Force (N)"])
+
+    nb_second = 20
+    print_every = 10  # seconds
+    nb_min_frame = interface.devices[-1].rate * nb_second
+    count = 0
     while True:
         tic = time()
-        vicon_interface.get_frame()
-        data = vicon_interface.get_device_data(device_name="Treadmill")
-        force_z_tmp = data[0][[2, 8], :]
-        cadence, force_z_process, force_z, is_one = vicon_interface.devices[0].process_method(
-            new_sample=force_z_tmp,
-            signal=force_z,
-            signal_proc=force_z_process,
-            threshold=0.2,
-            nb_min_frame=nb_min_frame,
-            is_one=is_one,
-            min_peaks_interval=1300,
-        )
-
+        interface.get_device_data(device_name="Treadmill")
+        cadence, force_z_process = interface.get_device("Treadmill").process()
         if np.count_nonzero(force_z_process[:, -20:]):
             print("set")
             foot_strike.set()

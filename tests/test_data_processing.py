@@ -14,20 +14,26 @@ def custom_function(new_sample):
     return new_sample
 
 
-@pytest.mark.parametrize("method", [RealTimeProcessingMethod.CalibrationMatrix,
-                                    RealTimeProcessingMethod.ProcessEmg,
-                                    RealTimeProcessingMethod.GetPeaks, RealTimeProcessingMethod.ProcessGenericSignal,
-                                    RealTimeProcessingMethod.ProcessImu,
-                                    RealTimeProcessingMethod.Custom])
+@pytest.mark.parametrize(
+    "method",
+    [
+        RealTimeProcessingMethod.CalibrationMatrix,
+        RealTimeProcessingMethod.ProcessEmg,
+        RealTimeProcessingMethod.GetPeaks,
+        RealTimeProcessingMethod.ProcessGenericSignal,
+        RealTimeProcessingMethod.ProcessImu,
+        RealTimeProcessingMethod.Custom,
+    ],
+)
 def test_real_time_processing(method):
     np.random.seed(50)
-    data = np.random.rand(2, 4000)
-    data_3d = np.random.rand(6, 2, 4000)
+    data = np.random.rand(2, 20)
+    data_3d = np.random.rand(4, 3, 20)
     processing = RealTimeProcessing(data_rate=2000, processing_window=1000)
     processed_data = None
     nb_peaks = None
     i = 0
-    while i != 15:
+    while i != 150:
         if method == RealTimeProcessingMethod.CalibrationMatrix:
             processed_data = processing.calibration_matrix(data, np.random.rand(2, 2))
         elif method == RealTimeProcessingMethod.ProcessEmg:
@@ -50,18 +56,18 @@ def test_real_time_processing(method):
         i += 1
 
     if method == RealTimeProcessingMethod.CalibrationMatrix:
-        np.testing.assert_almost_equal(processed_data[:, 0], [0.6411369, 0.7392561])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.4959683, 0.3568878])
     elif method == RealTimeProcessingMethod.ProcessEmg:
-        np.testing.assert_almost_equal(processed_data[:, 0], [0.1388693, 0.1380089])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.1520248, 0.1674098])
     elif method == RealTimeProcessingMethod.GetPeaks:
-        np.testing.assert_almost_equal(processed_data[:, 0], [0.0, 0.0])
-        np.testing.assert_almost_equal(nb_peaks, 694)
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.0, 0.0])
+        np.testing.assert_almost_equal(nb_peaks, 100)
     elif method == RealTimeProcessingMethod.ProcessGenericSignal:
-        np.testing.assert_almost_equal(processed_data[:, 0], [0.1021941, 0.0959892])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.0164153, 0.0218168])
     elif method == RealTimeProcessingMethod.Custom:
-        np.testing.assert_almost_equal(processed_data[:, 0], [0.4946016, 0.7849796])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.3910874, 0.2220394])
     elif method == RealTimeProcessingMethod.ProcessImu:
-        np.testing.assert_almost_equal(processed_data[:, 0, 0], [0.5, 0.5])
+        np.testing.assert_almost_equal(processed_data[:, 0, -1], [0.5367742, 0.477345 , 0.3982464, 0.464923 ])
 
 
 @pytest.mark.parametrize("method", [OfflineProcessingMethod.ProcessEmg, OfflineProcessingMethod.ComputeMvc])
@@ -78,14 +84,21 @@ def test_offline_processing(method):
         np.testing.assert_almost_equal(processed_data[:], [0.8815387, 0.873678])
 
 
-@pytest.mark.parametrize("method", [InverseKinematicsMethods.BiorbdLeastSquare, InverseKinematicsMethods.BiorbdKalman,
-    InverseKinematicsMethods.Custom])
+@pytest.mark.parametrize(
+    "method",
+    [
+        InverseKinematicsMethods.BiorbdLeastSquare,
+        InverseKinematicsMethods.BiorbdKalman,
+        InverseKinematicsMethods.Custom,
+    ],
+)
 def test_inverse_kinematics_methods(method):
     pass
 
 
 def test_forward_kinematics(method):
     pass
+
 
 # check has changed
 # check random processing

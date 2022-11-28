@@ -3,6 +3,7 @@ This file is part of biosiglive. It contains biorbd specific functions for muscu
 """
 try:
     import biorbd
+
     biordb_package = True
 except ModuleNotFoundError:
     biordb_package = False
@@ -108,7 +109,7 @@ class MskFunctions:
             self.kin_buffer[0] = np.append(self.kin_buffer[0], q_recons, axis=1)
             self.kin_buffer[1] = np.append(self.kin_buffer[1], q_dot_recons, axis=1)
         for i in range(len(self.kin_buffer)):
-            self.kin_buffer[i] = self.kin_buffer[i][:, -self.data_windows:]
+            self.kin_buffer[i] = self.kin_buffer[i][:, -self.data_windows :]
         self.process_time.append(time.time() - tic)
         return self.kin_buffer[0], self.kin_buffer[1]
 
@@ -141,7 +142,7 @@ class MskFunctions:
             self.markers_buffer = markers
         else:
             self.markers_buffer = np.append(self.markers_buffer, markers, axis=2)
-        self.markers_buffer = self.markers_buffer[:, :, -self.data_windows:]
+        self.markers_buffer = self.markers_buffer[:, :, -self.data_windows :]
         self.process_time.append(time.time() - tic)
         return self.markers_buffer
 

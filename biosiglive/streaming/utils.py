@@ -11,7 +11,7 @@ def dic_merger(dic_to_merge, new_dic=None):
             elif isinstance(dic_to_merge[key], list):
                 new_dic[key] = dic_to_merge[key] + new_dic[key]
             elif isinstance(dic_to_merge[key], np.ndarray):
-                new_dic[key] = np.append(dic_to_merge[key], new_dic[key],  axis=0)
+                new_dic[key] = np.append(dic_to_merge[key], new_dic[key], axis=0)
             elif isinstance(dic_to_merge[key], int):
                 if isinstance(new_dic[key], int):
                     new_dic[key] = [new_dic[key]]

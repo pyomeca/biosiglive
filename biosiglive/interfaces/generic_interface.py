@@ -49,7 +49,7 @@ class GenericInterface:
         rate: float = 2000,
         device_range: tuple = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Add a device to the Vicon system.
@@ -85,7 +85,7 @@ class GenericInterface:
         rate: float = 100,
         unlabeled: bool = False,
         kinematics_method: Union[InverseKinematicsMethods, str] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Add a marker set to stream from the Vicon system.

@@ -24,7 +24,7 @@ class GenericProcessing:
         self.process_time = []
 
     @staticmethod
-    def _butter_bandpass(lowcut: float, highcut: float, fs: float, order: int=5)->tuple:
+    def _butter_bandpass(lowcut: float, highcut: float, fs: float, order: int = 5) -> tuple:
         """
         Create a butter bandpass filter.
         Parameters
@@ -50,7 +50,7 @@ class GenericProcessing:
         return b, a
 
     @staticmethod
-    def _butter_lowpass(lowcut, fs, order=4)->tuple:
+    def _butter_lowpass(lowcut, fs, order=4) -> tuple:
         """
         Create a butter lowpass filter.
         Parameters
@@ -72,7 +72,7 @@ class GenericProcessing:
         b, a = butter(order, [low], btype="low")
         return b, a
 
-    def _butter_bandpass_filter(self, data: np.ndarray, lowcut: float, highcut:float, fs: float, order: int=5):
+    def _butter_bandpass_filter(self, data: np.ndarray, lowcut: float, highcut: float, fs: float, order: int = 5):
         """
         Apply a butter bandpass filter.
         Parameters
@@ -98,7 +98,7 @@ class GenericProcessing:
         y = lfilter(b, a, data)
         return y
 
-    def butter_lowpass_filter(self, data: np.ndarray, lowcut: float, fs: float, order: int=4)->np.ndarray:
+    def butter_lowpass_filter(self, data: np.ndarray, lowcut: float, fs: float, order: int = 4) -> np.ndarray:
         """
         Apply a butter lowpass filter.
         Parameters
@@ -122,7 +122,7 @@ class GenericProcessing:
         return y
 
     @staticmethod
-    def _moving_average(data: np.ndarray, window: np.ndarray, empty_ma: np.ndarray)->np.ndarray:
+    def _moving_average(data: np.ndarray, window: np.ndarray, empty_ma: np.ndarray) -> np.ndarray:
         """
         Apply moving average.
         Parameters
@@ -144,7 +144,7 @@ class GenericProcessing:
         return empty_ma
 
     @staticmethod
-    def center(emg_data: np.ndarray, center_value: float =None)->np.ndarray:
+    def center(emg_data: np.ndarray, center_value: float = None) -> np.ndarray:
         """
         Center the EMG data.
         Parameters
@@ -166,7 +166,7 @@ class GenericProcessing:
         return emg_centered
 
     @staticmethod
-    def normalize_emg(emg_data: np.ndarray, mvc_list: list)->np.ndarray:
+    def normalize_emg(emg_data: np.ndarray, mvc_list: list) -> np.ndarray:
         """
         Normalize EMG data.
 
@@ -190,7 +190,7 @@ class GenericProcessing:
             norm_emg[emg, :] = emg_data[emg, :] / mvc_list[emg]
         return norm_emg
 
-    def calibration_matrix(self, data: np.ndarray, matrix: np.ndarray)->np.ndarray:
+    def calibration_matrix(self, data: np.ndarray, matrix: np.ndarray) -> np.ndarray:
         """
         Apply a calibration matrix to the data.
         Parameters
@@ -222,7 +222,7 @@ class GenericProcessing:
         normalization=False,
         moving_average_window=200,
         **kwargs,
-    )->np.ndarray:
+    ) -> np.ndarray:
         """
         Process EMG data.
         Parameters
@@ -376,10 +376,13 @@ class RealTimeProcessing(GenericProcessing):
         elif self.raw_data_buffer.shape[1] < self.processing_window:
             self.raw_data_buffer = np.append(self.raw_data_buffer, emg_data, axis=1)
             if not moving_average:
-                self.processed_data_buffer = np.append(self.processed_data_buffer, np.zeros((emg_data.shape[0], emg_sample)), axis=1)
+                self.processed_data_buffer = np.append(
+                    self.processed_data_buffer, np.zeros((emg_data.shape[0], emg_sample)), axis=1
+                )
             else:
-                self.processed_data_buffer = np.append(self.processed_data_buffer,
-                                                       np.zeros((emg_data.shape[0], 1)), axis=1)
+                self.processed_data_buffer = np.append(
+                    self.processed_data_buffer, np.zeros((emg_data.shape[0], 1)), axis=1
+                )
 
         else:
             self.raw_data_buffer = np.append(

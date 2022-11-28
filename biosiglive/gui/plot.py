@@ -132,11 +132,12 @@ class LivePlot:
         if self.plot_windows:
             for i in range(self.nb_subplot):
                 if self.plot_buffer[i] is None:
-                    self.plot_buffer[i] = data[i][..., -self.plot_windows[i]:]
+                    self.plot_buffer[i] = data[i][..., -self.plot_windows[i] :]
                     if self.plot_buffer[i].shape[1] < self.plot_windows[i]:
                         size = self.plot_windows[i] - self.plot_buffer[i].shape[1]
-                        self.plot_buffer[i] = np.append(np.zeros((self.plot_buffer[i].shape[0], size)), self.plot_buffer[i],
-                                            axis=-1)
+                        self.plot_buffer[i] = np.append(
+                            np.zeros((self.plot_buffer[i].shape[0], size)), self.plot_buffer[i], axis=-1
+                        )
                 elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
                     self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=-1)
                 elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
@@ -191,8 +192,8 @@ class LivePlot:
         """
         # --- Curve graph --- #
         self.app = pg.mkQApp("Curve_plot")
-        pg.setConfigOption('background', 'w')
-        pg.setConfigOption('foreground', 'k')
+        pg.setConfigOption("background", "w")
+        pg.setConfigOption("foreground", "k")
         self.win = pg.GraphicsLayoutWidget(show=True)
         self.win.setWindowTitle(figure_name)
         nb_line = 4
@@ -238,17 +239,20 @@ class LivePlot:
                 self.win.nextRow()
                 line_count = 0
             self.plots.append(self.win.addPlot(title=subplot_labels[subplot]))
-            self.plots[-1].setDownsampling(mode='peak')
+            self.plots[-1].setDownsampling(mode="peak")
             self.plots[-1].setClipToView(False)
             self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
-            self.plots[-1].setLabel('bottom', x_labels[subplot])
-            self.plots[-1].setLabel('left', y_labels[subplot])
+            self.plots[-1].setLabel("bottom", x_labels[subplot])
+            self.plots[-1].setLabel("left", y_labels[subplot])
             self.plots[-1].showGrid(x=grid, y=grid)
             line_count += 1
 
     def _init_progress_bar(
-            self, figure_name: str = "Figure", nb_subplot: int = None, bar_graph_max_value: Union[int, list] = 100,
-            unit: Union[str, list] = ""
+        self,
+        figure_name: str = "Figure",
+        nb_subplot: int = None,
+        bar_graph_max_value: Union[int, list] = 100,
+        unit: Union[str, list] = "",
     ):
         """
         This function is used to initialize the curve plot.
@@ -279,9 +283,12 @@ class LivePlot:
             self.layout.show()
             row_count += 1
 
-    def _init_3d_scatter(self, figure_name: str = "Figure",
-                         colors: Union[list, tuple] = (1.0, 0.0, 0.0, 0.5),
-                         size: Union[int, list] = 0.03):
+    def _init_3d_scatter(
+        self,
+        figure_name: str = "Figure",
+        colors: Union[list, tuple] = (1.0, 0.0, 0.0, 0.5),
+        size: Union[int, list] = 0.03,
+    ):
         """
         This function is used to initialize the 3d scatter plot.
         Parameters
@@ -294,8 +301,8 @@ class LivePlot:
         # --- 3D scatter graph --- #
         self.app = pg.mkQApp("3D_scatter_plot")
         w = gl.GLViewWidget()
-        w.opts['bgcolor'] = (0.2, 0.2, 0.2, 10)
-        w.opts['distance'] = 8
+        w.opts["bgcolor"] = (0.2, 0.2, 0.2, 10)
+        w.opts["distance"] = 8
         w.show()
         w.setWindowTitle(figure_name)
         g = gl.GLGridItem()
@@ -305,7 +312,12 @@ class LivePlot:
         self.plots.append(gl.GLScatterPlotItem(pos=pos, color=colors, size=size, pxMode=False))
         w.addItem(self.plots[-1])
 
-    def _update_3d_scatter(self, data: Union[np.ndarray, list], colors: Union[list, tuple] = (0, 1.0, 0.0, 50), size: Union[list, float] = 0.03):
+    def _update_3d_scatter(
+        self,
+        data: Union[np.ndarray, list],
+        colors: Union[list, tuple] = (0, 1.0, 0.0, 50),
+        size: Union[list, float] = 0.03,
+    ):
         """
         This function is used to update the 3d scatter plot.
         Parameters
@@ -341,7 +353,9 @@ class LivePlot:
             The data to plot.
         """
         if len(data) != len(self.curves):
-            raise ValueError(f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)}).")
+            raise ValueError(
+                f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)})."
+            )
         for i in range(len(data)):
             if self.ptr[i] == 0:
                 self.size_to_append[i] = data[i].shape[1]
@@ -399,8 +413,10 @@ class LivePlot:
         except ImportError:
             raise ImportError("Please install bioviz (github.com/pyomeca/bioviz) to use the skeleton plot.")
         if not "model_path" in kwargs or "model" in kwargs:
-            raise ValueError("You must provide a model_path or a model to use the skeleton plot through"
-                             " the keyword arguments 'model_path' or 'model' respectively.")
+            raise ValueError(
+                "You must provide a model_path or a model to use the skeleton plot through"
+                " the keyword arguments 'model_path' or 'model' respectively."
+            )
         plot = bioviz.Viz(**kwargs)
         return plot
 

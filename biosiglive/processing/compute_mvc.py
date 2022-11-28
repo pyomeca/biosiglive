@@ -269,9 +269,7 @@ class ComputeMvc:
         while True:
             try:
                 if nb_frame == 0:
-                    print(
-                        "Trial is running please press 'Ctrl+C' when trial is ended (it will not end the program)."
-                    )
+                    print("Trial is running please press 'Ctrl+C' when trial is ended (it will not end the program).")
 
                 if self.test_with_connection is True:
                     data_tmp = self.emg_interface.devices[0].get_device_data(stream_now=True, get_names=True)
