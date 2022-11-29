@@ -11,7 +11,7 @@
 [`biosiglive` API](#biosiglive-api)
 - [GUI](#gui)
 - [Interfaces](#interfaces)
-- [IO](#io)
+- [File I/O](#io)
 - [Processing](#processing)
 - [Streaming](#streaming)
 
@@ -58,7 +58,7 @@ Available plot types are listed in the enum `PlotType`:
 - `PlotType.Scatter3D`: 3D scatter plot. Colors and size of scatters can be given.
 - `PlotType.Skeleton`: plot a skeleton. Bioviz keys can be given to plot a specific skeleton.
 
-## interfaces
+## Interfaces
 ### GenericInterface
 The `GenericInterface` class is an abstract class that defines the interface to get data from a system. 
 It is used to define the methods that should be implemented in a specific interface.
@@ -85,7 +85,7 @@ This interface is not available on Linux as the Trigno Community SDK is not avai
 ### TcpClient
 The `TcpInterface` class is an interface to get data from a TCP/IP server.
 
-## IO
+## File I/O
 ### Save
 The `save` function allows to save data in a binary pickle file with the `.bio` extension.
 It works by adding data in the file without opening or overwriting it. it's allow to save data in a loop efficiently.
@@ -93,7 +93,7 @@ It works by adding data in the file without opening or overwriting it. it's allo
 ### Load
 The `load` function allows to load data from a binary pickle file with the `.bio` extension previously saved using the save function.
 
-## processing
+## Processing
 Methods are provided for live or offline processing of data. 
 ### LiveProcessing
 The `LiveProcessing` class allows to process data in a loop, a data buffer is used for this purpose.

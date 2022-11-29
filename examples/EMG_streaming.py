@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     output_file_path = "trial_x.bio"
     if try_offline:
-        interface = MyInterface(system_rate=100, data_path="abd_raw.bio")
+        interface = MyInterface(system_rate=100, data_path="abd.bio")
         # Get prerecorded data from pickle file for a shoulder abduction
         # offline_emg = load("abd.bio")["emg"]
     else:
@@ -48,15 +48,15 @@ if __name__ == "__main__":
     n_electrodes = 4
 
     muscle_names = [
-        "Trapeze superior",
-        "Pectoral medial",
+        "Pectoralis major",
         "Deltoid anterior",
         "Deltoid medial",
+        "Deltoid posterior",
     ]
 
     # Add device to Vicon interface
     interface.add_device(
-        nb_channels=n_electrodes, device_type="emg", name="emg", rate=2000, device_data_file_key="raw_emg"
+        nb_channels=n_electrodes, device_type="emg", name="emg", rate=2000, device_data_file_key="emg"
     )
 
     # Add plot
@@ -74,15 +74,12 @@ if __name__ == "__main__":
     while True:
         tic = time()
         emg_tmp = interface.get_device_data(device_name="emg")
-        emg_proc = interface.devices[0].process(method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=200)
+        emg_proc = interface.devices[0].process(method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=600)
 
-        # emg_proc_custom = interface.devices[0].process(
-        #     method=RealTimeProcessingMethod.ProcessEmg,
-        #     low_pass_filter=True,
-        #     moving_average=False,
-        #     bpf_lcut=10,
-        #     bp_butter_order=4
-        # )
+        emg_proc_custom = interface.devices[0].process(
+            method=RealTimeProcessingMethod.ProcessEmg,
+            bp_butter_order=4
+        )
         # print(emg_proc_custom[:, -20:])
         # if count == 400:
         emg_plot.update(emg_proc[:, -1:])

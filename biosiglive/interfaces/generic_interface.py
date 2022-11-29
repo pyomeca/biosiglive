@@ -84,6 +84,7 @@ class GenericInterface:
         marker_names: Union[str, list] = None,
         rate: float = 100,
         unlabeled: bool = False,
+        unit: str = "m",
         kinematics_method: Union[InverseKinematicsMethods, str] = None,
         **kwargs,
     ):
@@ -106,6 +107,7 @@ class GenericInterface:
         markers_tmp.kin_method = kinematics_method
         markers_tmp.kin_method_kwargs = kwargs
         markers_tmp.interface = self.interface_type
+        markers_tmp.unit = unit
         return markers_tmp
 
     def add_marker_set(self, **kwargs):

@@ -439,7 +439,8 @@ class StreamData:
                         if not self.raw_plot[p]:
                             data_to_plot = data["kinematics_data"][marker_set_names.index(self.data_to_plot[p])]
                         else:
-                            data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])]
+                            data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])][:, :, -1].T
+                    # print(data_to_plot)
                     plot.update(data_to_plot)
 
     def save_streamed_data(self, interface_idx: int):
@@ -457,6 +458,7 @@ class StreamData:
         save_count = 0
         self.save_frequency = self.save_frequency if self.save_frequency else self.stream_rate
         interface = self.interfaces[interface_idx]
+        saving_time = None
         while True:
             data_dic = {}
             proc_device_data = []
@@ -536,13 +538,15 @@ class StreamData:
                     except Exception:
                         pass
                     self.server_queue[i].put_nowait(data_dic)
-                size = 1 if not self.plots_multiprocess else len(self.plots)
-                for i in range(size):
-                    try:
-                        self.plots_queue[i].get_nowait()
-                    except Exception:
-                        pass
-                    self.plots_queue[i].put_nowait(data_dic)
+                if len(self.plots) != 0:
+                    size = 1 if not self.plots_multiprocess else len(self.plots)
+                    for i in range(size):
+                        try:
+                            self.plots_queue[i].get_nowait()
+                        except Exception:
+                            pass
+                        self.plots_queue[i].put_nowait(data_dic)
+                print(process_time)
 
                 data_dic["absolute_time_frame"] = absolute_time_frame_dic
                 data_dic["interface_latency"] = interface_latency
@@ -552,12 +556,15 @@ class StreamData:
 
                 # Save data
                 if self.save_data is True:
+                    tic_save = time()
+                    data_dic["saving_time"] = saving_time
                     dic_to_save = dic_merger(data_dic, dic_to_save)
                     if save_count == int(self.stream_rate / self.save_frequency):
                         save_data.save(data_dic, self.save_path)
                         dic_to_save = {}
                         save_count = 0
                     save_count += 1
+                    saving_time = time() - tic_save
 
                 if tic - time() < 1 / self.stream_rate:
                     sleep(1 / self.stream_rate - (tic - time()))

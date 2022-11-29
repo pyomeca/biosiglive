@@ -198,6 +198,7 @@ class MarkerSet(Param):
         rate: float = None,
         unlabeled: bool = False,
         system_rate: float = 100,
+        unit: str = "m",
     ):
         marker_type = MarkerType.Unlabeled if unlabeled else MarkerType.Labeled
         super(MarkerSet, self).__init__(nb_channels, name, rate, system_rate)
@@ -215,6 +216,8 @@ class MarkerSet(Param):
         self.kin_method_kwargs = {}
         self.biorbd_model_path = None
         self.kalman = None
+        self.msk_class = None
+        self.unit = unit
 
     def get_kinematics(
         self,
@@ -264,15 +267,16 @@ class MarkerSet(Param):
         model_path = model_path if model_path else self.biorbd_model_path
         if model_path is None and not "model_path" in self.kin_method_kwargs.keys():
             raise ValueError("No model to compute the kinematics.")
-        msk_class = MskFunctions(model_path, kin_data_window)
+        if not self.msk_class:
+            self.msk_class = MskFunctions(model_path, kin_data_window)
         if method == InverseKinematicsMethods.Custom:
             if not custom_function:
                 raise ValueError("No custom function to process the data.")
-            self.kin_data = msk_class.compute_inverse_kinematics(
+            self.kin_data = self.msk_class.compute_inverse_kinematics(
                 self.new_data, method, self.rate, custom_function=custom_function, **self.kin_method_kwargs
             )
         else:
-            self.kin_data = msk_class.compute_inverse_kinematics(
+            self.kin_data = self.msk_class.compute_inverse_kinematics(
                 self.new_data, method, self.rate, **self.kin_method_kwargs
             )
         return self.kin_data

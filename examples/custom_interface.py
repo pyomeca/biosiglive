@@ -53,6 +53,7 @@ class MyInterface(GenericInterface):
         rate: float = 100,
         unlabeled: bool = False,
         subject_name: str = None,
+        unit: str = "m",
         marker_data_file_key: str = None,
         kinematics_method: InverseKinematicsMethods = None,
         **kin_method_kwargs,
@@ -66,6 +67,7 @@ class MyInterface(GenericInterface):
             marker_names=marker_names,
             rate=rate,
             unlabeled=unlabeled,
+            unit=unit,
             kinematics_method=kinematics_method,
             **kin_method_kwargs,
         )
@@ -108,7 +110,7 @@ class MyInterface(GenericInterface):
                 device.new_data = self.offline_data[self.device_data_key[d]][
                     : device.nb_channels, self.c : self.c + device.sample
                 ]
-                if self.c + device.sample - self.offline_data[self.device_data_key[d]].shape[1] < -device.sample:
+                if abs(self.c + device.sample - self.offline_data[self.device_data_key[d]].shape[1]) > device.sample:
                     self.c = self.c + device.sample
                 else:
                     self.c = 0
@@ -144,12 +146,13 @@ class MyInterface(GenericInterface):
         if not isinstance(marker_set_name, list):
             marker_set_name = [marker_set_name]
         for m, marker in enumerate(self.marker_sets):
+            coef = 1 if marker.unit == "m" else 0.001
             if marker.name == marker_set_name[m]:
                 if self.offline_data:
                     marker.new_data = self.offline_data[self.marker_data_key[m]][
                         :, : marker.nb_channels, self.d : self.d + marker.sample
-                    ]
-                    if self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2] > -marker.sample:
+                    ] * coef
+                    if abs(self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2]) > marker.sample:
                         self.d = self.d + marker.sample
                     else:
                         self.d = 0
