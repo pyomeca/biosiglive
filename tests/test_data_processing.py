@@ -8,6 +8,7 @@ from biosiglive import (
     InverseKinematicsMethods,
 )
 import numpy as np
+import os
 
 
 def custom_function(new_sample):
@@ -85,24 +86,55 @@ def test_offline_processing(method):
 
 
 @pytest.mark.parametrize(
-    "method",
+    "methods",
     [
         InverseKinematicsMethods.BiorbdLeastSquare,
         InverseKinematicsMethods.BiorbdKalman,
-        InverseKinematicsMethods.Custom,
     ],
 )
-def test_inverse_kinematics_methods(method):
-    pass
+def test_inverse_kinematics_methods(methods):
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    np.random.seed(50)
+    markers_data = np.random.rand(3, 16, 1)
+    model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
+
+    msk_function = MskFunctions(model=model_path)
+    q, q_dot = None, None
+    i = 0
+    while i != 15:
+        q, q_dot = msk_function.compute_inverse_kinematics(markers_data, method=methods)
+        i += 1
+
+    if methods == InverseKinematicsMethods.BiorbdLeastSquare:
+        np.testing.assert_almost_equal(q[:, 0], [0.4678967,  0.5452077,  0.6265815,  2.3980326,  0.7131959,
+                 -0.843272 ,  0.4449836, -0.3651489, -1.8346828, -0.4779496,
+                 -1.9841764, -0.9272213,  1.9080811, -2.9865801,  2.487792 ])
+        np.testing.assert_almost_equal(q_dot[:, 0], np.zeros((15,)))
+
+    if methods == InverseKinematicsMethods.BiorbdKalman:
+        np.testing.assert_almost_equal(q[:, 0], [0.3967554,    0.5319872,    0.7010691,  -20.2915409,
+                    1.360212 ,   22.1051027,   -1.4536078,    5.3653793,
+                 -153.7577957,    5.9256863,  142.7770999,  -82.2179062,
+                    2.0438505,   43.001448 ,    9.4642261])
+        np.testing.assert_almost_equal(q_dot[:, 0], [-6.83500742e+00,  1.09847707e+00,  1.57524868e+00, -3.97775191e+01,
+ -3.56767334e+01,  6.14234710e+01,  4.47125570e+01,  1.27014192e+02,
+ -1.10512674e+02, -4.87175834e-01, -2.81411720e+01,  1.01959841e+02,
+  5.55270630e+01,  6.81543760e+02,  1.93372073e+01], decimal=6)
 
 
-def test_forward_kinematics(method):
-    pass
+def test_forward_kinematics():
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    np.random.seed(50)
+    q_data = np.random.rand(15, 1)
+    model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
 
+    msk_function = MskFunctions(model=model_path)
+    markers = None
+    i = 0
+    while i != 15:
+        markers = msk_function.compute_direct_kinematics(q_data)
+        i += 1
 
-# check has changed
-# check random processing
-# check custom processing
-# check msk fucntions
-# check mvc function
-# check any processing function
+    np.testing.assert_almost_equal(markers[0, :, 0], [0.5047011, 0.6690358, 0.4138976, 0.58448  , 0.5091725, 0.4676433,
+              0.6165203, 0.4549606, 0.5009109, 0.7444251, 0.787134 , 0.5910698,
+              0.6242104, 0.9334877, 0.7964393, 0.8911985])

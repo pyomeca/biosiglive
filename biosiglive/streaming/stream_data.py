@@ -4,15 +4,14 @@ import datetime
 import numpy as np
 import multiprocessing as mp
 from biosiglive.streaming.server import Server
-from biosiglive.io import save_data
-from biosiglive.processing.msk_functions import MskFunctions
+from ..file_io.save_and_load import save
 from ..interfaces.generic_interface import GenericInterface
 from ..interfaces.param import Device, MarkerSet
-from ..enums import InterfaceType, DeviceType, MarkerType, InverseKinematicsMethods, RealTimeProcessingMethod
 from ..gui.plot import LivePlot
 from .utils import dic_merger
 
 
+# TODO add enum for command type
 class StreamData:
     def __init__(self, stream_rate: int = 100):
         """
@@ -284,10 +283,11 @@ class StreamData:
         """
         processes = []
         for i in range(len(self.interfaces)):
-            processes.append(self.process(name="reader", target=StreamData.save_streamed_data, args=(self, i)))
+            processes.append(self.process(name="reader", target=StreamData.save_streamed_data, args=(self, i),                     daemon=True
+))
 
         for d, device in enumerate(self.devices):
-            if device.process_method is not None:
+            if device.processing_method is not None:
                 processes.append(
                     self.process(
                         name=f"process_{device.name}",
@@ -296,10 +296,13 @@ class StreamData:
                             self,
                             d,
                         ),
+                        daemon=True
+
                     )
                 )
         for i in range(len(self.ports)):
-            processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self, i)))
+            processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self, i),                     daemon=True
+))
 
         for p, plot in enumerate(self.plots):
             for device in self.devices:
@@ -307,9 +310,11 @@ class StreamData:
                     if self.data_to_plot[p] not in device.name and self.data_to_plot[p] not in marker_set.name:
                         raise ValueError(f"The name of the data to plot ({self.data_to_plot[p]}) is not correct.")
             if self.plots_multiprocess:
-                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, p)))
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, p),                     daemon=True
+))
             else:
-                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, -1)))
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, -1),                     daemon=True
+))
                 break
 
         for m, marker in enumerate(self.marker_sets):
@@ -322,6 +327,8 @@ class StreamData:
                             self,
                             m,
                         ),
+                        daemon=True
+
                     )
                 )
 
@@ -332,6 +339,7 @@ class StreamData:
                     target=funct,
                     args=(self,),
                     kwargs=self.custom_processes_kwargs[i],
+                    daemon=True
                 )
             )
         for p in processes:
@@ -371,6 +379,10 @@ class StreamData:
         ----------
         plot: Union[LivePlot, list]
             Plot to add.
+        data_to_plot: Union[str, list]
+            Name of the data to plot.
+        raw: Union[bool, list]
+            If True, the raw data will be plotted.
         multiprocess: bool
             If True, if several plot each plot will be on a separate process. If False, each plot will be on the same one.
         """
@@ -492,7 +504,7 @@ class StreamData:
                         all_device_data = [all_device_data]
                     self.is_device_data.set()
                     for i in range(len(all_device_data)):
-                        if self.devices[i].process_method is not None:
+                        if self.devices[i].processing_method is not None:
                             self.device_queue_in[i].put_nowait(all_device_data[i])
                 if len(interface.marker_sets) != 0:
                     all_markers_tmp, _ = interface.get_marker_set_data(get_frame=False)
@@ -506,7 +518,7 @@ class StreamData:
                 tic_process = time()
                 if len(interface.devices) != 0:
                     for i in range(len(interface.devices)):
-                        if self.devices[i].process_method is not None:
+                        if self.devices[i].processing_method is not None:
                             self.device_event[i].wait()
                             device_data = self.device_queue_out[i].get_nowait()
                             self.device_event[i].clear()
@@ -556,7 +568,7 @@ class StreamData:
                     data_dic["saving_time"] = saving_time
                     dic_to_save = dic_merger(data_dic, dic_to_save)
                     if save_count == int(self.stream_rate / self.save_frequency):
-                        save_data.save(data_dic, self.save_path)
+                        save(data_dic, self.save_path)
                         dic_to_save = {}
                         save_count = 0
                     save_count += 1
@@ -569,3 +581,8 @@ class StreamData:
                         f"WARNING: Stream rate ({self.stream_rate}) is too high for the computer."
                         f"The actual stream rate is {1 / (tic - time())}"
                     )
+
+    def stop(self):
+        for process in self.processes:
+            process.terminate()
+            process.join()

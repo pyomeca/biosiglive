@@ -1,7 +1,8 @@
-# test custom interfaces
-# test any interface if connected to the interface device (trigno, vicon, etc.)
 import pytest
-from biosiglive import InterfaceType, ViconClient, PytrignoClient, DeviceType, RealTimeProcessingMethod, TcpClient
+from biosiglive import (
+    InterfaceType, ViconClient, PytrignoClient, DeviceType, RealTimeProcessingMethod, TcpClient,
+Device,
+DeviceType)
 from examples.custom_interface import MyInterface
 import numpy as np
 
@@ -36,6 +37,9 @@ def test_interface(interface_type):
         band_pass_filter=True,
     )
     np.testing.assert_almost_equal(len(interface.devices), 1)
+    assert interface.get_device("EMG") == interface.devices[0]
+    assert interface.get_device(idx=0) == interface.devices[0]
+
     try:
         interface.add_marker_set(name="markers", rate=100, data_buffer_size=100)
     except Exception as e:
@@ -43,17 +47,9 @@ def test_interface(interface_type):
             assert e
     else:
         np.testing.assert_almost_equal(len(interface.marker_sets), 1)
+        assert interface.get_marker_set("markers") == interface.marker_sets[0]
+        assert interface.get_marker_set(idx=0) == interface.marker_sets[0]
 
-    # connect to the device
-    if interface_type != InterfaceType.Custom:
-        interface.init_client()
-
-    i = 0
-    while i != 50:
-        # Get data
-        data = interface.get_device_data()
-        if interface_type != InterfaceType.PytrignoClient:
-            markers = interface.get_marker_set_data()
-            kin = interface.marker_sets[0].get_kinematics(model_path="models/model.bioMod")
-        processed_data = interface.devices[0].process()
-        i += 1
+@pytest.mark.parametrize("device_type", [DeviceType.Emg, DeviceType.Imu, DeviceType.Generic])
+def test_devices(device_type):
+    pass

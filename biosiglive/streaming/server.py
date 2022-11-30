@@ -12,6 +12,7 @@ except ModuleNotFoundError:
     pass
 import pickle
 
+
 class Connection:
     """
     This class is used to connect to the biosiglive server.
@@ -61,17 +62,24 @@ class Connection:
             command = list(data.keys())
         for key in command:
             if key in data.keys():
-                if key in down_sampling.keys():
+                if down_sampling and key in down_sampling.keys():
                     if not isinstance(down_sampling[key], int):
                         raise ValueError("The down sampling must be an integer.")
                     data[key] = data[key][..., :: down_sampling[key]]
-                if isinstance(data[key], np.ndarray):
-                    if nb_frames_to_get:
-                        data_tmp[key] = data[key][..., -nb_frames_to_get:].tolist()
-                else:
-                    data_tmp[key] = data[key]
+                data_tmp[key] = []
+                for d in data[key]:
+                    if isinstance(d, np.ndarray):
+                        if nb_frames_to_get:
+                            data_tmp[key].append(d[..., -nb_frames_to_get:])
+                        else:
+                            data_tmp[key].append(d)
+                    else:
+                        data_tmp[key].append(d)
             else:
                 raise ValueError(f"The asked data '{key}' is not in the data dictionary.")
+            for key in data_tmp.keys():
+                if len(data_tmp[key]) == 1:
+                    data_tmp[key] = data_tmp[key][0]
         return data_tmp
 
 
@@ -157,7 +165,7 @@ class Server(Connection):
                     "The message should be a dictionary created from the Message class or contains the key"
                     " : 'command', down_sampling, nb_frames_to_get."
                 )
-        encoded_data = pickle.dumps(data)#.encode()
+        encoded_data = pickle.dumps(data)
         encoded_data = struct.pack(">I", len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)

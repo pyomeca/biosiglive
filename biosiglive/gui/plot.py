@@ -111,7 +111,7 @@ class LivePlot:
             The data to plot. if list, the data to plot for each subplot.
         """
         update = True
-        if self.plot_type != PlotType.Scatter3D:
+        if self.plot_type != PlotType.Scatter3D and self.plot_type != PlotType.Skeleton:
             if isinstance(data, list):
                 if len(data) != self.nb_subplot:
                     raise ValueError("The number of subplots is not equal to the number of data.")
@@ -401,10 +401,7 @@ class LivePlot:
         -------
 
         """
-        data_mat = np.ndarray((len(data), data[0].shape[1]))
-        for i, d in enumerate(data):
-            data_mat[i, :] = d
-        viz.set_q(data, refresh_window=True)
+        viz.set_q(data[:, -1], refresh_window=True)
 
     @staticmethod
     def _init_skeleton(**kwargs):

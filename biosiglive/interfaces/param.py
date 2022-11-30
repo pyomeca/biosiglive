@@ -264,6 +264,8 @@ class MarkerSet(Param):
             else:
                 raise ValueError("The method is not valid.")
         kin_data_window = kin_data_window if kin_data_window else self.data_window
+        if "model_path" in self.kin_method_kwargs.keys():
+            model_path = self.kin_method_kwargs["model_path"]
         model_path = model_path if model_path else self.biorbd_model_path
         if model_path is None and not "model_path" in self.kin_method_kwargs.keys():
             raise ValueError("No model to compute the kinematics.")

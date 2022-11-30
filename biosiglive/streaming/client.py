@@ -132,5 +132,5 @@ class Client:
         """
         message = message.__dict__
         self._connect()
-        self.client.sendall(pickle.dumps(message))#.encode())
+        self.client.sendall(pickle.dumps(message))
         return self._recv_all(buff)

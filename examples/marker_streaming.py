@@ -1,10 +1,6 @@
-import numpy as np
-
-# from biosiglive.interfaces.vicon_interface import ViconClient
-from biosiglive.io.save_data import save, load
 from time import sleep, time
 from custom_interface import MyInterface
-from biosiglive import LivePlot, PlotType, ViconClient
+from biosiglive import LivePlot, PlotType, ViconClient, save, load
 
 if __name__ == "__main__":
     try_offline = True
