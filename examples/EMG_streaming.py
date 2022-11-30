@@ -56,7 +56,8 @@ if __name__ == "__main__":
 
     # Add device to Vicon interface
     interface.add_device(
-        nb_channels=n_electrodes, device_type="emg", name="emg", rate=2000, device_data_file_key="emg"
+        nb_channels=n_electrodes, device_type="emg", name="emg", rate=2000, device_data_file_key="emg",
+        processing_method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=600
     )
 
     # Add plot
@@ -64,6 +65,7 @@ if __name__ == "__main__":
         name="emg", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
     )
     emg_plot.init(plot_windows=500, y_labels="Processed EMG (mV)")
+
     emg_raw_plot = LivePlot(
         name="emg_raw", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
     )
@@ -73,23 +75,10 @@ if __name__ == "__main__":
     count = 0
     while True:
         tic = time()
-        emg_tmp = interface.get_device_data(device_name="emg")
-        emg_proc = interface.devices[0].process(method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=600)
-
-        emg_proc_custom = interface.devices[0].process(
-            method=RealTimeProcessingMethod.ProcessEmg,
-            bp_butter_order=4
-        )
-        # print(emg_proc_custom[:, -20:])
-        # if count == 400:
+        raw_emg = interface.get_device_data(device_name="emg")
+        emg_proc = interface.devices[0].process()
         emg_plot.update(emg_proc[:, -1:])
-        emg_raw_plot.update(emg_tmp)
-        # # Save binary file
-        # save({"emg": emg_tmp}, output_file_path)
-        # if count == 400:
-        #     import matplotlib.pyplot as plt
-        #     plt.plot(emg_proc_custom[0, :])
-        #     plt.show()
+        emg_raw_plot.update(raw_emg)
         count += 1
         loop_time = time() - tic
         real_time_to_sleep = time_to_sleep - loop_time

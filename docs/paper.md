@@ -66,7 +66,7 @@ The main features are described below.
 - `Processing`: real-time and offline data processing.
 - `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
 - `Visualization`: real-time signal visualization,
-- `Streaming pipeline`: pipeline to stream, process, disseminate, plot and save data in real time.
+- `Streaming pipeline`: pipeline to stream, process, disseminate and save data in real time.
 - `File I/O`: saving data in binary format at every time frame.
 
 ## A Biomechanical example: Electromyographic pipeline
@@ -76,28 +76,42 @@ More advanced examples are available such as computing and showing 3D joint kine
 The following example shows how to stream, process, display, and save EMG signals from Nexus software. 
 
 ```python
-import numpy as np
-import timefrom biosiglive import (LivePlot,add_data_to_pickle,ViconClient,RealTimeProcessingMethod,)
+from biosiglive import LivePlot, save , ViconClient, RealTimeProcessingMethod, PlotType
 
 # Define the system from which you want to get the data.
-vicon_interface = ViconClient(ip="localhost", system_rate=100)
-vicon_interface.add_device(nb_channels=1, device_type="emg", name="emg", rate=2000)
+interface = ViconClient(ip="localhost", system_rate=100)
 
-# Initialize the plotting 
-method.emg_plot = LivePlot(name="emg", channel_names=["raw_emg", "processed_emg"], plot_type="curve", nb_subplots=2)
-emg_plot.init(use_checkbox=True, plot_windows=vicon_interface.devices[0].rate)
-while True:    
-    # Get the data from the system.    
-    emg_tmp = vicon_interface.get_device_data()    
-    
-    # Process the data.    
-    emg_proc = vicon_interface.devices[0].process(method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=200, normalization=False)    
-    
-    # Update the plot with the new data.    
-    data_to_plot = np.concatenate((emg_tmp, emg_proc[:, -1]), axis=0)    
-    emg_plot.update(data_to_plot)       
-    # Save binary file    
-    save({"raw_emg": emg_tmp, "process_emg":emg_proc[:, -1]}, "emg.bio")
+# Add markerSet to Vicon interface
+n_electrodes = 4
+raw_emg = None
+muscle_names = ["Pectoralis major", "Deltoid anterior", "Deltoid medial", "Deltoid posterior"]
+
+# Add device to Vicon interface
+interface.add_device(
+    nb_channels=n_electrodes,
+    device_type="emg",
+    name="emg",
+    rate=2000,
+    method=RealTimeProcessingMethod.ProcessEmg,
+    moving_average_window=600
+)
+
+# Add plot
+emg_plot = LivePlot(
+    name="emg", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
+)
+emg_plot.init(plot_windows=500, y_labels="Processed EMG (mV)")
+emg_raw_plot = LivePlot(
+    name="emg_raw", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
+)
+emg_raw_plot.init(plot_windows=10000, colors=(255, 0, 0), y_labels="EMG (mV)")
+while True:
+    raw_emg = interface.get_device_data(device_name="emg")
+    emg_proc = interface.devices[0].process()
+    emg_plot.update(emg_proc[:, -1:])
+    emg_raw_plot.update(raw_emg)   
+# Save binary file    
+    save({"raw_emg": raw_emg, "process_emg":emg_proc[:, -1]}, "emg.bio")
 ```
 
 The live plot is shown in the following figure.

@@ -1,12 +1,11 @@
 """
 This file is part of biosiglive. It allows connecting to a biosiglive server and to receive data from it.
 """
-import enum
-
 import socket
 import json
 import struct
 from typing import Union
+import pickle
 
 Buff_size = 32767
 
@@ -61,8 +60,10 @@ class Client:
         self.server_address = server_ip
         self.port = port
         self.client = self.client_sock(self.client_type)
+        # self._connect()
 
     def _connect(self):
+        self.client = self.client_sock(self.client_type)
         self.client.connect((self.server_address, self.port))
 
     @staticmethod
@@ -111,7 +112,7 @@ class Client:
             l += len(chunk)
             data.append(chunk)
         data = b"".join(data)
-        data = json.loads(data)
+        data = pickle.loads(data)
         return data
 
     def get_data(self, message: Message = Message(), buff: int = Buff_size):
@@ -131,5 +132,5 @@ class Client:
         """
         message = message.__dict__
         self._connect()
-        self.client.sendall(json.dumps(message).encode())
+        self.client.sendall(pickle.dumps(message))#.encode())
         return self._recv_all(buff)

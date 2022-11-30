@@ -234,9 +234,8 @@ class TcpClient(GenericInterface):
         stream_param = self.devices if device else self.marker_sets
 
         if name != "all":
-            command = []
+            commands = []
             for s, param in enumerate(stream_param):
                 if param.name == name[s]:
-                    stream_param.append(device)
-                    command.append(command[s])
+                    commands.append(command[s])
         return command

@@ -10,7 +10,7 @@ try:
     from pythonosc.udp_client import SimpleUDPClient
 except ModuleNotFoundError:
     pass
-
+import pickle
 
 class Connection:
     """
@@ -127,7 +127,7 @@ class Server(Connection):
         Listen to the client.
         """
         connection, ad = self.server.accept()
-        message = json.loads(connection.recv(self.buff_size))  # Received message
+        message = pickle.loads(connection.recv(self.buff_size))  # Received message
         return connection, message
 
     def send_data(self, data: dict, connection: socket.socket, message: dict = None):
@@ -157,7 +157,7 @@ class Server(Connection):
                     "The message should be a dictionary created from the Message class or contains the key"
                     " : 'command', down_sampling, nb_frames_to_get."
                 )
-        encoded_data = json.dumps(data).encode()
+        encoded_data = pickle.dumps(data)#.encode()
         encoded_data = struct.pack(">I", len(encoded_data)) + encoded_data
         try:
             connection.sendall(encoded_data)

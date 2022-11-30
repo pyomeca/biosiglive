@@ -259,11 +259,11 @@ class StreamData:
                 self.kin_queue_out[marker_set_idx].put_nowait({"kinematics_data": states[:, -buffer_size:]})
                 self.kin_event[marker_set_idx].set()
 
-    def open_server(self):
+    def open_server(self, server_idx: int):
         """
         Open the server to send data from the devices.
         """
-        server = Server(self.server_ip, self.ports[self.count_server], server_type=self.client_type)
+        server = Server(self.server_ip, self.ports[server_idx], server_type=self.client_type)
         server.start()
         while True:
             connection, message = server.client_listening()
@@ -271,7 +271,7 @@ class StreamData:
             while len(data_queue) == 0:
                 # use Try statement as the queue can be empty and is_empty function is not reliable.
                 try:
-                    data_queue = self.server_queue[self.count_server].get_nowait()
+                    data_queue = self.server_queue[server_idx].get_nowait()
                     is_working = True
                 except Exception:
                     is_working = False
@@ -298,11 +298,8 @@ class StreamData:
                         ),
                     )
                 )
-
-        if self.start_server:
-            for i in range(len(self.ports)):
-                processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self,)))
-                self.count_server += 1
+        for i in range(len(self.ports)):
+            processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self, i)))
 
         for p, plot in enumerate(self.plots):
             for device in self.devices:
@@ -377,27 +374,28 @@ class StreamData:
         multiprocess: bool
             If True, if several plot each plot will be on a separate process. If False, each plot will be on the same one.
         """
-        if isinstance(data_to_plot, str):
-            data_to_plot = [data_to_plot]
-        if isinstance(raw, bool):
-            raw = [raw]
-        if len(data_to_plot) != len(raw):
-            raise ValueError("The length of the data to plot and the raw list must be the same.")
-        if not raw:
-            raw = [True] * len(data_to_plot)
-        self.plots_queue.append(self.queue())
-        self.raw_plot = raw
-        self.data_to_plot = data_to_plot
-        if self.multiprocess_started:
-            raise Exception("Cannot add plot after the stream has started.")
-        self.plots_multiprocess = multiprocess
-        if not isinstance(plot, list):
-            plot = [plot]
-        for plt in plot:
-            if plt.rate:
-                if plt.rate > self.stream_rate:
-                    raise ValueError("Plot rate cannot be higher than stream rate.")
-            self.plots.append(plt)
+        raise NotImplementedError("Plot are not implemented yet with StreamData class.")
+        # if isinstance(data_to_plot, str):
+        #     data_to_plot = [data_to_plot]
+        # if isinstance(raw, bool):
+        #     raw = [raw]
+        # if len(data_to_plot) != len(raw):
+        #     raise ValueError("The length of the data to plot and the raw list must be the same.")
+        # if not raw:
+        #     raw = [True] * len(data_to_plot)
+        # self.plots_queue.append(self.queue())
+        # self.raw_plot = raw
+        # self.data_to_plot = data_to_plot
+        # if self.multiprocess_started:
+        #     raise Exception("Cannot add plot after the stream has started.")
+        # self.plots_multiprocess = multiprocess
+        # if not isinstance(plot, list):
+        #     plot = [plot]
+        # for plt in plot:
+        #     if plt.rate:
+        #         if plt.rate > self.stream_rate:
+        #             raise ValueError("Plot rate cannot be higher than stream rate.")
+        #     self.plots.append(plt)
 
     def plot_update(self, plot_idx: int = -1):
         """
@@ -405,8 +403,8 @@ class StreamData:
 
         Parameters
         ----------
-        plots: Union[LivePlot, list]
-            Plot to update.
+        plot_idx: int
+            index of the plot to update. If -1, all plots will be updated.
         """
         if plot_idx == -1:
             plots = self.plots
@@ -440,7 +438,6 @@ class StreamData:
                             data_to_plot = data["kinematics_data"][marker_set_names.index(self.data_to_plot[p])]
                         else:
                             data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])][:, :, -1].T
-                    # print(data_to_plot)
                     plot.update(data_to_plot)
 
     def save_streamed_data(self, interface_idx: int):
@@ -448,8 +445,8 @@ class StreamData:
         Stream, process and save the data.
         Parameters
         ----------
-        interface: callable
-            Interface to use to get the data.
+        interface_idx: idx
+            Interface idx to use.
 
         """
         initial_time = 0
@@ -530,7 +527,7 @@ class StreamData:
                         raw_markers_data.append(np.around(all_markers_tmp[i], decimals=self.kin_decimals))
                     data_dic["kinematics_data"] = kin_data
                     data_dic["marker_set_data"] = raw_markers_data
-                process_time = time() - tic_process  # time to process all data + time to get data
+                process_time = time() - tic_process  # time to process all data
 
                 for i in range(len(self.ports)):
                     try:
@@ -546,7 +543,6 @@ class StreamData:
                         except Exception:
                             pass
                         self.plots_queue[i].put_nowait(data_dic)
-                print(process_time)
 
                 data_dic["absolute_time_frame"] = absolute_time_frame_dic
                 data_dic["interface_latency"] = interface_latency

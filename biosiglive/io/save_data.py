@@ -42,8 +42,8 @@ def load(filename, number_of_line=None):
     data : dict
         The data read from the file.
     """
-    # if Path(filename).suffix != ".bio":
-    #     raise ValueError("The file must be a .bio file.")
+    if Path(filename).suffix != ".bio":
+        raise ValueError("The file must be a .bio file.")
     data = {}
     limit = 2 if not number_of_line else number_of_line
     with open(filename, "rb") as file:
