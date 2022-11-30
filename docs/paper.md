@@ -127,7 +127,7 @@ The live plot is shown in the following figure.
 # Acknowledgements
 
 This work was supported by the Natural Sciences and Engineering Research Council of Canada (NSERC) through the CREATE OPSIDIAN program, 
-the WSERC discovery of M. Begon, 
+the NSERC discovery of M. Begon, 
 and the Pôle lavallois d’enseignement supérieur en arts numériques et économie créative , Appel à projet 2020 - projet eMusicorps.
 
 # References
