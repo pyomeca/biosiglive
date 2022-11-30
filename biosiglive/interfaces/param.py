@@ -105,7 +105,7 @@ class Device(Param):
             Method to process the data.
         custom_function: callable
             Custom function to process the data.
-        kwargs: dict
+        kwargs:
             Keyword arguments to pass to the method.
         """
         self.processing_method_kwargs.update(kwargs)
@@ -143,6 +143,8 @@ class Device(Param):
         self.processing_window = self.processing_window if self.processing_window else self.data_window
         if self.processing_method == RealTimeProcessingMethod.ProcessEmg:
             self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_emg
+        elif self.processing_method == RealTimeProcessingMethod.ProcessGenericSignal:
+            self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_generic_signal
         elif self.processing_method == RealTimeProcessingMethod.ProcessImu:
             self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_imu
         elif self.processing_method == RealTimeProcessingMethod.GetPeaks:

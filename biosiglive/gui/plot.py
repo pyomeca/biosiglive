@@ -481,6 +481,8 @@ class OfflinePlot:
             The title of the subplot.
         figure_name: str
             The name of the figure.
+        **kwargs
+            plot arguments
         """
 
         if not isinstance(data, list):
@@ -491,7 +493,7 @@ class OfflinePlot:
         if nb_column:
             col = nb_column
         else:
-            col = data[0].shape[0] if data[0].shape[0] <= 4 else nb_column
+            col = data[0].shape[0] if data[0].shape[0] <= 4 else 4
         line = ceil(data[0].shape[0] / col)
         for i in range(data[0].shape[0]):
             plt.subplot(line, col, i + 1)
@@ -501,7 +503,11 @@ class OfflinePlot:
                 plt.xlabel(x_label, fontsize=size_police)
             for j in range(nb_data):
                 x = x if x is not None else np.linspace(0, data[j].shape[1], data[j].shape[1])
-                plt.plot(x, data[j][i, :], label=legend[j])
+                if legend:
+                    legend = legend[j]
+                else:
+                    legend = None
+                plt.plot(x, data[j][i, :], label=legend)
             plt.legend()
             if subplot_title:
                 plt.title(subplot_title[i], fontsize=size_police)
