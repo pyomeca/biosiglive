@@ -158,7 +158,11 @@ class TcpClient(GenericInterface):
         return self.last_server_data
 
     def get_device_data(
-        self, device_name: Union[list, str] = "all", nb_frame_to_get: int = None, down_sampling: dict = None, get_from_server: bool = True
+        self,
+        device_name: Union[list, str] = "all",
+        nb_frame_to_get: int = None,
+        down_sampling: dict = None,
+        get_from_server: bool = True,
     ):
         """
         Get the data from a device.
@@ -180,7 +184,9 @@ class TcpClient(GenericInterface):
         """
         if get_from_server:
             command = self._prepare_cmd(device_name, True)
-            data = self.get_data_from_server(command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling)
+            data = self.get_data_from_server(
+                command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling
+            )
         else:
             if nb_frame_to_get or down_sampling:
                 raise ValueError("nb_frame_to_get and down_sampling can only be used if get_from_server is True.")
@@ -201,7 +207,11 @@ class TcpClient(GenericInterface):
         return all_data
 
     def get_marker_set_data(
-        self, marker_set_name: Union[str, list] = "all", nb_frame_to_get: int = None, down_sampling: dict = None, get_from_server: bool = True
+        self,
+        marker_set_name: Union[str, list] = "all",
+        nb_frame_to_get: int = None,
+        down_sampling: dict = None,
+        get_from_server: bool = True,
     ):
         """
         Get the data from the markers.
@@ -223,7 +233,9 @@ class TcpClient(GenericInterface):
         """
         if get_from_server:
             command = self._prepare_cmd(marker_set_name, False)
-            data = self.get_data_from_server(command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling)
+            data = self.get_data_from_server(
+                command=command, nb_frame_to_get=nb_frame_to_get, down_sampling=down_sampling
+            )
         else:
             if not self.last_server_data:
                 raise ValueError("No data received from the server yet.")

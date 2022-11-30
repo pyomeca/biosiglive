@@ -10,4 +10,5 @@ def test_offline_plot():
     data = np.random.random((5, 20))
     OfflinePlot.multi_plot(data)
 
+
 # TODO add test live plot

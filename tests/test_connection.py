@@ -51,10 +51,7 @@ def test_tcp_client():
     # create a client
     tcp_client = TcpClient(server_ip, server_port, read_frequency=100)
     i = 0
-    command = ["proc_device_data",
-                                                        "marker_set_data",
-                                                        "raw_device_data",
-                                                        "kinematics_data"]
+    command = ["proc_device_data", "marker_set_data", "raw_device_data", "kinematics_data"]
     data = {}
     while i != 5:
         data = tcp_client.get_data_from_server(command=command, nb_frame_to_get=2, down_sampling={"emg": 20})

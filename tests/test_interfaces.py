@@ -1,10 +1,15 @@
 import pytest
 from biosiglive import (
-    InterfaceType, ViconClient, PytrignoClient, RealTimeProcessingMethod, TcpClient,
-Device,
-DeviceType,
-MarkerSet,
-InverseKinematicsMethods)
+    InterfaceType,
+    ViconClient,
+    PytrignoClient,
+    RealTimeProcessingMethod,
+    TcpClient,
+    Device,
+    DeviceType,
+    MarkerSet,
+    InverseKinematicsMethods,
+)
 from examples.custom_interface import MyInterface
 import numpy as np
 import os
@@ -56,11 +61,17 @@ def test_interface(interface_type):
 
 @pytest.mark.parametrize("device_type", [DeviceType.Emg, DeviceType.Imu, DeviceType.Generic])
 def test_devices(device_type):
-    device = Device(device_type=device_type, nb_channels=3, name="my_device", rate=2000,
-                    system_rate=100, channel_names=["1", "2", "3"])
+    device = Device(
+        device_type=device_type,
+        nb_channels=3,
+        name="my_device",
+        rate=2000,
+        system_rate=100,
+        channel_names=["1", "2", "3"],
+    )
     device.data_window = 100
     assert device.device_type == device_type
-    assert device.sample == 2000/100
+    assert device.sample == 2000 / 100
     assert device.name == "my_device"
     assert device.nb_channels == 3
 
@@ -91,10 +102,9 @@ def test_devices(device_type):
 def test_marker_set():
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
-    marker_set = MarkerSet(nb_channels=16, name="my_marker_set", rate=100,
-                    system_rate=100)
+    marker_set = MarkerSet(nb_channels=16, name="my_marker_set", rate=100, system_rate=100)
     marker_set.data_window = 100
-    assert marker_set.sample == 100/100
+    assert marker_set.sample == 100 / 100
     assert marker_set.name == "my_marker_set"
     assert marker_set.nb_channels == 16
 
@@ -109,6 +119,3 @@ def test_marker_set():
     kin_data, _ = marker_set.get_kinematics(model_path=model_path, method=InverseKinematicsMethods.BiorbdKalman)
     assert raw_data.shape == (3, 16, 100)
     assert kin_data.shape == (15, 1)
-
-
-

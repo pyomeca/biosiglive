@@ -87,4 +87,3 @@ if __name__ == "__main__":
     # )
     data_streaming.add_server(server_ip, server_port, device_buffer_size=20, marker_set_buffer_size=1)
     data_streaming.start(save_streamed_data=True, save_path="data_streamed")
-

@@ -68,7 +68,7 @@ def test_real_time_processing(method):
     elif method == RealTimeProcessingMethod.Custom:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.3910874, 0.2220394])
     elif method == RealTimeProcessingMethod.ProcessImu:
-        np.testing.assert_almost_equal(processed_data[:, 0, -1], [0.5367742, 0.477345 , 0.3982464, 0.464923 ])
+        np.testing.assert_almost_equal(processed_data[:, 0, -1], [0.5367742, 0.477345, 0.3982464, 0.464923])
 
 
 @pytest.mark.parametrize("method", [OfflineProcessingMethod.ProcessEmg, OfflineProcessingMethod.ComputeMvc])
@@ -106,20 +106,70 @@ def test_inverse_kinematics_methods(methods):
         i += 1
 
     if methods == InverseKinematicsMethods.BiorbdLeastSquare:
-        np.testing.assert_almost_equal(q[:, 0], [0.4678967,  0.5452077,  0.6265815,  2.3980326,  0.7131959,
-                 -0.843272 ,  0.4449836, -0.3651489, -1.8346828, -0.4779496,
-                 -1.9841764, -0.9272213,  1.9080811, -2.9865801,  2.487792 ])
+        np.testing.assert_almost_equal(
+            q[:, 0],
+            [
+                0.4678967,
+                0.5452077,
+                0.6265815,
+                2.3980326,
+                0.7131959,
+                -0.843272,
+                0.4449836,
+                -0.3651489,
+                -1.8346828,
+                -0.4779496,
+                -1.9841764,
+                -0.9272213,
+                1.9080811,
+                -2.9865801,
+                2.487792,
+            ],
+        )
         np.testing.assert_almost_equal(q_dot[:, 0], np.zeros((15,)))
 
     if methods == InverseKinematicsMethods.BiorbdKalman:
-        np.testing.assert_almost_equal(q[:, 0], [0.3967554,    0.5319872,    0.7010691,  -20.2915409,
-                    1.360212 ,   22.1051027,   -1.4536078,    5.3653793,
-                 -153.7577957,    5.9256863,  142.7770999,  -82.2179062,
-                    2.0438505,   43.001448 ,    9.4642261])
-        np.testing.assert_almost_equal(q_dot[:, 0], [-6.83500742e+00,  1.09847707e+00,  1.57524868e+00, -3.97775191e+01,
- -3.56767334e+01,  6.14234710e+01,  4.47125570e+01,  1.27014192e+02,
- -1.10512674e+02, -4.87175834e-01, -2.81411720e+01,  1.01959841e+02,
-  5.55270630e+01,  6.81543760e+02,  1.93372073e+01], decimal=6)
+        np.testing.assert_almost_equal(
+            q[:, 0],
+            [
+                0.3967554,
+                0.5319872,
+                0.7010691,
+                -20.2915409,
+                1.360212,
+                22.1051027,
+                -1.4536078,
+                5.3653793,
+                -153.7577957,
+                5.9256863,
+                142.7770999,
+                -82.2179062,
+                2.0438505,
+                43.001448,
+                9.4642261,
+            ],
+        )
+        np.testing.assert_almost_equal(
+            q_dot[:, 0],
+            [
+                -6.83500742e00,
+                1.09847707e00,
+                1.57524868e00,
+                -3.97775191e01,
+                -3.56767334e01,
+                6.14234710e01,
+                4.47125570e01,
+                1.27014192e02,
+                -1.10512674e02,
+                -4.87175834e-01,
+                -2.81411720e01,
+                1.01959841e02,
+                5.55270630e01,
+                6.81543760e02,
+                1.93372073e01,
+            ],
+            decimal=6,
+        )
 
 
 def test_forward_kinematics():
@@ -135,6 +185,24 @@ def test_forward_kinematics():
         markers = msk_function.compute_direct_kinematics(q_data)
         i += 1
 
-    np.testing.assert_almost_equal(markers[0, :, 0], [0.5047011, 0.6690358, 0.4138976, 0.58448  , 0.5091725, 0.4676433,
-              0.6165203, 0.4549606, 0.5009109, 0.7444251, 0.787134 , 0.5910698,
-              0.6242104, 0.9334877, 0.7964393, 0.8911985])
+    np.testing.assert_almost_equal(
+        markers[0, :, 0],
+        [
+            0.5047011,
+            0.6690358,
+            0.4138976,
+            0.58448,
+            0.5091725,
+            0.4676433,
+            0.6165203,
+            0.4549606,
+            0.5009109,
+            0.7444251,
+            0.787134,
+            0.5910698,
+            0.6242104,
+            0.9334877,
+            0.7964393,
+            0.8911985,
+        ],
+    )

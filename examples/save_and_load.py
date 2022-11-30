@@ -3,7 +3,7 @@ import os
 from biosiglive import save, load
 import numpy as np
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     data = {
         "data_np": np.random.rand(2, 20),
         "data_list": [5, 8],

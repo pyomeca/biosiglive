@@ -283,8 +283,9 @@ class StreamData:
         """
         processes = []
         for i in range(len(self.interfaces)):
-            processes.append(self.process(name="reader", target=StreamData.save_streamed_data, args=(self, i),                     daemon=True
-))
+            processes.append(
+                self.process(name="reader", target=StreamData.save_streamed_data, args=(self, i), daemon=True)
+            )
 
         for d, device in enumerate(self.devices):
             if device.processing_method is not None:
@@ -296,13 +297,13 @@ class StreamData:
                             self,
                             d,
                         ),
-                        daemon=True
-
+                        daemon=True,
                     )
                 )
         for i in range(len(self.ports)):
-            processes.append(self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self, i),                     daemon=True
-))
+            processes.append(
+                self.process(name="listen" + f"_{i}", target=StreamData.open_server, args=(self, i), daemon=True)
+            )
 
         for p, plot in enumerate(self.plots):
             for device in self.devices:
@@ -310,11 +311,9 @@ class StreamData:
                     if self.data_to_plot[p] not in device.name and self.data_to_plot[p] not in marker_set.name:
                         raise ValueError(f"The name of the data to plot ({self.data_to_plot[p]}) is not correct.")
             if self.plots_multiprocess:
-                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, p),                     daemon=True
-))
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, p), daemon=True))
             else:
-                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, -1),                     daemon=True
-))
+                processes.append(self.process(name="plot", target=StreamData.plot_update, args=(self, -1), daemon=True))
                 break
 
         for m, marker in enumerate(self.marker_sets):
@@ -327,8 +326,7 @@ class StreamData:
                             self,
                             m,
                         ),
-                        daemon=True
-
+                        daemon=True,
                     )
                 )
 
@@ -339,7 +337,7 @@ class StreamData:
                     target=funct,
                     args=(self,),
                     kwargs=self.custom_processes_kwargs[i],
-                    daemon=True
+                    daemon=True,
                 )
             )
         for p in processes:
@@ -449,7 +447,9 @@ class StreamData:
                         if not self.raw_plot[p]:
                             data_to_plot = data["kinematics_data"][marker_set_names.index(self.data_to_plot[p])]
                         else:
-                            data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])][:, :, -1].T
+                            data_to_plot = data["marker_set_data"][marker_set_names.index(self.data_to_plot[p])][
+                                :, :, -1
+                            ].T
                     plot.update(data_to_plot)
 
     def save_streamed_data(self, interface_idx: int):

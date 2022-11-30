@@ -61,8 +61,10 @@ We have developed `biosiglive` to facilitate the use of biosignals in real-time.
 It was achieved by pre-implementing standard data processing and data retrieving from several sources such as Nexus software for motion capture and analogical signals. 
 Pre-implemented processing methods are customizable (i.e. filters cutoff frequency or moving average window size), the user can also develop his/her own method inside the program. 
 Users can also add an interface module to make 'biosiglive' work with the desired acquisition system. 
-Examples are provided to guide the user and documentation is available. # Features`biosiglive` is divided into five independent modules. 
-The main features are described below.
+Examples are provided to guide the user and documentation is available. 
+
+# Features
+`biosiglive` is divided into five independent modules. The main features are described below.
 - `Processing`: real-time and offline data processing.
 - `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
 - `Visualization`: real-time signal visualization,
@@ -73,7 +75,8 @@ The main features are described below.
 `biosiglive` provides examples for different biomechanical tasks such as getting and processing EMG signals or any generic analog devices from Nexus, 
 compute live cadence from a treadmill, or applying a calibration matrix to raw signals. 
 More advanced examples are available such as computing and showing 3D joint kinematics from a marker set. 
-The following example shows how to stream, process, display, and save EMG signals from Nexus software. 
+
+The following example shows how to stream, process, display, and save EMG signals from Nexus software.
 
 ```python
 from biosiglive import LivePlot, save , ViconClient, RealTimeProcessingMethod, PlotType
@@ -85,7 +88,6 @@ interface = ViconClient(ip="localhost", system_rate=100)
 n_electrodes = 4
 raw_emg = None
 muscle_names = ["Pectoralis major", "Deltoid anterior", "Deltoid medial", "Deltoid posterior"]
-
 # Add device to Vicon interface
 interface.add_device(
     nb_channels=n_electrodes,
@@ -115,8 +117,8 @@ while True:
 ```
 
 The live plot is shown in the following figure.
-[Real-time display of processed EMG signals for a 10-second window. Processing with a moving average down samples 
-the processed signal by the system rate.\label{fig:emg_plot}](EMG_plot.png)
+[Real-time display of processed ad raw EMG signals for a 5-second window.
+\label{fig:emg_plot}](EMG_plot.png)
 
 
 # Research Projects Using `biosiglive`

@@ -10,12 +10,7 @@ def test_interface(init, get_frame):
     interface = PytrignoClient(system_rate=100, init_now=init)
 
     # Add device
-    interface.add_device(
-        name="EMG",
-        device_type=DeviceType.Emg,
-        nb_channels=5,
-        device_range=(3, 2)
-    )
+    interface.add_device(name="EMG", device_type=DeviceType.Emg, nb_channels=5, device_range=(3, 8))
 
     if not init:
         interface.init_client()
@@ -29,6 +24,3 @@ def test_interface(init, get_frame):
         i += 1
 
     np.testing.assert_almost_equal(device_data.shape[0], 5)
-
-
-

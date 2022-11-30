@@ -35,9 +35,3 @@ def test_interface(init, get_frame):
     np.testing.assert_almost_equal(markers_data.shape[1], 10)
     np.testing.assert_almost_equal(len(latency), 1)
     np.testing.assert_almost_equal(len(frame_number), 1)
-
-
-
-
-
-

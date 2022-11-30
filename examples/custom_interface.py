@@ -149,10 +149,16 @@ class MyInterface(GenericInterface):
             coef = 1 if marker.unit == "m" else 0.001
             if marker.name == marker_set_name[m]:
                 if self.offline_data:
-                    marker.new_data = self.offline_data[self.marker_data_key[m]][
-                        :, : marker.nb_channels, self.d : self.d + marker.sample
-                    ] * coef
-                    if abs(self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2]) > marker.sample:
+                    marker.new_data = (
+                        self.offline_data[self.marker_data_key[m]][
+                            :, : marker.nb_channels, self.d : self.d + marker.sample
+                        ]
+                        * coef
+                    )
+                    if (
+                        abs(self.d + marker.sample - self.offline_data[self.marker_data_key[m]].shape[2])
+                        > marker.sample
+                    ):
                         self.d = self.d + marker.sample
                     else:
                         self.d = 0

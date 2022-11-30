@@ -18,7 +18,7 @@ if __name__ == "__main__":
         rate=100,
         kinematics_method=InverseKinematicsMethods.BiorbdKalman,
         model_path="model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod",
-        unit="mm"
+        unit="mm",
     )
 
     # Add plot

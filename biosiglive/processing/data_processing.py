@@ -460,7 +460,7 @@ class RealTimeProcessing(GenericProcessing):
                 self.raw_data_buffer[:, :, -self.processing_window + im_data.shape[2] :], im_data, axis=2
             )
             im_proc_tmp = self.raw_data_buffer
-            average = np.mean(im_proc_tmp[:, :, -self.processing_window:], axis=2).reshape(-1, 3, 1)
+            average = np.mean(im_proc_tmp[:, :, -self.processing_window :], axis=2).reshape(-1, 3, 1)
             if squared:
                 if accel:
                     average = abs(np.linalg.norm(average, axis=1) - 9.81)

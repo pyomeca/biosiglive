@@ -17,12 +17,7 @@ if __name__ == "__main__":
 
     # Add device to Vicon interface
     interface.add_marker_set(
-        nb_markers=n_markers,
-        data_buffer_size=100,
-        marker_data_file_key="markers",
-        name="markers",
-        rate=100,
-        unit="mm"
+        nb_markers=n_markers, data_buffer_size=100, marker_data_file_key="markers", name="markers", rate=100, unit="mm"
     )
 
     # Add plot

@@ -56,8 +56,13 @@ if __name__ == "__main__":
 
     # Add device to Vicon interface
     interface.add_device(
-        nb_channels=n_electrodes, device_type="emg", name="emg", rate=2000, device_data_file_key="emg",
-        processing_method=RealTimeProcessingMethod.ProcessEmg, moving_average_window=600
+        nb_channels=n_electrodes,
+        device_type="emg",
+        name="emg",
+        rate=2000,
+        device_data_file_key="emg",
+        processing_method=RealTimeProcessingMethod.ProcessEmg,
+        moving_average_window=600,
     )
 
     # Add plot
