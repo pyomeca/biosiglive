@@ -1,72 +1,101 @@
-from .param import *
+import numpy as np
+from .generic_interface import GenericInterface
+from ..enums import DeviceType, InterfaceType, RealTimeProcessingMethod, OfflineProcessingMethod
+from typing import Union
+
 try:
     import pytrigno
 except ModuleNotFoundError:
     pass
 
 
-class PytrignoClient:
-    def __init__(self, ip: str = None):
-        self.address = "127.0.0.1" if not ip else ip
+class PytrignoClient(GenericInterface):
+    def __init__(self, system_rate=100, ip: str = "127.0.0.1", init_now: bool = True):
+        super(PytrignoClient, self).__init__(
+            ip=ip, interface_type=InterfaceType.PytrignoClient, system_rate=system_rate
+        )
+        self.address = ip
         self.devices = []
         self.imu = []
         self.markers = []
 
-        self.emg_client, self.imu_client = None, None
+        self.emg_client, self.imu_client = [], []
         self.is_frame = False
+        self.is_initialized = False
+        self.init_now = init_now
 
-    def add_device(self, name: str = None, range: tuple = (0, 16), type: str = "emg", rate: float = 2000, system_rate: float = 100):
+    def add_device(
+        self,
+        nb_channels: int,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
+        data_buffer_size: int = None,
+        name: str = None,
+        rate: float = 2000,
+        device_range: tuple = None,
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **process_kwargs
+    ):
         """
-        Add a device to the Pytrigno client.
+        Add a device to the Vicon system.
         Parameters
         ----------
-        name : str
+        nb_channels: int
+            Number of channels of the device.
+        data_buffer_size: int
+            Size of the buffer for the device.
+        name: str
             Name of the device.
-        range : tuple
-            Range of the electrodes.
-        type : str
-            Type of the device. (emg or imu)
-        rate : float
+        device_type: Union[DeviceType, str]
+            Type of the device.
+        rate: float
             Rate of the device.
-        real_time : bool
-            If true device  will be used in real time application
+        device_range: tuple
+            Range of the device.
+        processing_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
+            Method used to process the data.
+        **process_kwargs
+            Keyword arguments for the processing method.
         """
-        new_device = Device(name, type, rate, system_rate)
-        new_device.range = range
-        self.devices.append(new_device)
-        if type == "emg":
-            self.emg_client = pytrigno.TrignoEMG(
-                channel_range=new_device.range, samples_per_read=new_device.sample, host=self.address
-            )
-            self.emg_client.start()
-
-        elif new_device.type == "imu":
-            imu_range = (new_device.range[0] * 9, new_device.range[1] * 9)
-            self.imu_client = pytrigno.TrignoIM(
-                channel_range=imu_range, samples_per_read=new_device.sample, host=self.address
-            )
-            self.imu_client.start()
-
-        else:
+        if not device_range:
+            device_range = (0, nb_channels - 1)
+        device_tmp = self._add_device(
+            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
+        )
+        device_tmp.interface = self.interface_type
+        device_tmp.data_windows = data_buffer_size
+        self.devices.append(device_tmp)
+        if isinstance(device_type, str):
+            if device_type not in [t.value for t in DeviceType]:
+                raise ValueError("The type of the device is not valid.")
+            device_type = DeviceType(device_type)
+        if device_type != DeviceType.Emg and device_type != DeviceType.Imu:
             raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
+        if self.init_now:
+            self.init_client()
 
-    def get_device_data(self, device_name: str = "all", *args):
+    def get_device_data(self, device_name: str = "all", channel_idx: Union[int, list] = (), get_frame: bool = True):
         """
         Get data from the device.
         Parameters
         ----------
         device_name : str
             Name of the device.
-        *args
-            Additional argument.
-
+        channel_idx : Union[int, list]
+            Index of the channel.
+        get_frame : bool
+            Get data from device. If False, use the last data acquired.
         Returns
         -------
         data : list
             Data from the device.
         """
+        if not self.is_initialized:
+            raise RuntimeError("Client is not initialized. Please call init_client() first.")
         devices = []
+        device_data = []
         all_device_data = []
+        if channel_idx and not isinstance(channel_idx, list):
+            channel_idx = [channel_idx]
 
         if device_name and not isinstance(device_name, list):
             device_name = [device_name]
@@ -79,33 +108,56 @@ class PytrignoClient:
             devices = self.devices
 
         for device in devices:
-            if device.type == "emg":
-                device_data = self.emg_client.read()
-            elif device.type == "imu":
-                device_data = self.imu_client.read()
-            else:
-                raise RuntimeError(f"Device type ({device.type}) not supported with pytrigno.")
+            if get_frame:
+                if device.device_type == DeviceType.Emg:
+                    count = 0
+                    for device_tmp in devices:
+                        if device_tmp == device:
+                            break
+                        if device.device_type == DeviceType.Emg:
+                            count += 1
+                    device.new_data = self.emg_client[count].read()
+                else:
+                    count = 0
+                    for device_tmp in devices:
+                        if device_tmp == device:
+                            break
+                        if device.device_type == DeviceType.Imu:
+                            count += 1
+                    device.new_data = self.imu_client[count].read()
+            if channel_idx:
+                device_data = np.ndarray((len(channel_idx), device.new_data.shape[1]))
+                for i, idx in enumerate(channel_idx):
+                    device_data[i, :] = device.new_data[idx, :]
+            device_data = device_data if channel_idx else device.new_data
+            if get_frame:
+                device.append_data(device.new_data)
             all_device_data.append(device_data)
+            if len(all_device_data) == 1:
+                all_device_data = all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, marker_names: list = None, subject_name: str = None):
-        raise RuntimeError("It's not possible to get markers data from pytrigno.")
-
-    def get_force_plate_data(self):
-        raise RuntimeError("It's not possible to get force plate data from pytrigno.")
-
-    def add_markers(self, name: str = None, rate: float = 100, unlabeled: bool = False, subject_name: str = None):
-        raise RuntimeError("It's not possible to get markers data from pytrigno.")
-
-    @staticmethod
-    def init_client():
-        pass
-
-    @staticmethod
-    def get_latency():
-        return 0
-
-    @staticmethod
-    def get_frame():
+    def get_frame(self):
+        if not self.is_initialized:
+            raise RuntimeError("Client is not initialized. Please call init_client() first.")
+        self.get_device_data(get_frame=True)
         return True
 
+    def init_client(self):
+        self.is_initialized = True
+        for d, device in enumerate(self.devices):
+            if device.device_type == DeviceType.Emg:
+                self.emg_client.append(
+                    pytrigno.TrignoEMG(
+                        channel_range=device.device_range, samples_per_read=device.sample, host=self.address
+                    )
+                )
+                self.emg_client[-1].start()
+            elif device.device_type == DeviceType.Imu:
+                imu_range = (device.device_range[0] * 9, device.device_range[1] * 9)
+                self.imu_client.append(
+                    pytrigno.TrignoIM(channel_range=imu_range, samples_per_read=device.sample, host=self.address)
+                )
+                self.imu_client[-1].start()
+            else:
+                raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")

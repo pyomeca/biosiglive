@@ -1,10 +1,10 @@
 """
 This file is part of biosiglive. It contains a wrapper for the Vicon SDK for Python.
 """
-
-import numpy as np
 from .param import *
 from typing import Union
+from .generic_interface import GenericInterface
+from ..enums import InverseKinematicsMethods, InterfaceType
 
 try:
     from vicon_dssdk import ViconDataStream as VDS
@@ -12,269 +12,342 @@ except ModuleNotFoundError:
     pass
 
 
-class ViconClient:
+class ViconClient(GenericInterface):
     """
     Class for interfacing with the Vicon system.
     """
-    def __init__(self, ip: str = "127.0.0.1", port: int = 801, init_now=True):
+
+    def __init__(self, system_rate: int, ip: str = "127.0.0.1", port: int = 801, init_now=True):
         """
         Initialize the ViconClient class.
         Parameters
         ----------
+        system_rate: int
+            Streaming rate of the nexus software.
         ip: str
-            IP address of the Vicon system.
+            IP address of the nexus software.
         port: int
-            Port of the Vicon system.
+            Port of the nexus software.
         """
+        super(ViconClient, self).__init__(ip=ip, system_rate=system_rate, interface_type=InterfaceType.ViconClient)
         self.address = f"{ip}:{port}"
 
         self.vicon_client = None
         self.acquisition_rate = None
-
-        if init_now:
-            self.init_client()
-
+        self.system_rate = system_rate
         self.devices = []
         self.imu = []
-        self.markers = []
+        self.marker_sets = []
         self.is_frame = False
-        self.kalman = None
+        self.is_initialized = False
 
-    def init_client(self):
+        # Add possibility to initialize the client after, as swig objects are not pickable (multiprocessing).
+        if init_now:
+            self._init_client()
+
+    def _init_client(self):
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
         self.vicon_client = VDS.Client()
         self.vicon_client.Connect(self.address)
         print("Connected to Vicon.")
+        self.is_initialized = True
 
-        # Enable some different data types
+        # Enable several data types
         self.vicon_client.EnableSegmentData()
         self.vicon_client.EnableDeviceData()
         self.vicon_client.EnableMarkerData()
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
+        if self.system_rate != self.vicon_client.GetFrameRate():
+            raise ValueError(
+                f"Vicon system rate ({self.vicon_client.GetFrameRate()}) does not match the system rate "
+                f"({self.system_rate})."
+            )
 
-    def add_device(self, name: str, type: str = "emg", rate: float = 2000, system_rate: float = 100, range: tuple = (0, 16)):
+    def add_device(
+        self,
+        nb_channels: int,
+        device_type: Union[DeviceType, str] = DeviceType.Emg,
+        data_buffer_size: int = None,
+        name: str = None,
+        rate: float = 2000,
+        device_range: tuple = None,
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
+        **process_kwargs,
+    ):
         """
         Add a device to the Vicon system.
         Parameters
         ----------
+        nb_channels: int
+            Number of channels of the device.
+        data_buffer_size: int
+            Size of the buffer for the device.
         name: str
             Name of the device.
-        type: str
+        device_type: Union[DeviceType, str]
             Type of the device.
         rate: float
             Rate of the device.
-        system_rate : float
-            Rate of the system interface.
+        device_range: tuple
+            Range of the device.
+        processing_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
+            Method used to process the data.
+        **process_kwargs
+            Keyword arguments for the processing method.
         """
-        device_tmp = Device(name, type, rate, system_rate)
-        device_tmp.range = range
+        device_tmp = self._add_device(
+            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
+        )
+        device_tmp.interface = self.interface_type
         if self.vicon_client:
-            device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
-            # if system_rate != self.vicon_client.GetFrameRate():
-            #     raise RuntimeError(f"Frequency in Nexus ({self.vicon_client.GetFrameRate}) does not "
-            #                        f"match the device system rate ({system_rate})")
+            device_tmp.infos = self.vicon_client.GetDeviceOutputDetails(name)
         else:
-            device_tmp.info = None
-
+            device_tmp.infos = None
+        device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
 
-    def add_markers(self, name: str = None,
-                    rate: float = 100,
-                    unlabeled: bool = False,
-                    subject_name: str = None,
-                    ):
+    def add_marker_set(
+        self,
+        nb_markers: int,
+        name: str = None,
+        data_buffer_size: int = None,
+        marker_names: Union[str, list] = None,
+        rate: float = 100,
+        unlabeled: bool = False,
+        subject_name: str = None,
+        kinematics_method: InverseKinematicsMethods = None,
+        **kin_method_kwargs,
+    ):
         """
         Add markers set to stream from the Vicon system.
         Parameters
         ----------
+        nb_markers: int
+            Number of markers.
         name: str
             Name of the markers set.
+        data_buffer_size: int
+            Size of the buffer for the markers set.
+        marker_names: Union[list, str]
+            List of markers names.
         rate: int
             Rate of the markers set.
         unlabeled: bool
             Whether the markers set is unlabeled.
         subject_name: str
             Name of the subject. If None, the subject will be the first one in Nexus.
-        recons_kin: bool
-            Whether to reconstruct the joint kinematics.
+        kinematics_method: InverseKinematicsMethods
+            Method used to compute the kinematics.
+        **kin_method_kwargs
+            Keyword arguments for the kinematics method.
         """
-        markers_tmp = MarkerSet(name, rate, unlabeled)
+        if len(self.marker_sets) != 0:
+            raise ValueError("Only one marker set can be added for now.")
+
+        markers_tmp = self._add_marker_set(
+            nb_markers=nb_markers,
+            name=name,
+            marker_names=marker_names,
+            rate=rate,
+            unlabeled=unlabeled,
+            kinematics_method=kinematics_method,
+            **kin_method_kwargs,
+        )
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
-            markers_tmp.markers_names = self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not name else name
+            markers_tmp.marker_names = (
+                self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not marker_names else marker_names
+            )
+            markers_tmp.marker_names = [name[0] for name in markers_tmp.marker_names]
+            if markers_tmp.nb_channels != len(markers_tmp.marker_names):
+                raise RuntimeError("Nb of marker not the same than markers on vicon.")
         else:
             markers_tmp.subject_name = subject_name
-            markers_tmp.markers_names = name
-        self.markers.append(markers_tmp)
+            markers_tmp.marker_names = marker_names
+        markers_tmp.data_windows = data_buffer_size
+        self.marker_sets.append(markers_tmp)
 
     @staticmethod
-    def get_force_plate_data(vicon_client):
-        forceVectorData = []
-        forceplates = vicon_client.GetForcePlates()
-        for plate in forceplates:
-            forceVectorData = vicon_client.GetForceVector(plate)
-            momentVectorData = vicon_client.GetMomentVector(plate)
-            copData = vicon_client.GetCentreOfPressure(plate)
-            globalForceVectorData = vicon_client.GetGlobalForceVector(plate)
-            globalMomentVectorData = vicon_client.GetGlobalMomentVector(plate)
-            globalCopData = vicon_client.GetGlobalCentreOfPressure(plate)
+    def get_force_plate_data():
+        raise NotImplementedError("Force plate streaming is not implemented yet.")
 
-            try:
-                analogData = vicon_client.GetAnalogChannelVoltage(plate)
-            except VDS.DataStreamException as e:
-                print("Failed getting analog channel voltages")
-        return forceVectorData
-
-    def get_device_data(self, device_name: Union[str, list] = "all", channel_names: str = None, *args):
+    def get_device_data(
+        self, device_name: Union[str, list] = "all", channel_idx: Union[int, list] = (), get_frame: bool = True
+    ):
         """
         Get the device data from Vicon.
         Parameters
         ----------
         device_name: str or list
             Name of the device or list of devices names.
-        channel_names: str
-            Name of the channel.
+        channel_idx: Union[int, str]
+            Index of the channel to return.
+        get_frame: bool
+            Whether to get a new frame from the Vicon system.
 
         Returns
         -------
         device_data: list
             All asked device data.
         """
-        devices = []
+        if len(self.devices) == 0:
+            raise ValueError("No device has been added to the Vicon system.")
+        if not self.is_initialized:
+            raise RuntimeError("Vicon client is not initialized.")
+        if get_frame:
+            self.get_frame()
         all_device_data = []
         if not isinstance(device_name, list):
             device_name = [device_name]
-
-        if device_name != ["all"]:
-            for d, device in enumerate(self.devices):
-                if device.name == device_name[d]:
-                    devices.append(device)
-        else:
-            devices = self.devices
-
-        for device in devices:
-            if not device.infos:
-                device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
-
-            if channel_names:
-                device_data = np.zeros((len(channel_names), device.sample))
-            else:
-                device_data = np.zeros((len(device.infos), device.sample))
-
-            count = 0
-            device_chanel_names = []
-            for output_name, chanel_name, unit in device.infos:
-                data_tmp, _ = self.vicon_client.GetDeviceOutputValues(
-                    device.name, output_name, chanel_name
-                )
-                if channel_names:
-                    if chanel_name in channel_names:
-                        device_data[count, :] = data_tmp
-                        device_chanel_names.append(chanel_name)
-                else:
-                    device_data[count, :] = data_tmp
-                    device_chanel_names.append(chanel_name)
-                device.chanel_names = device_chanel_names
-                count += 1
-            all_device_data.append(device_data)
+        if channel_idx and not isinstance(channel_idx, list):
+            channel_idx = [channel_idx]
+        device_data = []
+        for d, device in enumerate(self.devices):
+            if device_name[0] == "all" or device.name in device_name:
+                device.new_data = np.zeros((device.nb_channels, device.sample))
+                count = 0
+                for output_name, channel_name, unit in device.infos:
+                    data_tmp, _ = self.vicon_client.GetDeviceOutputValues(device.name, output_name, channel_name)
+                    device.new_data[count, :] = data_tmp
+                    device.channel_names.append(channel_name)
+                    count += 1
+                    if count == device.nb_channels:
+                        break
+                if channel_idx:
+                    device_data = np.zeros((len(channel_idx), device.sample))
+                    for idx in range(device.nb_channels):
+                        if idx in channel_idx:
+                            device_data[channel_idx.index(idx), :] = device.new_data[idx, :]
+                device_data = device_data if channel_idx else device.new_data
+                device.append_data(device.new_data)
+                all_device_data.append(device_data)
+        if len(all_device_data) == 1:
+            return all_device_data[0]
         return all_device_data
 
-    def get_markers_data(self, marker_names: list = None, subject_name: str = None):
+    def get_marker_set_data(
+        self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = None, get_frame: bool = True
+    ):
         """
         Get the markers data from Vicon.
         Parameters
         ----------
-        marker_names: list
-            List of markers names.
-        subject_name: str
+        subject_name: Union[str, list]
             Name of the subject. If None, the subject will be the first one in Nexus.
+        marker_names: Union[str, list]
+            List of markers names.
+        get_frame: bool
+            Whether to get a new frame or not.
 
         Returns
         -------
         markers_data: list
             All asked markers data.
         """
-        markers_set = []
+        if len(self.marker_sets) == 0:
+            raise ValueError("No marker set has been added to the Vicon system.")
+        if not self.is_initialized:
+            raise RuntimeError("Vicon client is not initialized.")
+        if get_frame:
+            self.get_frame()
+        if subject_name and isinstance(subject_name, list):
+            subject_name = [subject_name]
+        if marker_names and isinstance(marker_names, list):
+            marker_names = [marker_names]
         occluded = []
         all_markers_data = []
         all_occluded_data = []
         if subject_name:
-            for s, marker_set in enumerate(self.markers):
-                if marker_set.subject_name == subject_name[s]:
-                    markers_set.append(marker_set)
-                    marker_names_tmp = self.vicon_client.GetMarkerNames(marker_set.subject_name)
-                    markers_set[-1].markers_names = []
-                    for i in range(len(marker_names_tmp)):
-                        markers_set[-1].markers_names.append(marker_names_tmp[i][0])
+            marker_sets = [None] * len(subject_name)
+            for s, marker_set in enumerate(self.marker_sets):
+                if marker_set.subject_name in subject_name:
+                    marker_sets[subject_name.index(marker_set.subject_name)] = marker_set
+            if marker_sets == [None]:
+                raise RuntimeError("No subject of this name.")
         else:
-            for i in range(len(self.markers)):
-                marker_names_tmp = self.vicon_client.GetMarkerNames(self.markers[i].subject_name)
-                self.markers[i].markers_names = []
-                for j in range(len(marker_names_tmp)):
-                    self.markers[i].markers_names.append(marker_names_tmp[j][0])
-            markers_set = self.markers
+            marker_sets = self.marker_sets
 
-        for markers in markers_set:
-            markers_data = np.zeros((3, len(markers.markers_names), markers.sample))
+        for markers in marker_sets:
+            markers.new_data = np.zeros((3, len(markers.marker_names), markers.sample))
             count = 0
-            for m, marker_name in enumerate(markers.markers_names):
+            for m, marker_name in enumerate(markers.marker_names):
                 markers_data_tmp, occluded_tmp = self.vicon_client.GetMarkerGlobalTranslation(
                     markers.subject_name, marker_name
                 )
-                if marker_names:
-                    if marker_name in marker_names:
-                        markers_data[:, count, :] = markers_data_tmp
-                        occluded.append(occluded_tmp)
-                else:
-                    markers_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis] * 0.001
-                    occluded.append(occluded_tmp)
-                count += 1
-            all_markers_data.append(markers_data)
+                markers.new_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis]
+                occluded.append(occluded_tmp)
+            if marker_names:
+                markers_data = np.zeros((3, len(marker_names), markers.sample))
+                for n, name in enumerate(markers.marker_names):
+                    if name in marker_names:
+                        markers_data[:, marker_names.index(name), :] = markers.new_data[:, n, :]
+                all_markers_data.append(markers_data)
+            else:
+                all_markers_data.append(markers.new_data)
+
+            markers.append_data(markers.new_data)
             all_occluded_data.append(occluded)
+        if len(all_markers_data) == 1:
+            return all_markers_data[0], all_occluded_data[0]
         return all_markers_data, all_occluded_data
 
+    def init_client(self):
+        if self.is_initialized:
+            raise RuntimeError("Vicon client is already initialized.")
+        else:
+            self._init_client()
+            for d, device in enumerate(self.devices):
+                if not device.infos:
+                    device.infos = self.vicon_client.GetDeviceOutputDetails(device.name)
+            for m, marker_set in enumerate(self.marker_sets):
+                if not marker_set.markers_names:
+                    marker_set.markers_names = self.vicon_client.GetMarkerNames(marker_set.subject_name)
+                if not marker_set.subject_name:
+                    marker_set.subject_name = self.vicon_client.GetSubjectNames()[0]
+
     def get_latency(self):
+        if not self.is_initialized:
+            raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetLatencyTotal()
 
-    def get_frame(self):
+    def get_frame(self, init=False):
+        if not self.is_initialized:
+            raise RuntimeError("Vicon client is not initialized.")
         self.is_frame = self.vicon_client.GetFrame()
         while self.is_frame is not True:
             self.is_frame = self.vicon_client.GetFrame()
+        return self.is_frame
 
     def get_frame_number(self):
+        if not self.is_initialized:
+            raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetFrameNumber()
 
-    def get_kinematics_from_markers(self, markers, model, method="kalman", return_qdot = False, custom_func = None, *args):
+    def get_kinematics_from_markers(
+        self,
+        marker_set_name: str,
+        model_path: str = None,
+        method: Union[InverseKinematicsMethods, str] = InverseKinematicsMethods.BiorbdLeastSquare,
+        custom_func: callable = None,
+        **kwargs,
+    ):
         """
         Get the kinematics from markers.
         Parameters
         ----------
-        markers: list
-            List of markers.
-        model: biorbd.Model
-            Model of the kinematics.
-        kalman_filter: KalmanFilter
-            Kalman filter.
-        show_now: bool
-         if True show the kinematics
+        marker_set_name: str
+            name of the markerset.
+        model_path: str
+            biorbd model of the kinematics.
+        method: str
+            Method to use to get the kinematics. Can be "kalman" or "custom".
+        custom_func: function
+            Custom function to get the kinematics.
         Returns
         -------
         kinematics: list
             List of kinematics.
         """
-        if method == 'kalman':
-            q, q_dot, self.kalman = kalman_func(markers, model, return_q_dot=True, kalman=self.kalman)
-            if return_qdot:
-                return q, q_dot
-            else:
-                return q
-        if method == 'custom':
-            q, q_dot = custom_func(markers, model, *args)
-            if return_qdot:
-                return q, q_dot
-            else:
-                return q
-        else:
-            raise RuntimeError(f'Method f{method} not implemented')
-
+        marker_set_idx = [i for i, m in enumerate(self.marker_sets) if m.name == marker_set_name][0]
+        return self.marker_sets[marker_set_idx].get_kinematics(model_path, method, custom_func=custom_func, **kwargs)

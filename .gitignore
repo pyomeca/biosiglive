@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# bio extensions
+*.bio
+
 # Distribution / packaging
 .idea
 .Python

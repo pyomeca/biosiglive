@@ -3,269 +3,258 @@ This file is part of biosiglive. It is used to plot the data in live or offline 
 """
 try:
     import pyqtgraph as pg
-    from pyqtgraph.Qt import QtGui
-    import pyqtgraph.widgets.RemoteGraphicsView as rgv
-    from PyQt5.QtWidgets import *
+    import pyqtgraph.opengl as gl
+    from PyQt5.QtWidgets import QProgressBar
 except ModuleNotFoundError:
     pass
 import numpy as np
 from typing import Union
 import matplotlib.pyplot as plt
 from math import ceil
+from ..enums import PlotType
+import time
 
 
-class Plot:
-    """
-    This class is used to plot the data offline.
-    """
-    def multi_plot(self, data: Union[list, np.ndarray], x: Union[list, np.ndarray] = None,
-                   nb_column: int = None, y_label: str = None, x_label: str = None,
-                   legend: Union[list, str] = None, subplot_title: Union[str, list] = None, figure_name: str = None):
-        """
-        This function is used to plot multiple data in one figure.
-        Parameters
-        ----------
-        data: list or np.ndarray
-            The data to plot.
-        x: list or np.ndarray
-            The x-axis data.
-        nb_column: int
-            The number of columns in the figure.
-        y_label: str
-            The y-axis label.
-        x_label: str
-            The x-axis label.
-        legend: list or str
-            The legend of the data.
-        subplot_title: str or list
-            The title of the subplot.
-        figure_name: str
-            The name of the figure.
-        """
-
-        if not isinstance(data, list):
-            data = [data]
-        nb_data = len(data)
-        plt.figure(figure_name)
-        size_police = 12
-        if nb_column:
-            col = nb_column
-        else:
-            col = data[0].shape[0] if data[0].shape[0] <= 4 else nb_column
-        line = ceil(data[0].shape[0] / col)
-        for i in range(data[0].shape[0]):
-            plt.subplot(line, col, i + 1)
-            if y_label and i % 4 == 0:
-                plt.ylabel(y_label, fontsize=size_police)
-            if x_label:
-                plt.xlabel(x_label, fontsize=size_police)
-            for j in range(nb_data):
-                x = x if x is not None else np.linspace(0, data[j].shape[1], data[j].shape[1])
-                plt.plot(x, data[j][i, :], label=legend[j])
-            plt.legend()
-            if subplot_title:
-                plt.title(subplot_title[i], fontsize=size_police)
-        # plt.tight_layout()
-        plt.show()
-
-# TODO : create a class for the plot object
-
-
+# TODO: Add plot class to be able to plot several curves in the same plot. And do several plot in the same app.
 class LivePlot:
-    """
-    This class is used to plot the data in live mode.
-    """
-    def __init__(self, multi_process: bool = False):
+    def __init__(
+        self,
+        nb_subplots: int = 1,
+        plot_type: Union[PlotType, str] = PlotType.Curve,
+        name: str = None,
+        channel_names: list = None,
+        rate: int = None,
+    ):
         """
-        This function is used to initialize the LivePlot class.
+        Initialize the plot class.
+
         Parameters
         ----------
-        multi_process: bool
-            If True, the plot is done in a separate process.
+        plot_type : Union[PlotType, str]
+            type of the plot (curve, spectrogram, ...)
+        name : str
+            name of the plot
+        channel_names : list
+            list of the channel names
+        nb_subplots : int
+            number of subplots
         """
-        self.multi_process = multi_process
-        self.check_box = True
-        self.plot = []
-        self.resize = (800, 800)
+        if isinstance(plot_type, str):
+            if plot_type not in [t.value for t in PlotType]:
+                raise ValueError("Plot type not recognized")
+            plot_type = PlotType(plot_type)
+        self.plot_type = plot_type
+
+        if nb_subplots and channel_names:
+            if len(channel_names) != nb_subplots:
+                raise ValueError("The number of subplots is not equal to the number of channel names")
+
+        self.channel_names = channel_names
+        self.figure_name = name
+        self.nb_subplot = nb_subplots
+        self.rate = rate
+        self.layout = None
+        self.app = None
+        self.viz = None
+        self.resize = (400, 400)
         self.move = (0, 0)
-        self.progress_bar_max = 1000
-        self.type = "curve"
+        self.plot_windows = None
+        self.plot_buffer = None
         self.msk_model = None
+        self.last_plot = None
+        self.once_update = False
+        self.plots = []
+        self.curves = []
+        self.ptr = []
+        self.unit = ""
+        self.size_to_append = []
 
-    def add_new_plot(self, plot_name: str = "qt_app",
-                     plot_type="curve",
-                     channel_names: Union[str, list] = None,
-                     nb_subplot: int = None,
-                     unit: str = ""):
-        """
-        This function is used to add a new plot.
-        Parameters
-        ----------
-        plot_name: str
-            The name of the plot.
-        plot_type: str
-            The type of the plot.
-        channel_names: str or list
-            The name of the channels.
-        """
-        if not nb_subplot and not channel_names and plot_type != "skeleton":
-            raise RuntimeError("you must defined a number of subplot or a list of a chanel names")
-
-        if nb_subplot and channel_names:
-            if nb_subplot != len(channel_names):
-                raise RuntimeError(f"You have defined a number of subplot ({nb_subplot} different"
-                                   f" than the length of the chanel names {len(channel_names)}.")
-
-        plot = LivePlot()
-        plot.type = plot_type
-        plot.channel_names = channel_names
-        plot.figure_name = plot_name
-        plot.nb_subplot = nb_subplot
-        plot.unit = unit
-        self.plot.append(plot)
-
-    def init_plot_window(self, plot, use_checkbox: bool = True, remote: bool = True):
+    def init(
+        self,
+        plot_windows: Union[int, list] = None,
+        **kwargs,
+    ):
         """
         This function is used to initialize the qt app.
         Parameters
         ----------
-        plot: method
-            The plot to initialize.
-        use_checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: Plot
-            The plot.
-        layout: QVBoxLayout
-            The layout of the qt app.
-        box: QCheckBox
-            The checkbox.
+        plot_windows: Union[int, list]
+            The number of frames ti plot. If is a list, the number of frames to plot for each subplot.
+        **kwargs:
+            The arguments of the bioviz plot.
         """
-        if plot.type == "curve":
-            rplt, layout, app, box = self._init_curve(plot.figure_name,
-                                                      plot.channel_names,
-                                                      plot.nb_subplot,
-                                                      checkbox=use_checkbox,
-                                                      remote=remote)
-            return rplt, layout, app, box
-        elif plot.type == "progress_bar":
-            rplt, layout, app = self._init_progress_bar(plot.figure_name,
-                                                        plot.nb_subplot,
-                                                        )
-            return rplt, layout, app
+        self.plot_buffer = [None] * self.nb_subplot
+        if isinstance(plot_windows, int):
+            plot_windows = [plot_windows] * self.nb_subplot
+        self.plot_windows = plot_windows
+        if self.plot_type == PlotType.Curve:
+            self._init_curve(self.figure_name, self.channel_names, self.nb_subplot, **kwargs)
+        elif self.plot_type == PlotType.ProgressBar:
+            self._init_progress_bar(self.figure_name, self.nb_subplot, **kwargs)
+        elif self.plot_type == PlotType.Scatter3D:
+            if self.nb_subplot != 1:
+                raise ValueError("The number of subplots should be 1 for 3DScatter plot.")
+            self._init_3d_scatter(self.figure_name, **kwargs)
 
-        if plot.type == "skeleton":
-            plot.viz = self._init_skeleton(self.msk_model)
+        elif self.plot_type == PlotType.Skeleton:
+            self.viz = self._init_skeleton(**kwargs)
 
         else:
-            raise ValueError(f"The plot type ({plot.type}) is not supported.")
+            raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
 
-    def update_plot_window(self, plot, data: np.ndarray, app=None, rplt=None, box=None):
+    def update(self, data: Union[np.ndarray, list], **kwargs):
         """
         This function is used to update the qt app.
         Parameters
         ----------
-        plot: method
-            The plot to update.
-        data: np.ndarray
-            The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: method
-            qt rplt.
-        box: QCheckBox
-            The checkbox.
+        data: Union[np.ndarray, list]
+            The data to plot. if list, the data to plot for each subplot.
         """
+        update = True
+        if self.plot_type != PlotType.Scatter3D and self.plot_type != PlotType.Skeleton:
+            if isinstance(data, list):
+                if len(data) != self.nb_subplot:
+                    raise ValueError("The number of subplots is not equal to the number of data.")
+                for d in data:
+                    if isinstance(d, np.ndarray):
+                        if len(d.shape) != 2:
+                            raise ValueError("The data should be a 2D array.")
+                    else:
+                        raise ValueError("The data should be a 2D array.")
+            if isinstance(data, np.ndarray):
+                data_mat = data
+                data = []
+                if data_mat.shape[0] != self.nb_subplot:
+                    raise ValueError("The number of subplots is not equal to the number of data.")
+                for d in data_mat:
+                    data.append(d[np.newaxis, :])
 
-        if plot.type == "progress_bar":
-            self._update_progress_bar(data, app, rplt, plot.channel_names, plot.unit)
-        elif plot.type == "curve":
-            self._update_curve(data, app, rplt, box)
-        elif plot.type == "skeleton":
-            self._update_skeleton(data, plot.viz)
-        else:
-            raise ValueError(f"The plot type ({plot.type}) is not supported.")
-
-    def _init_curve(self, figure_name: str = "Figure",
-                    subplot_label: Union[list, str] = None,
-                    nb_subplot: int = None,
-                    checkbox: bool = True,
-                    remote: bool = True):
-        """
-        This function is used to initialize the curve plot.
-        Parameters
-        ----------
-        figure_name: str
-            The name of the figure.
-        subplot_label: str or list
-            The label of the subplot.
-        nb_subplot: int
-            The number of subplot.
-        checkbox: bool
-            If True, the checkbox is used.
-        remote: bool
-            If True, the plot is done in a separate process.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: method
-            The plot.
-        layout:
-            The layout of the qt app.
-        box: QCheckBox
-            The checkbox.
-        """
-        # TODO add remote statement
-        # --- Curve graph --- #
-        resize = self.resize
-        move = self.move
-        layout, app = LivePlot._init_layout(figure_name, resize, move)
-        remote = []
-        label = QtGui.QLabel()
-        box = []
-        rplt = []
-        row_count = 0
-        col_span = 4 if nb_subplot > 8 else 8
-
-        if not isinstance(subplot_label, list):
-            subplot_label = [subplot_label]
-        if isinstance(subplot_label, list) and len(subplot_label) != nb_subplot:
-            raise ValueError("The length of the subplot_label list must be equal to the number of subplot")
-
-        for plot in range(nb_subplot):
-            remote.append(rgv.RemoteGraphicsView())
-            remote[plot].pg.setConfigOptions(antialias=True)
-            app.aboutToQuit.connect(remote[plot].close)
-            if checkbox:
-                if subplot_label:
-                    box.append(QtGui.QCheckBox(subplot_label[plot]))
-                else:
-                    box.append(QtGui.QCheckBox(f"plot_{plot}"))
-            if plot >= 8:
-                if checkbox:
-                    layout.addWidget(box[plot], row=1, col=plot - 8)
-                layout.addWidget(remote[plot], row=plot - 8 + 2, col=4, colspan=col_span)
+        if self.plot_windows:
+            for i in range(self.nb_subplot):
+                if self.plot_buffer[i] is None:
+                    self.plot_buffer[i] = data[i][..., -self.plot_windows[i] :]
+                    if self.plot_buffer[i].shape[1] < self.plot_windows[i]:
+                        size = self.plot_windows[i] - self.plot_buffer[i].shape[1]
+                        self.plot_buffer[i] = np.append(
+                            np.zeros((self.plot_buffer[i].shape[0], size)), self.plot_buffer[i], axis=-1
+                        )
+                elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=-1)
+                elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
+                    size = data[i].shape[1]
+                    self.plot_buffer[i] = np.append(self.plot_buffer[i][..., size:], data[i], axis=-1)
+            data = self.plot_buffer
+        if self.rate and self.once_update:
+            plot_time = time.time() - self.last_plot
+            if plot_time != 0 and 1 / plot_time > self.rate:
+                update = False
             else:
-                if checkbox:
-                    layout.addWidget(box[plot], row=0, col=plot)
-                layout.addWidget(remote[plot], row=plot + 2, col=0, colspan=col_span)
-            rplt.append(remote[plot].pg.PlotItem())
-            rplt[plot]._setProxyOptions(deferGetattr=True)  ## speeds up access to rplt.plot
-            remote[plot].setCentralItem(rplt[plot])
-            layout.addWidget(label)
-            layout.show()
-            row_count += 1
-        return rplt, layout, app, box
+                update = True
+        if update:
+            self.once_update = True
+            if self.plot_type == PlotType.ProgressBar:
+                self._update_progress_bar(data)
+            elif self.plot_type == PlotType.Curve:
+                self._update_curve(data)
+            elif self.plot_type == PlotType.Skeleton:
+                self._update_skeleton(data, self.viz)
+            elif self.plot_type == PlotType.Scatter3D:
+                self._update_3d_scatter(data, **kwargs)
+            else:
+                raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+            self.last_plot = time.time()
 
-    def _init_progress_bar(self, figure_name: str = "Figure", nb_subplot: int = None):
+    def _init_curve(
+        self,
+        figure_name: str = "Figure",
+        subplot_labels: Union[list, str] = None,
+        nb_subplot: int = None,
+        x_labels: Union[list, str] = None,
+        y_labels: Union[list, str] = None,
+        grid: bool = True,
+        colors: Union[list, tuple] = None,
+    ):
+        """
+        This function is used to initialize the curve plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        subplot_labels: Union[list, str]
+            The labels of the subplots.
+        nb_subplot: int
+            The number of subplot.
+        x_labels: Union[list, str]
+            The labels of the x axis.
+        y_labels: Union[list, str]
+            The labels of the y axis.
+        grid: bool
+            If True, the grid is displayed.
+        """
+        # --- Curve graph --- #
+        self.app = pg.mkQApp("Curve_plot")
+        pg.setConfigOption("background", "w")
+        pg.setConfigOption("foreground", "k")
+        self.win = pg.GraphicsLayoutWidget(show=True)
+        self.win.setWindowTitle(figure_name)
+        nb_line = 4
+        nb_col = ceil(nb_subplot / nb_line)
+        line_count = 0
+        self.win.resize(self.resize[0], self.resize[1])
+        self.win.move(self.move[0], self.move[1])
+        if colors:
+            if isinstance(colors, tuple):
+                colors = [colors] * nb_subplot
+            elif isinstance(colors, list):
+                if len(colors) != nb_subplot:
+                    raise ValueError("The number of colors is not equal to the number of subplots.")
+        else:
+            colors = [(0, 128, 232)] * nb_subplot  # Blue
+        if not x_labels:
+            x_labels = ["Frames"] * nb_subplot
+        else:
+            if isinstance(x_labels, str):
+                x_labels = [x_labels] * nb_subplot
+            elif isinstance(x_labels, list):
+                if len(x_labels) != nb_subplot:
+                    raise ValueError("The number of x labels is not equal to the number of subplots.")
+
+        if not y_labels:
+            y_labels = ["Amplitude"] * nb_subplot
+        else:
+            if isinstance(y_labels, str):
+                y_labels = [y_labels] * nb_subplot
+            elif isinstance(y_labels, list):
+                if len(y_labels) != nb_subplot:
+                    raise ValueError("The number of y labels is not equal to the number of subplots.")
+        if not subplot_labels:
+            subplot_labels = [f"Subplot {i}" for i in range(nb_subplot)]
+        else:
+            if isinstance(subplot_labels, list):
+                if len(subplot_labels) != nb_subplot:
+                    raise ValueError("The number of subplot labels is not equal to the number of subplots.")
+        for subplot in range(nb_subplot):
+            self.ptr.append(0)
+            self.size_to_append.append(0)
+            if line_count == nb_col:
+                self.win.nextRow()
+                line_count = 0
+            self.plots.append(self.win.addPlot(title=subplot_labels[subplot]))
+            self.plots[-1].setDownsampling(mode="peak")
+            self.plots[-1].setClipToView(False)
+            self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
+            self.plots[-1].setLabel("bottom", x_labels[subplot])
+            self.plots[-1].setLabel("left", y_labels[subplot])
+            self.plots[-1].showGrid(x=grid, y=grid)
+            line_count += 1
+
+    def _init_progress_bar(
+        self,
+        figure_name: str = "Figure",
+        nb_subplot: int = None,
+        bar_graph_max_value: Union[int, list] = 100,
+        unit: Union[str, list] = "",
+    ):
         """
         This function is used to initialize the curve plot.
         Parameters
@@ -274,134 +263,160 @@ class LivePlot:
             The name of the figure.
         nb_subplot: int
             The number of subplot.
-
-        Returns
-        -------
-        app: QApplication
-            The qt app.
-        rplt: Plot
-            The plot.
-        layout: pg.LayoutWidget
-            The layout of the qt app.
+        bar_graph_max_value: int or list
+            The maximum value of the bar graph.
+        unit: str or list
+            The unit of the bar graph.
         """
         # --- Progress bar graph --- #
-        layout, app = LivePlot._init_layout(figure_name, resize=self.resize, move=self.move)
-        rplt = []
+        if isinstance(unit, str):
+            self.unit = [unit] * nb_subplot
+        self.layout, self.app = self._init_layout(figure_name, resize=self.resize, move=self.move)
         row_count = 0
+        if bar_graph_max_value is None:
+            bar_graph_max_value = [100] * nb_subplot
+        if isinstance(bar_graph_max_value, int):
+            bar_graph_max_value = [bar_graph_max_value] * nb_subplot
         for plot in range(nb_subplot):
-            rplt.append(QProgressBar())
-            rplt[plot].setMaximum(self.progress_bar_max)
-            layout.addWidget(rplt[plot], row=plot, col=0)
-            layout.show()
+            self.plots.append(QProgressBar())
+            self.plots[-1].setMaximum(bar_graph_max_value[plot])
+            self.layout.addWidget(self.plots[-1], row=plot, col=0)
+            self.layout.show()
             row_count += 1
 
-        return rplt, layout, app
+    def _init_3d_scatter(
+        self,
+        figure_name: str = "Figure",
+        colors: Union[list, tuple] = (1.0, 0.0, 0.0, 0.5),
+        size: Union[int, list] = 0.03,
+    ):
+        """
+        This function is used to initialize the 3d scatter plot.
+        Parameters
+        ----------
+        figure_name: str
+            The name of the figure.
+        colors: Union[list, tuple]
+            The color of the scatter.
+        """
+        # --- 3D scatter graph --- #
+        self.app = pg.mkQApp("3D_scatter_plot")
+        w = gl.GLViewWidget()
+        w.opts["bgcolor"] = (0.2, 0.2, 0.2, 10)
+        w.opts["distance"] = 8
+        w.show()
+        w.setWindowTitle(figure_name)
+        g = gl.GLGridItem()
+        # g.setColor((1, 1, 1, 100))
+        w.addItem(g)
+        pos = np.zeros((1, 3))
+        self.plots.append(gl.GLScatterPlotItem(pos=pos, color=colors, size=size, pxMode=False))
+        w.addItem(self.plots[-1])
 
-    @staticmethod
-    def _update_curve(data: np.ndarray, app, rplt: list, box: list):
+    def _update_3d_scatter(
+        self,
+        data: Union[np.ndarray, list],
+        colors: Union[list, tuple] = (0, 1.0, 0.0, 50),
+        size: Union[list, float] = 0.03,
+    ):
+        """
+        This function is used to update the 3d scatter plot.
+        Parameters
+        ----------
+        data: np.ndarray
+            The data to plot. (N, 3)
+        colors: Union[list, tuple]
+            The color of the scatter.
+        size: float
+            The size of the scatter.
+        """
+        if isinstance(data, np.ndarray):
+            if len(data.shape) != 2:
+                raise ValueError("The data must be a 2D array.")
+            if data.shape[1] != 3:
+                raise ValueError("The data must be a (N, 3) array.")
+        if isinstance(colors, list):
+            if len(colors) != len(data):
+                raise ValueError("The number of colors is not equal to the number of data.")
+        if isinstance(size, list):
+            if len(size) != len(data):
+                raise ValueError("The number of size is not equal to the number of data.")
+        for plot in self.plots:
+            plot.setData(pos=data, color=colors, size=size)
+        self.app.processEvents()
+
+    def _update_curve(self, data: list):
         """
         This function is used to update the curve plot.
         Parameters
         ----------
-        data: np.ndarray
+        data: list
             The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
+        """
+        if len(data) != len(self.curves):
+            raise ValueError(
+                f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)})."
+            )
+        for i in range(len(data)):
+            if self.ptr[i] == 0:
+                self.size_to_append[i] = data[i].shape[1]
+            self.ptr[i] += self.size_to_append[i] * 2
+            self.curves[i].setData(data[i][0, :])
+            # self.curves[i].setPos(self.ptr[i], 0)
+        self.app.processEvents()
+
+    def _update_progress_bar(self, data: list):
+        """
+        This function is used to update the progress bar plot.
+        Parameters
+        ----------
+        data: list
+            The data to plot.
+        """
+
+        if self.channel_names and len(self.channel_names) != len(data):
+            raise RuntimeError(
+                f"The length of Subplot labels ({len(self.channel_names)}) is different than"
+                f" the first dimension of your data ({len(data)})."
+            )
+
+        for i in range(len(data)):
+            value = np.mean(data[i][0, :])
+            self.plots[i].setValue(int(value))
+            name = self.channel_names[i] if self.channel_names else f"plot_{i}"
+            self.plots[i].setFormat(f"{name}: {int(value)} {self.unit[i]}")
+        self.app.processEvents()
+
+    @staticmethod
+    def _update_skeleton(data: list, viz):
+        """
+        This function is used to update the skeleton plot.
+        Parameters
+        ----------
+        data  : list
+            The data to plot. list of length degree of freedom.
+        viz: Viz3D
             The plot.
-        box: QCheckBox
-            The checkbox.
 
         Returns
         -------
 
         """
-        for i in range(data.shape[0]):
-            if len(box) != 0:
-                if box[i].isChecked() is True:
-                    if len(data.shape) == 2:
-                        rplt[i].plot(data[i, :], clear=True, _callSync='off')
-                    else:
-                        raise ValueError("The data must be a 2D array.")
-            else:
-                if len(data.shape) == 2:
-                    rplt[i].plot(data[i, :], clear=True, _callSync='off')
-                else:
-                    raise ValueError("The data must be a 2D array.")
-        app.processEvents()
+        viz.set_q(data[:, -1], refresh_window=True)
 
     @staticmethod
-    def _update_progress_bar(data: np.ndarray, app, rplt: list, subplot_label: list, unit: str = ""):
-        """
-        This function is used to update the progress bar plot.
-        Parameters
-        ----------
-        data: np.ndarray
-            The data to plot.
-        app: QApplication
-            The qt app.
-        rplt: list
-            The plot.
-        subplot_label: list
-            The subplot label.
-        unit: str
-            The unit of the data to plot.
-        """
-
-        if subplot_label and len(subplot_label) != data.shape[0]:
-            raise RuntimeError(f"The length of Subplot labels ({len(subplot_label)}) is different than"
-                               f" the first dimension of your data ({data.shape[0]}).")
-
-        for i in range(data.shape[0]):
-            value = np.mean(data[i, :])
-            rplt[i].setValue(int(value))
-            name = subplot_label[i] if subplot_label else f"plot_{i}"
-            rplt[i].setFormat(f"{name}: {int(value)} {unit}")
-        app.processEvents()
-
-    @staticmethod
-    def _update_skeleton(data: np.ndarray, viz):
-        viz.set_q(data, refresh_window=True)
-
-    def _init_skeleton(self, model_path: str):
-        import bioviz
-        if not self.skeleton_plot_initialized:
-            self.set_skeleton_plot_options()
-        plot = bioviz.Viz(
-            model_path=model_path,
-            show_global_center_of_mass=self.show_global_center_of_mass,
-            show_markers=self.show_markers,
-            show_floor=self.show_floor,
-            show_gravity_vector=self.show_gravity_vector,
-            show_muscles=self.show_muscles,
-            show_segments_center_of_mass=self.show_segments_center_of_mass,
-            show_local_ref_frame=self.show_local_ref_frame,
-            show_global_ref_frame=self.show_global_ref_frame,
-        )
+    def _init_skeleton(**kwargs):
+        try:
+            import bioviz
+        except ImportError:
+            raise ImportError("Please install bioviz (github.com/pyomeca/bioviz) to use the skeleton plot.")
+        if not "model_path" in kwargs or "model" in kwargs:
+            raise ValueError(
+                "You must provide a model_path or a model to use the skeleton plot through"
+                " the keyword arguments 'model_path' or 'model' respectively."
+            )
+        plot = bioviz.Viz(**kwargs)
         return plot
-
-    def set_skeleton_plot_options(self,
-                                  show_global_center_of_mass=False,
-                                  show_markers=True,
-                                  show_floor=False,
-                                  show_gravity_vector=False,
-                                  show_muscles=False,
-                                  show_segments_center_of_mass=False,
-                                  show_local_ref_frame=False,
-                                  show_global_ref_frame=False
-                                  ):
-
-        self.show_global_center_of_mass = show_global_center_of_mass
-        self.show_markers = show_markers
-        self.show_floor = show_floor
-        self.show_gravity_vector = show_gravity_vector
-        self.show_muscles = show_muscles
-        self.show_segments_center_of_mass = show_segments_center_of_mass
-        self.show_local_ref_frame = show_local_ref_frame
-        self.show_global_ref_frame = show_global_ref_frame
-        self.skeleton_plot_initialized = True
-
-
 
     @staticmethod
     def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
@@ -429,3 +444,84 @@ class LivePlot:
         layout.resize(resize[0], resize[1])
         layout.move(move[0], move[1])
         return layout, app
+
+    def disconnect(self):
+        self.app.disconnect()
+        try:
+            self.app.closeAllWindows()
+        except RuntimeError:
+            pass
+
+
+class OfflinePlot:
+    """
+    This class is used to plot data offline.
+    """
+
+    @staticmethod
+    def multi_plot(
+        data: Union[list, np.ndarray],
+        x: Union[list, np.ndarray] = None,
+        nb_column: int = None,
+        y_label: str = None,
+        x_label: str = None,
+        legend: Union[list, str] = None,
+        subplot_title: Union[str, list] = None,
+        figure_name: str = None,
+    ):
+        """
+        This function is used to plot multiple data in one figure.
+        Parameters
+        ----------
+        data: list or np.ndarray
+            The data to plot.
+        x: list or np.ndarray
+            The x-axis data.
+        nb_column: int
+            The number of columns in the figure.
+        y_label: str
+            The y-axis label.
+        x_label: str
+            The x-axis label.
+        legend: list or str
+            The legend of the data.
+        subplot_title: str or list
+            The title of the subplot.
+        figure_name: str
+            The name of the figure.
+        **kwargs
+            plot arguments
+        """
+
+        if not isinstance(data, list):
+            data = [data]
+        nb_data = len(data)
+        plt.figure(figure_name)
+        size_police = 12
+        if nb_column:
+            col = nb_column
+        else:
+            col = data[0].shape[0] if data[0].shape[0] <= 4 else 4
+        line = ceil(data[0].shape[0] / col)
+        if isinstance(legend, str):
+            legend = [legend]
+        for i in range(data[0].shape[0]):
+            plt.subplot(line, col, i + 1)
+            if y_label and i % 4 == 0:
+                plt.ylabel(y_label, fontsize=size_police)
+            if x_label:
+                plt.xlabel(x_label, fontsize=size_police)
+            for j in range(nb_data):
+                if legend:
+                    legend_tmp = legend[j]
+                else:
+                    legend_tmp = None
+                if x is not None:
+                    plt.plot(x, data[j][i, :], label=legend_tmp)
+                else:
+                    plt.plot(data[j][i, :], label=legend_tmp)
+
+            plt.legend()
+            if subplot_title:
+                plt.title(subplot_title[i], fontsize=size_police)
+        plt.show()
