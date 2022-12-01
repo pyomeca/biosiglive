@@ -11,6 +11,7 @@ from .file_io.save_and_load import load, save
 
 from .processing.data_processing import RealTimeProcessing, OfflineProcessing, GenericProcessing
 from .processing.msk_functions import MskFunctions
+from .processing.compute_mvc import ComputeMvc
 
 from .streaming.client import Client, Message
 from .streaming.server import Server

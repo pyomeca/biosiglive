@@ -444,6 +444,12 @@ class LivePlot:
         layout.move(move[0], move[1])
         return layout, app
 
+    def disconnect(self):
+        self.app.disconnect()
+        try:
+            self.app.closeAllWindows()
+        except RuntimeError:
+            pass
 
 class OfflinePlot:
     """

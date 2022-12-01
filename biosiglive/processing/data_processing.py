@@ -577,7 +577,7 @@ class RealTimeProcessing(GenericProcessing):
 
 
 class OfflineProcessing(GenericProcessing):
-    def __init__(self, data_rate: float, processing_window: int):
+    def __init__(self, data_rate: float= None, processing_window: int=None):
         """
         Offline processing.
         """
