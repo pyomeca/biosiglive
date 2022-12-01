@@ -1,8 +1,6 @@
 """
 This file is part of biosiglive. It contains a wrapper to use a tcp client more easily.
 """
-
-import numpy as np
 from ..streaming.client import Client, Message
 from .generic_interface import GenericInterface
 from ..enums import (

@@ -8,12 +8,6 @@ from ..processing.msk_functions import MskFunctions
 from typing import Union
 import numpy as np
 
-# try:
-#     # import biorbd
-# except ModuleNotFoundError:
-#     pass
-# import numpy as np
-
 
 class Param:
     def __init__(

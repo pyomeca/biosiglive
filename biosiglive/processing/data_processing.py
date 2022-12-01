@@ -4,7 +4,6 @@ This file is part of biosiglive. it contains the functions for data processing (
 
 from scipy.signal import butter, lfilter, filtfilt, convolve
 import numpy as np
-import scipy.io as sio
 import os
 import time
 from typing import Union

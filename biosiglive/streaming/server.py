@@ -2,7 +2,6 @@
 This is part of the biosiglive project. It contains the connection class.
 """
 import socket
-import json
 import numpy as np
 import struct
 

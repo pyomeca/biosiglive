@@ -148,7 +148,9 @@ class PytrignoClient(GenericInterface):
         for d, device in enumerate(self.devices):
             if device.device_type == DeviceType.Emg:
                 self.emg_client.append(
-                    pytrigno.TrignoEMG(channel_range=device.device_range, samples_per_read=device.sample, host=self.address)
+                    pytrigno.TrignoEMG(
+                        channel_range=device.device_range, samples_per_read=device.sample, host=self.address
+                    )
                 )
                 self.emg_client[-1].start()
             elif device.device_type == DeviceType.Imu:

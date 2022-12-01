@@ -1,8 +1,6 @@
 """
 This file is part of biosiglive. It contains a wrapper for the Vicon SDK for Python.
 """
-
-import numpy as np
 from .param import *
 from typing import Union
 from ..enums import DeviceType, InverseKinematicsMethods, InterfaceType

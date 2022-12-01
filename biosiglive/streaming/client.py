@@ -2,7 +2,6 @@
 This file is part of biosiglive. It allows connecting to a biosiglive server and to receive data from it.
 """
 import socket
-import json
 import struct
 from typing import Union
 import pickle
