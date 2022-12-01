@@ -79,6 +79,8 @@ class Device(Param):
         if channel_names:
             if nb_channels != len(channel_names):
                 raise ValueError("The number of channels is not equal to the number of channel names.")
+        else:
+            channel_names = []
         self.device_range = None
         self.infos = None
         self.channel_names = channel_names

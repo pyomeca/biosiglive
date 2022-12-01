@@ -145,7 +145,8 @@ class LivePlot:
                     self.plot_buffer[i] = np.append(self.plot_buffer[i][..., size:], data[i], axis=-1)
             data = self.plot_buffer
         if self.rate and self.once_update:
-            if 1 / (time.time() - self.last_plot) > self.rate:
+            plot_time = time.time() - self.last_plot
+            if plot_time != 0 and 1 / plot_time > self.rate:
                 update = False
             else:
                 update = True

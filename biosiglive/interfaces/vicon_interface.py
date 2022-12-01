@@ -38,16 +38,15 @@ class ViconClient(GenericInterface):
         self.vicon_client = None
         self.acquisition_rate = None
         self.system_rate = system_rate
-
-        # Add possibility to initialize the client after, as swig objects are not pickable (multiprocessing).
-        if init_now:
-            self._init_client()
-
         self.devices = []
         self.imu = []
         self.marker_sets = []
         self.is_frame = False
         self.is_initialized = False
+
+        # Add possibility to initialize the client after, as swig objects are not pickable (multiprocessing).
+        if init_now:
+            self._init_client()
 
     def _init_client(self):
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
@@ -95,7 +94,7 @@ class ViconClient(GenericInterface):
             Rate of the device.
         device_range: tuple
             Range of the device.
-        process_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
+        processing_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
             Method used to process the data.
         **process_kwargs
             Keyword arguments for the processing method.
@@ -105,9 +104,9 @@ class ViconClient(GenericInterface):
         )
         device_tmp.interface = self.interface_type
         if self.vicon_client:
-            device_tmp.info = self.vicon_client.GetDeviceOutputDetails(name)
+            device_tmp.infos = self.vicon_client.GetDeviceOutputDetails(name)
         else:
-            device_tmp.info = None
+            device_tmp.infos = None
         device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
 
@@ -160,12 +159,15 @@ class ViconClient(GenericInterface):
         )
         if self.vicon_client:
             markers_tmp.subject_name = subject_name if subject_name else self.vicon_client.GetSubjectNames()[0]
-            markers_tmp.markers_names = (
+            markers_tmp.marker_names = (
                 self.vicon_client.GetMarkerNames(markers_tmp.subject_name) if not marker_names else marker_names
             )
+            markers_tmp.marker_names = [name[0] for name in markers_tmp.marker_names]
+            if markers_tmp.nb_channels != len(markers_tmp.marker_names):
+                raise RuntimeError("Nb of marker not the same than markers on vicon.")
         else:
             markers_tmp.subject_name = subject_name
-            markers_tmp.markers_names = marker_names
+            markers_tmp.marker_names = marker_names
         markers_tmp.data_windows = data_buffer_size
         self.marker_sets.append(markers_tmp)
 
@@ -201,23 +203,25 @@ class ViconClient(GenericInterface):
         all_device_data = []
         if not isinstance(device_name, list):
             device_name = [device_name]
-
-        if not isinstance(channel_idx, list):
+        if channel_idx and not isinstance(channel_idx, list):
             channel_idx = [channel_idx]
-
+        device_data = []
         for d, device in enumerate(self.devices):
             if device_name[0] == "all" or device.name in device_name:
                 device.new_data = np.zeros((device.nb_channels, device.sample))
-                device_data = np.zeros((len(channel_idx), device.sample))
                 count = 0
-                for output_name, chanel_name, unit in device.infos:
-                    data_tmp, _ = self.vicon_client.GetDeviceOutputValues(device.name, output_name, chanel_name)
+                for output_name, channel_name, unit in device.infos:
+                    data_tmp, _ = self.vicon_client.GetDeviceOutputValues(device.name, output_name, channel_name)
                     device.new_data[count, :] = data_tmp
-                    device.chanel_names.append(chanel_name)
+                    device.channel_names.append(channel_name)
                     count += 1
-                for idx in range(device.nb_channels):
-                    if idx in channel_idx:
-                        device_data[channel_idx.index(idx), :] = device.new_data[idx, :]
+                    if count == device.nb_channels:
+                        break
+                if channel_idx:
+                    device_data = np.zeros((len(channel_idx), device.sample))
+                    for idx in range(device.nb_channels):
+                        if idx in channel_idx:
+                            device_data[channel_idx.index(idx), :] = device.new_data[idx, :]
                 device_data = device_data if channel_idx else device.new_data
                 device.append_data(device.new_data)
                 all_device_data.append(device_data)
@@ -226,7 +230,7 @@ class ViconClient(GenericInterface):
         return all_device_data
 
     def get_marker_set_data(
-        self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = (), get_frame: bool = True
+        self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = None, get_frame: bool = True
     ):
         """
         Get the markers data from Vicon.
@@ -250,9 +254,9 @@ class ViconClient(GenericInterface):
             raise RuntimeError("Vicon client is not initialized.")
         if get_frame:
             self.get_frame()
-        if not isinstance(subject_name, list):
+        if subject_name and isinstance(subject_name, list):
             subject_name = [subject_name]
-        if not isinstance(marker_names, list):
+        if marker_names and isinstance(marker_names, list):
             marker_names = [marker_names]
         occluded = []
         all_markers_data = []
@@ -262,11 +266,12 @@ class ViconClient(GenericInterface):
             for s, marker_set in enumerate(self.marker_sets):
                 if marker_set.subject_name in subject_name:
                     marker_sets[subject_name.index(marker_set.subject_name)] = marker_set
+            if marker_sets == [None]:
+                raise RuntimeError("No subject of this name.")
         else:
             marker_sets = self.marker_sets
 
         for markers in marker_sets:
-            markers_data = np.zeros((3, len(marker_names), markers.sample))
             markers.new_data = np.zeros((3, len(markers.marker_names), markers.sample))
             count = 0
             for m, marker_name in enumerate(markers.marker_names):
@@ -275,11 +280,16 @@ class ViconClient(GenericInterface):
                 )
                 markers.new_data[:, count, :] = np.array(markers_data_tmp)[:, np.newaxis]
                 occluded.append(occluded_tmp)
-            for n, name in enumerate(markers.marker_names):
-                if name in marker_names:
-                    markers_data[:, marker_names.index(name), :] = markers.new_data[:, n, :]
+            if marker_names:
+                markers_data = np.zeros((3, len(marker_names), markers.sample))
+                for n, name in enumerate(markers.marker_names):
+                    if name in marker_names:
+                        markers_data[:, marker_names.index(name), :] = markers.new_data[:, n, :]
+                all_markers_data.append(markers_data)
+            else:
+                all_markers_data.append(markers.new_data)
+
             markers.append_data(markers.new_data)
-            all_markers_data.append(markers_data)
             all_occluded_data.append(occluded)
         if len(all_markers_data) == 1:
             return all_markers_data[0], all_occluded_data[0]

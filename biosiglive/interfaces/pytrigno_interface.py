@@ -19,7 +19,7 @@ class PytrignoClient(GenericInterface):
         self.imu = []
         self.markers = []
 
-        self.emg_client, self.imu_client = None, None
+        self.emg_client, self.imu_client = [], []
         self.is_frame = False
         self.is_initialized = False
         self.init_now = init_now
@@ -56,6 +56,8 @@ class PytrignoClient(GenericInterface):
         **process_kwargs
             Keyword arguments for the processing method.
         """
+        if not device_range:
+            device_range = (0, nb_channels - 1)
         device_tmp = self._add_device(
             nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
         )
@@ -92,7 +94,7 @@ class PytrignoClient(GenericInterface):
         devices = []
         device_data = []
         all_device_data = []
-        if not isinstance(channel_idx, list):
+        if channel_idx and not isinstance(channel_idx, list):
             channel_idx = [channel_idx]
 
         if device_name and not isinstance(device_name, list):
@@ -107,15 +109,32 @@ class PytrignoClient(GenericInterface):
 
         for device in devices:
             if get_frame:
-                device.new_data = self.emg_client.read() if DeviceType.Emg else self.imu_client.read()
-            if len(channel_idx) != 0:
+                if device.device_type == DeviceType.Emg:
+                    count = 0
+                    for device_tmp in devices:
+                        if device_tmp == device:
+                            break
+                        if device.device_type == DeviceType.Emg:
+                            count += 1
+                    device.new_data = self.emg_client[count].read()
+                else:
+                    count = 0
+                    for device_tmp in devices:
+                        if device_tmp == device:
+                            break
+                        if device.device_type == DeviceType.Imu:
+                            count += 1
+                    device.new_data = self.imu_client[count].read()
+            if channel_idx:
                 device_data = np.ndarray((len(channel_idx), device.new_data.shape[1]))
                 for i, idx in enumerate(channel_idx):
                     device_data[i, :] = device.new_data[idx, :]
-            device_data = device_data if len(channel_idx) != 0 else device.new_data
+            device_data = device_data if channel_idx else device.new_data
             if get_frame:
                 device.append_data(device.new_data)
             all_device_data.append(device_data)
+            if len(all_device_data) == 1:
+                all_device_data = all_device_data[0]
         return all_device_data
 
     def get_frame(self):
@@ -126,14 +145,14 @@ class PytrignoClient(GenericInterface):
 
     def init_client(self):
         self.is_initialized = True
-        for d, device in self.devices:
-            if device.type == DeviceType.Emg:
+        for d, device in enumerate(self.devices):
+            if device.device_type == DeviceType.Emg:
                 self.emg_client.append(
-                    pytrigno.TrignoEMG(channel_range=device.range, samples_per_read=device.sample, host=self.address)
+                    pytrigno.TrignoEMG(channel_range=device.device_range, samples_per_read=device.sample, host=self.address)
                 )
                 self.emg_client[-1].start()
-            elif device.type == DeviceType.Imu:
-                imu_range = (device.range[0] * 9, device.range[1] * 9)
+            elif device.device_type == DeviceType.Imu:
+                imu_range = (device.device_range[0] * 9, device.device_range[1] * 9)
                 self.imu_client.append(
                     pytrigno.TrignoIM(channel_range=imu_range, samples_per_read=device.sample, host=self.address)
                 )
