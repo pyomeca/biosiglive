@@ -11,9 +11,10 @@ from ..interfaces.generic_interface import GenericInterface
 from .data_processing import OfflineProcessing
 from ..gui.plot import LivePlot, OfflinePlot
 from ..enums import InterfaceType
+from ..file_io.save_and_load import save, load
+from pathlib import Path
 from time import time, sleep
 import os
-import scipy.io as sio
 import numpy as np
 from typing import Union
 
@@ -59,6 +60,11 @@ class ComputeMvc:
         custom_interface: classmethod
             The custom interface to use
         """
+        if Path(output_file).suffix != ".bio":
+            if Path(output_file).suffix == "":
+                output_file += ".bio"
+            else:
+                raise ValueError("The file must be a .bio file.")
 
         if isinstance(interface_type, str):
             if interface_type not in [t.value for t in InterfaceType]:
@@ -80,7 +86,7 @@ class ComputeMvc:
         self.mvc_windows = mvc_windows
 
         current_time = strftime("%Y%m%d-%H%M")
-        self.output_file = f"MVC_{current_time}.mat" if not output_file else output_file
+        self.output_file = f"MVC_{current_time}.bio" if not output_file else output_file
 
         self.device_host = None
         self.interface_port = interface_port
@@ -89,6 +95,7 @@ class ComputeMvc:
         self.show_data = False
         self.is_processing_method = False
         self.try_number = 0
+        self.emg_plot = None
 
         self.emg_processing = None
         self.moving_average, self.low_pass, self.custom = None, None, None
@@ -206,15 +213,16 @@ class ComputeMvc:
 
             elif task == "r":
                 self.try_number -= 1
-                mat_content = sio.loadmat("_MVC_tmp.mat")
+                mat_content = load("_MVC_tmp.bio")
                 mat_content.pop(f"{self.try_name}_processed", None)
                 mat_content.pop(f"{self.try_name}_raw", None)
-                sio.savemat("_MVC_tmp.mat", mat_content)
+                save(mat_content, "_MVC_tmp.bio")
                 self.try_list = self.try_list[:-1]
 
             elif task == "q":
-                self._save_trial()
+                mvc_list = self._save_trial()
                 break
+        return mvc_list
 
     def _init_trial(self):
         """
@@ -343,7 +351,7 @@ class ComputeMvc:
                         legend = ["Processed"]
                     elif plot == "b":
                         data = [raw_data, processed_data]
-                        legend = ["Raw", "Processed"]
+                        legend = ["Raw data", "Processed"]
                     legend = legend * raw_data.shape[0]
                     x = np.linspace(0, raw_data.shape[1] / self.frequency, raw_data.shape[1])
                     print("Close the plot windows to continue.")
@@ -379,18 +387,23 @@ class ComputeMvc:
         """
         if not self.is_processing_method:
             self.set_processing_method()
-        emg_processed = self.emg_processing(data, self.frequency, pyomeca=self.low_pass, ma=self.moving_average)
-        file_name = "_MVC_tmp.mat"
+        emg_processed = self.emg_processing(
+            data,
+            data_rate=self.frequency,
+            moving_average=self.moving_average,
+            low_pass_filter=self.low_pass
+        )
+        file_name = "_MVC_tmp.bio"
         # save tmp_file
         if save_tmp:
             if os.path.isfile(file_name):
-                mat = sio.loadmat(file_name)
+                mat = load(file_name)
                 mat[f"{self.try_name}_processed"] = emg_processed
                 mat[f"{self.try_name}_raw"] = data
                 data_to_save = mat
             else:
                 data_to_save = {f"{self.try_name}_processed": emg_processed, f"{self.try_name}_raw": data}
-            sio.savemat(file_name, data_to_save)
+            save(data_to_save, file_name)
         return emg_processed, data
 
     def _save_trial(self):
@@ -400,7 +413,7 @@ class ComputeMvc:
         print("Concatenate data for all trials.")
 
         # Concatenate all trials from the tmp file.
-        mat_content = sio.loadmat("_MVC_tmp.mat")
+        mat_content = load("_MVC_tmp.bio")
         data_final = []
         for i in range(len(self.try_list)):
             if i == 0:
@@ -415,11 +428,9 @@ class ComputeMvc:
 
         print("Please wait during data processing (it could take some time)...")
         emg_processed, data_raw = self._process_emg(data_final, save_tmp=False)
-
-        mvc_list_max = np.ndarray((len(self.muscle_names), self.mvc_windows))
         mvc_trials = emg_processed
         save = True if save == "s" else False
         mvc = OfflineProcessing.compute_mvc(
-            self.nb_muscles, mvc_trials, self.mvc_windows, mvc_list_max, "_MVC_tmp_mat", self.output_file, save
+            self.nb_muscles, mvc_trials, self.mvc_windows, "_MVC_tmp.bio", self.output_file, save
         )
-        print(mvc)
+        return mvc

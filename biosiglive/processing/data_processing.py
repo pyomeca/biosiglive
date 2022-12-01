@@ -8,6 +8,7 @@ import scipy.io as sio
 import os
 import time
 from typing import Union
+from ..file_io.save_and_load import save, load
 
 
 class GenericProcessing:
@@ -577,7 +578,7 @@ class RealTimeProcessing(GenericProcessing):
 
 
 class OfflineProcessing(GenericProcessing):
-    def __init__(self, data_rate: float= None, processing_window: int=None):
+    def __init__(self, data_rate: float = None, processing_window: int = None):
         """
         Offline processing.
         """
@@ -610,7 +611,7 @@ class OfflineProcessing(GenericProcessing):
         window_size: int,
         tmp_file: str = None,
         output_file: str = None,
-        save: bool = False,
+        save_file: bool = False,
     ):
         """
         Compute MVC from several mvc_trials.
@@ -627,7 +628,7 @@ class OfflineProcessing(GenericProcessing):
             Name of the temporary file.
         output_file : str
             Name of the output file.
-        save : bool
+        save_file : bool
             If true, save the results.
         Returns
         -------
@@ -646,13 +647,13 @@ class OfflineProcessing(GenericProcessing):
         mvc_list_max = np.median(mvc_list_max, axis=1)
 
         if tmp_file:
-            mat_content = sio.loadmat(tmp_file)
+            mat_content = load(tmp_file)
             mat_content["MVC_list_max"] = mvc_list_max
         else:
             mat_content = {"MVC_list_max": mvc_list_max, "MVC_trials": mvc_trials}
 
-        if save:
-            sio.savemat(output_file, mat_content)
+        if save_file:
+            save(mat_content, output_file)
         if tmp_file:
             os.remove(tmp_file)
         return mvc_list_max

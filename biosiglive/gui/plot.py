@@ -501,6 +501,8 @@ class OfflinePlot:
         else:
             col = data[0].shape[0] if data[0].shape[0] <= 4 else 4
         line = ceil(data[0].shape[0] / col)
+        if isinstance(legend, str):
+            legend = [legend]
         for i in range(data[0].shape[0]):
             plt.subplot(line, col, i + 1)
             if y_label and i % 4 == 0:
@@ -508,12 +510,15 @@ class OfflinePlot:
             if x_label:
                 plt.xlabel(x_label, fontsize=size_police)
             for j in range(nb_data):
-                x = x if x is not None else np.linspace(0, data[j].shape[1], data[j].shape[1])
                 if legend:
-                    legend = legend[j]
+                    legend_tmp = legend[j]
                 else:
-                    legend = None
-                plt.plot(x, data[j][i, :], label=legend)
+                    legend_tmp = None
+                if x is not None:
+                    plt.plot(x, data[j][i, :], label=legend_tmp)
+                else:
+                    plt.plot(data[j][i, :], label=legend_tmp)
+
             plt.legend()
             if subplot_title:
                 plt.title(subplot_title[i], fontsize=size_police)
