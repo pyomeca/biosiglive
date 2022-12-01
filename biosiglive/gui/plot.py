@@ -451,6 +451,7 @@ class LivePlot:
         except RuntimeError:
             pass
 
+
 class OfflinePlot:
     """
     This class is used to plot data offline.

@@ -107,16 +107,18 @@ class ComputeMvc:
         if self.interface_type == InterfaceType.PytrignoClient:
             self.emg_interface = PytrignoClient(system_rate=self.acquisition_rate, ip=self.interface_ip)
         elif self.interface_type == InterfaceType.ViconClient:
-            self.emg_interface = ViconClient(system_rate=self.acquisition_rate, ip=self.interface_ip, port=self.interface_port)
+            self.emg_interface = ViconClient(
+                system_rate=self.acquisition_rate, ip=self.interface_ip, port=self.interface_port
+            )
         elif self.interface_type == InterfaceType.TcpClient:
-            self.emg_interface = TcpClient(read_frequency=self.acquisition_rate, ip=self.interface_ip, port=self.interface_port)
+            self.emg_interface = TcpClient(
+                read_frequency=self.acquisition_rate, ip=self.interface_ip, port=self.interface_port
+            )
         elif self.interface_type == InterfaceType.Custom:
             self.emg_interface = custom_interface
 
         if self.interface_type != InterfaceType.Custom:
-            self.emg_interface.add_device(nb_channels=self.nb_muscles,
-                                          name="EMG",
-                                          device_range=self.range_muscle)
+            self.emg_interface.add_device(nb_channels=self.nb_muscles, name="EMG", device_range=self.range_muscle)
         else:
             if len(self.emg_interface.devices) == 0:
                 raise RuntimeError("Please add a device in the custom interface.")
@@ -192,7 +194,7 @@ class ComputeMvc:
         while True:
             if show_data:
                 self.emg_plot = LivePlot(nb_subplots=self.nb_muscles, channel_names=self.muscle_names)
-                self.emg_plot.init(plot_windows=int(self.frequency*2))
+                self.emg_plot.init(plot_windows=int(self.frequency * 2))
             nb_frame, var, duration = self._init_trial()
             trial_emg = self._mvc_trial(duration, nb_frame, var)
             processed_emg, raw_emg = self._process_emg(trial_emg, save_tmp=True)
@@ -388,10 +390,7 @@ class ComputeMvc:
         if not self.is_processing_method:
             self.set_processing_method()
         emg_processed = self.emg_processing(
-            data,
-            data_rate=self.frequency,
-            moving_average=self.moving_average,
-            low_pass_filter=self.low_pass
+            data, data_rate=self.frequency, moving_average=self.moving_average, low_pass_filter=self.low_pass
         )
         file_name = "_MVC_tmp.bio"
         # save tmp_file
