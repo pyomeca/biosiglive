@@ -12,17 +12,15 @@ authors:
     affiliation: "1"
   - name: Felipe Verdugo
     orcid: 0000-0003-2486-3444
-    affiliation: "2, 3"
+    affiliation: "2"
   - name: Mickael Begon
     orcid: 0000-0002-4107-9160
-    affiliation: "2"
+    affiliation: "1"
 affiliations:
-  - name: Biomedical Department, Faculty of Medicine, University of Montreal, Canada
+  - name: Institute of Biomedical Engineering, Faculty of Medicine, University of Montreal, Canada
     index: 1
-  - name: School of Kinesiology and Exercise Science, Faculty of Medicine, University of Montreal, Canada
-    index: 2
   - name: Faculty of Music, University of Montreal, Canada
-    index: 3
+    index: 2
 date: 
 bibliography: paper.bib
 ---
