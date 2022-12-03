@@ -62,12 +62,13 @@ Users can also add an interface module to make 'biosiglive' work with the desire
 Examples are provided to guide the user and documentation is available. 
 
 # Features
-`biosiglive` is divided into five independent modules. The main features are described below.
-- `Processing`: real-time and offline data processing.
-- `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
-- `Visualization`: real-time signal visualization,
-- `Streaming pipeline`: pipeline to stream, process, disseminate and save data in real time.
-- `File I/O`: saving data in binary format at every time frame.
+`biosiglive` is divided into five independent modules. The main features are described below:
+
+ - `Processing`: real-time and offline data processing,
+ - `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA),
+ - `Visualization`: real-time signal visualization,
+ - `Streaming pipeline`: pipeline to stream, process, disseminate and save data in real time,
+ - `File I/O`: saving data in binary format at every time frame.
 
 ## A Biomechanical example: Electromyographic pipeline
 `biosiglive` provides examples for different biomechanical tasks such as getting and processing EMG signals or any generic analog devices from Nexus, 
@@ -78,14 +79,12 @@ The following example shows how to stream, process, display, and save EMG signal
 
 ```python
 from biosiglive import LivePlot, save , ViconClient, RealTimeProcessingMethod, PlotType
-
 # Define the system from which you want to get the data.
 interface = ViconClient(ip="localhost", system_rate=100)
-
-# Add markerSet to Vicon interface
 n_electrodes = 4
 raw_emg = None
 muscle_names = ["Pectoralis major", "Deltoid anterior", "Deltoid medial", "Deltoid posterior"]
+
 # Add device to Vicon interface
 interface.add_device(
     nb_channels=n_electrodes,
@@ -96,7 +95,7 @@ interface.add_device(
     moving_average_window=600
 )
 
-# Add plot
+# Add plots
 emg_plot = LivePlot(
     name="emg", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
 )
@@ -105,12 +104,15 @@ emg_raw_plot = LivePlot(
     name="emg_raw", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
 )
 emg_raw_plot.init(plot_windows=10000, colors=(255, 0, 0), y_labels="EMG (mV)")
+
 while True:
+    # Get data from Vicon interface and process it.
     raw_emg = interface.get_device_data(device_name="emg")
     emg_proc = interface.devices[0].process()
+    # Update plots.
     emg_plot.update(emg_proc[:, -1:])
     emg_raw_plot.update(raw_emg)   
-# Save binary file    
+    # Add data to the binary file.    
     save({"raw_emg": raw_emg, "process_emg":emg_proc[:, -1]}, "emg.bio")
 ```
 
@@ -118,7 +120,7 @@ The live plot is shown in the following figure:
 
 ![Real-time display of processed and raw EMG signals for a 5-second window.
 \label{fig:emg_plot}](EMG_plot.png)
-*Real-time display of processed (left) ad raw (right) EMG signals for a 5-second window.*
+*Live display of processed (left) ad raw (right) EMG signals for a 5-second window.*
 
 
 # Research Projects Using `biosiglive`
