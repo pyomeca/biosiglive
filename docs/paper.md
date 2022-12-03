@@ -21,7 +21,7 @@ affiliations:
     index: 1
   - name: Faculty of Music, University of Montreal, Canada
     index: 2
-date: 
+date: 2 December 2022
 bibliography: paper.bib
 ---
 
