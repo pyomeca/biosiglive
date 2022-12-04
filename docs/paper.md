@@ -1,5 +1,5 @@
 ---
-title: `Biosiglive`: an Open Sources python package for real-time biosignals processing.
+title: "`Biosiglive`: an Open Sources python package for real-time biosignals processing"
 tags:
   - python
   - biomechanics
@@ -28,6 +28,7 @@ bibliography: paper.bib
 ---
 
 # Summary
+
 `biosiglive` aims to provide a simple and efficient way to access and process biomechanical data in real time.
 It was conceived as user-friendly software aimed for both non-expert and expert programmers.
 The library uses interfaces to access data from several sources, such as motion capture software or any Python software development kit (SDK).
@@ -43,6 +44,7 @@ software, and systems.
 Therefore, a TCP/IP connection module was implemented to send data to a distant port to be used by any other system.
 
 # Statement of Need
+
 Biosignals such as electromyography (EMG) or marker kinematic data are often used to assess human movement in clinical, 
 sports, or artistic contexts. 
 However, the analysis is often time-consuming and requires a good knowledge of programming languages such as MATLAB (Mathworks LCC, Natick, USA) or Python. 
@@ -64,7 +66,8 @@ Users can also add an interface module to make 'biosiglive' work with the desire
 Examples are provided to guide the user and documentation is available. 
 
 # Features
-`biosiglive` is divided into five independent modules. The main features are described below.
+
+`biosiglive` is divided into five independent modules. The main features are described below.  
 - `Processing`: real-time and offline data processing.
 - `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
 - `Visualization`: real-time signal visualization,
@@ -72,6 +75,7 @@ Examples are provided to guide the user and documentation is available.
 - `File I/O`: saving data in binary format at every time frame.
 
 ## A Biomechanical example: Electromyographic pipeline
+
 `biosiglive` provides examples for different biomechanical tasks such as getting and processing EMG signals or any generic analog devices from Nexus, 
 compute live cadence from a treadmill, or applying a calibration matrix to raw signals. 
 More advanced examples are available such as computing and showing 3D joint kinematics from a marker set. 
@@ -122,6 +126,7 @@ The live plot is shown in the following figure.
 
 
 # Research Projects Using `biosiglive`
+
 [@Verdugo2022Feeling]
 
 # Acknowledgements
