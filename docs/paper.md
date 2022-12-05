@@ -66,11 +66,11 @@ Examples are provided to guide the user and documentation is available.
 # Features
 
 `biosiglive` is divided into five independent modules. The main features are described below.  
-- `Processing`: real-time and offline data processing.
-- `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
-- `Visualization`: real-time signal visualization,
-- `Streaming pipeline`: pipeline to stream, process, disseminate and save data in real time.
-- `File I/O`: saving data in binary format at every time frame.
+ - `Processing`: real-time and offline data processing.
+ - `Interfaces`: interfaces of standard software such as Vicon Nexus (Oxford, UK) or Delsys Trigno Community  (Boston, USA).
+ - `Visualization`: real-time signal visualization,
+ - `Streaming pipeline`: pipeline to stream, process, disseminate and save data in real time.
+ - `File I/O`: saving data in binary format at every time frame.
 
 ## A Biomechanical example: Electromyographic pipeline
 
