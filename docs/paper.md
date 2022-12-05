@@ -1,5 +1,5 @@
 ---
-title: "`Biosiglive`: an Open Sources python package for real-time biosignals processing"
+title: "`Biosiglive`: an Open-Source Python Package for Real-Time Biosignal Processing"
 tags:
   - python
   - biomechanics
