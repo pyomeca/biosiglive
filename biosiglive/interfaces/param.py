@@ -45,11 +45,11 @@ class Param:
     def append_data(self, new_data: np.ndarray):
         if len(self.raw_data) == 0:
             self.raw_data = new_data
-        elif self.raw_data.shape[len(new_data.shape) - 1] < self.data_window:
-            self.raw_data = np.append(self.raw_data, new_data, axis=len(new_data.shape) - 1)
+        elif self.raw_data.shape[-1] < self.data_window:
+            self.raw_data = np.append(self.raw_data, new_data, axis=-1)
         else:
             self.raw_data = np.append(
-                self.raw_data[..., new_data.shape[len(new_data.shape) - 1] :], new_data, axis=len(new_data.shape) - 1
+                self.raw_data[..., new_data.shape[-1] :], new_data, axis=-1
             )
 
 
