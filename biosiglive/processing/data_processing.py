@@ -262,7 +262,7 @@ class GenericProcessing:
             raise RuntimeError("Please choose between low-pass filter and moving average.")
         if low_pass_filter:
             data_proc = self.butter_lowpass_filter(data_proc, self.lpf_lcut, self.data_rate, order=self.lp_butter_order)
-        if moving_average:
+        elif moving_average:
             w = np.repeat(1, moving_average_window) / moving_average_window
             empty_ma = np.ndarray((data.shape[0], data.shape[1]))
             data_proc = self._moving_average(data_proc, w, empty_ma)
@@ -403,7 +403,7 @@ class RealTimeProcessing(GenericProcessing):
                     self.butter_lowpass_filter(emg_proc_tmp, self.lpf_lcut, self.data_rate, order=self.lp_butter_order)
                     / quot
                 )
-            else:
+            elif moving_average:
                 average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)
         self.process_time.append(time.time() - tic)

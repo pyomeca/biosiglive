@@ -58,7 +58,7 @@ def test_tcp_client():
         i += 1
 
     shapes_0 = [5, 3, 5, 15]
-    shapes_1 = [1, 16, 2, 2]
+    shapes_1 = [2, 16, 2, 2]
     for c, com in enumerate(command):
         assert com == list(data.keys())[c]
         assert data[com].shape[0] == shapes_0[c]
