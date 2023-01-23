@@ -41,7 +41,7 @@ jobs:
           mamba list
           
       - name: Install extra dependencies
-        run: mamba install black pytest-cconda-forge
+        run: mamba install black pytest -cconda-forge
 
       - name: Run the actual tests
         run: pytest -v --color=yes term-missing --cov=biosiglive tests
