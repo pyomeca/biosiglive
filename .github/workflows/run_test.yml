@@ -32,7 +32,7 @@ jobs:
           miniforge-version: latest
           use-mamba: true
           activate-environment: biosiglive
-          environment-file: environment.ysml
+          environment-file: environment.yml
         
       - name: Print mamba info
         run: | 
