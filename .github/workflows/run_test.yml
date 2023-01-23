@@ -2,6 +2,7 @@
 name: Run the tests
 
 on: [push]
+
 jobs:
   build:
     strategy:
