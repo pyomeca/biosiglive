@@ -16,7 +16,7 @@ jobs:
             prefix: /Users/runner/miniconda3/envs/biosiglive
           - os: windows-latest
             label: win-64
-            prefix: C:\Miniconda3\envs\bioptim
+            prefix: C:\Miniconda3\envs\biosiglive
     name: ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     defaults:
@@ -32,7 +32,7 @@ jobs:
           miniforge-version: latest
           use-mamba: true
           activate-environment: biosiglive
-          environment-file: environment.yml
+          environment-file: environment.ysml
         
       - name: Print mamba info
         run: | 
