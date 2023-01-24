@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. It contains the Parameter class and introduce the device and markers classes.
+This file contains the Parameter class that define the device and markers classes.
 """
 from math import ceil
 from ..enums import DeviceType, MarkerType, InverseKinematicsMethods, RealTimeProcessingMethod, OfflineProcessingMethod
@@ -31,6 +31,8 @@ class Param:
             rate of the parameter
         system_rate : float
             rate of the system
+        data_window : int
+            size of the data window
         """
         self.nb_channels = nb_channels
         self.name = name
@@ -43,6 +45,14 @@ class Param:
         self.new_data = None
 
     def append_data(self, new_data: np.ndarray):
+        """
+        Append new data to the parameter to the raw data
+
+        Parameters
+        ----------
+        new_data: np.ndarray
+            new data to append to the buffer
+        """
         if len(self.raw_data) == 0:
             self.raw_data = new_data
         elif self.raw_data.shape[-1] < self.data_window:
@@ -67,6 +77,25 @@ class Device(Param):
         system_rate: float = 100,
         channel_names: Union[list, str] = None,
     ):
+        """
+        Initialize the device class. A device is an electronic device that can be used to measure a parameter
+         (e.g. EMG, treadmill, etc.).
+
+        Parameters
+        ----------
+        device_type: DeviceType
+            Type of the device.
+        nb_channels: int
+            Number of channels of the device.
+        name: str
+            Name of the device.
+        rate: float
+            Rate of the device.
+        system_rate: float
+            Rate of the system.
+        channel_names: list
+            Name of the channels of the device.
+        """
         super().__init__(nb_channels, name, rate, system_rate)
         if isinstance(channel_names, str):
             channel_names = [channel_names]
@@ -94,10 +123,12 @@ class Device(Param):
         **kwargs
     ):
         """
-        Process the data of the device.
+        Process the data of the device. The raw data are stored in a buffer fill by the append data method.
+        This method should be called after any get_data method, otherwise there will be not available data.
+
         Parameters
         ----------
-        method: callable
+        method: GenericProcessing
             Method to process the data.
         custom_function: callable
             Custom function to process the data.
@@ -136,6 +167,9 @@ class Device(Param):
         return self.processed_data
 
     def _init_processing_method(self):
+        """
+        Initialize the processing method.
+        """
         self.processing_window = self.processing_window if self.processing_window else self.data_window
         if self.processing_method == RealTimeProcessingMethod.ProcessEmg:
             self.processing_function = RealTimeProcessing(self.rate, self.processing_window).process_emg
@@ -157,7 +191,23 @@ class Device(Param):
         elif self.processing_method == RealTimeProcessingMethod.Custom:
             self.processing_function = RealTimeProcessing(self.rate, self.processing_window).custom_processing
 
-    def _check_if_has_changed(self, method, kwargs):
+    def _check_if_has_changed(self, method: GenericProcessing(), kwargs: dict) -> bool:
+        """
+        Check if the processing method has changed.
+
+        Parameters
+        ----------
+        method: GenericProcessing
+            Method to process the data.
+        kwargs: dict
+            Keyword arguments to pass to the method.
+
+        Returns
+        -------
+        has_changed: bool
+            True if the method has changed, False otherwise.
+
+        """
         if isinstance(method, str):
             if method in [t.value for t in RealTimeProcessingMethod]:
                 self.processing_method = RealTimeProcessingMethod(method)
@@ -198,6 +248,26 @@ class MarkerSet(Param):
         system_rate: float = 100,
         unit: str = "m",
     ):
+        """
+        Initialize a marker set.
+
+        Parameters
+        ----------
+        nb_channels: int
+            Number of channels of the marker set (number of markers).
+        name: str
+            Name of the marker set.
+        marker_names: str or list
+            Name of the markers.
+        rate: float
+            Rate of the marker set.
+        unlabeled: bool
+            True if the marker set is unlabeled, False otherwise.
+        system_rate: float
+            Rate of the system.
+        unit: str
+            Unit of the marker set.
+        """
         marker_type = MarkerType.Unlabeled if unlabeled else MarkerType.Labeled
         super(MarkerSet, self).__init__(nb_channels, name, rate, system_rate)
         if isinstance(marker_names, str):
@@ -227,6 +297,9 @@ class MarkerSet(Param):
     ) -> tuple:
         """
         Function to apply the Kalman filter to the markers.
+        The raw data are stored in a buffer fill by the append data method.
+        This method should be called after any get_data method, otherwise there will be not available data.
+
         Parameters
         ----------
         model_path : str
@@ -239,6 +312,7 @@ class MarkerSet(Param):
             The size of the window to use to compute the kinematics.
         **kwargs : dict
             Keyword arguments to pass to the method.
+
         Returns
         -------
         tuple

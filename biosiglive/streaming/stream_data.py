@@ -1,3 +1,8 @@
+"""
+This file contains a class that allows to stream data from a source and start some multiprocess
+ to process and disseminate. It is a work in progress so basic functions are available but need to be fine-tuned.
+"""
+
 from typing import Union
 from time import time, sleep, strftime
 import datetime
@@ -16,6 +21,8 @@ class StreamData:
     def __init__(self, stream_rate: int = 100):
         """
         Initialize the StreamData class.
+        Careful this class do not return anything, you will have to turn the save option to True to save the data.
+
         Parameters
         ----------
         stream_rate: int
@@ -73,6 +80,7 @@ class StreamData:
     def _add_device(self, device: Device):
         """
         Add a device to the stream.
+
         Parameters
         ----------
         device: Device
@@ -83,9 +91,10 @@ class StreamData:
         self.device_queue_out.append(self.queue())
         self.device_event.append(self.event())
 
-    def add_interface(self, interface: callable):
+    def add_interface(self, interface: GenericInterface()):
         """
         Add an interface to the stream.
+
         Parameters
         ----------
         interface: GenericInterface
@@ -113,6 +122,7 @@ class StreamData:
     ):
         """
         Add a server to the stream.
+
         Parameters
         ----------
         server_ip: str
@@ -160,6 +170,7 @@ class StreamData:
     def start(self, save_streamed_data: bool = False, save_path: str = None, save_frequency: int = None):
         """
         Start the stream.
+
         Parameters
         ----------
         save_streamed_data: bool
@@ -177,6 +188,7 @@ class StreamData:
     def _add_marker_set(self, marker: MarkerSet):
         """
         Add a marker set to the stream.
+
         Parameters
         ----------
         marker: MarkerSet
@@ -191,15 +203,11 @@ class StreamData:
     def device_processing(self, device_idx: int):
         """
         Process the data from the device
+
         Parameters
         ----------
         device_idx: int
-            The index of the device in the list of devices
-        kwargs: dict
-            The kwargs to pass to the process method
-        Returns
-        -------
-
+            The index of the device in the list of devices.
         """
         if self.device_buffer_size:
             if not self.device_buffer_size[device_idx]:
@@ -224,14 +232,12 @@ class StreamData:
 
     def recons_kin(self, marker_set_idx: int):
         """
-        Reconstruct kinematics from markers.
+        Compute inverse kinematics from markers.
+
         Parameters
         ----------
         marker_set_idx: int
             Index of the marker set in the list of markers.
-        Returns
-        -------
-
         """
         if self.marker_set_buffer_size:
             if not self.marker_set_buffer_size[marker_set_idx]:
@@ -372,7 +378,8 @@ class StreamData:
         multiprocess=False,
     ):
         """
-        Add a plot to the live data.
+        Add a plot to the live data. Still Not working for now.
+
         Parameters
         ----------
         plot: Union[LivePlot, list]
@@ -455,10 +462,11 @@ class StreamData:
     def save_streamed_data(self, interface_idx: int):
         """
         Stream, process and save the data.
+
         Parameters
         ----------
         interface_idx: idx
-            Interface idx to use.
+            Interface index to use from the interface list. for now only one interface is supported.
 
         """
         initial_time = 0
@@ -583,6 +591,9 @@ class StreamData:
                     )
 
     def stop(self):
+        """
+        Stop the stream
+        """
         for process in self.processes:
             process.terminate()
             process.join()

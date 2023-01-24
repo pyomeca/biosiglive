@@ -1,6 +1,7 @@
 """
-This file is part of biosiglive. It allows connecting to a biosiglive server and to receive data from it.
+This file define a wrapper for the socket client to receive data from the server.
 """
+
 import socket
 import struct
 from typing import Union
@@ -41,6 +42,7 @@ class Client:
     def __init__(self, server_ip: str, port: int, client_type: str = "TCP", name: str = None):
         """
         Create a client main.
+
         Parameters
         ----------
         server_ip: str
@@ -59,7 +61,6 @@ class Client:
         self.server_address = server_ip
         self.port = port
         self.client = self.client_sock(self.client_type)
-        # self._connect()
 
     def _connect(self):
         self.client = self.client_sock(self.client_type)
@@ -71,6 +72,7 @@ class Client:
     ):
         """
         Create a client main.
+
         Parameters
         ----------
         tcp_type: str
@@ -91,6 +93,7 @@ class Client:
     def _recv_all(self, buff_size: int = Buff_size):
         """
         Receive all data from the server.
+
         Parameters
         ----------
         buff_size: int
@@ -120,7 +123,8 @@ class Client:
 
         Parameters
         ----------
-        message
+        message: Message
+            Message to send to the server.
         buff: int
             Size of the buffer.
 

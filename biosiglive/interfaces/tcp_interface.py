@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. It contains a wrapper to use a tcp client more easily.
+This file contains a wrapper to use a tcp client more easily.
 """
 from ..streaming.client import Client, Message
 from .generic_interface import GenericInterface
@@ -21,6 +21,7 @@ class TcpClient(GenericInterface):
     def __init__(self, ip: str = "127.0.0.1", port: int = 801, client_type: str = "TCP", read_frequency: int = 100):
         """
         Initialize the client.
+
         Parameters
         ----------
         ip: str
@@ -57,6 +58,7 @@ class TcpClient(GenericInterface):
     ):
         """
         Add a device to the client.
+
         Parameters
         ----------
         nb_channels: int
@@ -71,8 +73,8 @@ class TcpClient(GenericInterface):
             Frequency of the device.
         device_range: tuple
             Range of the device.
-        process_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod]
-            Method to process the data.
+        processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod]
+            Method to use to process the data.
         process_kwargs: dict
             Keyword arguments for the processing method.
         """
@@ -96,13 +98,16 @@ class TcpClient(GenericInterface):
         **kin_method_kwargs,
     ):
         """
-        Add markers set to stream from the Vicon system.
+        Add markers set to stream from the tcp interface.
+
         Parameters
         ----------
         nb_markers: int
             Number of markers.
         name: str
             Name of the markers set.
+        command_name: Union[str, list]
+            Name of the command to send to the server.
         marker_names: Union[list, str]
             List of markers names.
         rate: int
@@ -136,10 +141,11 @@ class TcpClient(GenericInterface):
     ) -> dict:
         """
         Get the data from the server.
-        Returns
+
+        Parameters
         -------
-        data: Union[str, list]
-            ALL the data asked from the server.
+        command: Union[str, list]
+            Command to send to the server.
         nb_frame_to_get: int
             Number of frame to get.
         down_sampling: dict
@@ -175,6 +181,7 @@ class TcpClient(GenericInterface):
             Down sampling parameters. Keys are the names of the devices and values are the down sampling rate.
         get_from_server: bool
             Whether to get the data from the server or not.
+
         Returns
         -------
         data: list
@@ -224,6 +231,7 @@ class TcpClient(GenericInterface):
             Down sampling parameters. Keys are the names of the devices and values are the down sampling rate.
         get_from_server: bool
             Whether to get the data from the server or not.
+
         Returns
         -------
         data: list
@@ -254,10 +262,12 @@ class TcpClient(GenericInterface):
     def _prepare_cmd(self, name: Union[str, list], device: bool = True):
         """
         Prepare the command to send to the server.
+
         Parameters
         ----------
         name: Union[str, list]
             Name of the device or marker set.
+
         Returns
         -------
         cmd: str

@@ -22,7 +22,7 @@ from typing import Union
 class ComputeMvc:
     def __init__(
         self,
-        interface_type: Union[str, InterfaceType] = InterfaceType.PytrignoClient,  # or 'server_data' or 'vicon'
+        interface_type: Union[str, InterfaceType] = InterfaceType.PytrignoClient,
         interface_ip: str = "127.0.0.1",
         interface_port: int = 801,  # only for vicon
         output_file: str = None,
@@ -39,12 +39,11 @@ class ComputeMvc:
         Parameters
         ----------
         interface_type : Union[str, InterfaceType]
-            The mode of the stream. 'pytrigno' : use the pytrigno 'server_data' : use the server data
-            'vicon' : use the vicon
+            The mode of the stream (describe in the InterfaceType enum).
         interface_ip : str
             The ip of the interface.
         interface_port : int
-            The port of the interface.
+            The port of the interface. Only needed for the Vicon interface.
         output_file : str
             The path of the output file.
         muscle_names : list
@@ -136,7 +135,8 @@ class ComputeMvc:
         ma_window: int = 200,
     ):
         """
-        Set the emg processing method.
+        Set the emg processing method. This method allow to customize the processing of the emg signal,
+        so it need to be called before the start of the acquisition.
 
         Parameters
         ----------
@@ -180,14 +180,19 @@ class ComputeMvc:
             self.emg_processing = emg_processing.process_emg
         self.is_processing_method = True
 
-    def run(self, show_data: bool = False):
+    def run(self, show_data: bool = False) -> list:
         """
         Run the MVC program.
 
         Parameters
         ----------
         show_data: bool
-            If True, the data will be displayed in a plot.
+            If True, the data will be displayed in live in a separate plot.
+
+        Returns
+        -------
+        list
+            The list of the MVC value for each muscle.
         """
         self.show_data = show_data
         self.try_number = 0
@@ -269,6 +274,7 @@ class ComputeMvc:
     def _mvc_trial(self, duration: float, nb_frame: int, var: float):
         """
         Run the MVC trial.
+
         Parameters
         ----------
         duration : float
@@ -405,13 +411,17 @@ class ComputeMvc:
             save(data_to_save, file_name)
         return emg_processed, data
 
-    def _save_trial(self):
+    def _save_trial(self) -> list:
         """
         Save and end the trial.
-        """
-        print("Concatenate data for all trials.")
 
-        # Concatenate all trials from the tmp file.
+        Returns
+        -------
+        list
+            The list of the mvc for each muscle.
+        """
+
+        print("Concatenate data for all trials.")
         mat_content = load("_MVC_tmp.bio")
         data_final = []
         for i in range(len(self.try_list)):

@@ -10,7 +10,22 @@ except ModuleNotFoundError:
 
 
 class PytrignoClient(GenericInterface):
+    """
+    Class to wrap the Trigno community SDK.
+    """
     def __init__(self, system_rate=100, ip: str = "127.0.0.1", init_now: bool = True):
+        """
+        Initialize the interface.
+
+        Parameters
+        ----------
+        system_rate: int
+            Rate of the system.
+        ip: str
+            IP address of the Trigno system.
+        init_now: bool
+            Initialize the client the same time that it is created.
+        """
         super(PytrignoClient, self).__init__(
             ip=ip, interface_type=InterfaceType.PytrignoClient, system_rate=system_rate
         )
@@ -36,21 +51,22 @@ class PytrignoClient(GenericInterface):
         **process_kwargs
     ):
         """
-        Add a device to the Vicon system.
+        Add a device to the Pytrigno system.
+
         Parameters
         ----------
         nb_channels: int
             Number of channels of the device.
+        device_type: Union[DeviceType, str]
+            Type of the device.
         data_buffer_size: int
             Size of the buffer for the device.
         name: str
             Name of the device.
-        device_type: Union[DeviceType, str]
-            Type of the device.
         rate: float
             Rate of the device.
         device_range: tuple
-            Range of the device.
+            Range of the device. Number of selected channels. If None, all channels are selected (0, 16).
         processing_method : Union[RealTimeProcessingMethod, OfflineProcessingMethod]
             Method used to process the data.
         **process_kwargs
@@ -73,9 +89,10 @@ class PytrignoClient(GenericInterface):
         if self.init_now:
             self.init_client()
 
-    def get_device_data(self, device_name: str = "all", channel_idx: Union[int, list] = (), get_frame: bool = True):
+    def get_device_data(self, device_name: str = "all", channel_idx: Union[int, list] = (), get_frame: bool = True) -> np.ndarray:
         """
         Get data from the device.
+
         Parameters
         ----------
         device_name : str
@@ -84,6 +101,7 @@ class PytrignoClient(GenericInterface):
             Index of the channel.
         get_frame : bool
             Get data from device. If False, use the last data acquired.
+
         Returns
         -------
         data : list
@@ -138,12 +156,18 @@ class PytrignoClient(GenericInterface):
         return all_device_data
 
     def get_frame(self):
+        """
+        Get a frame from the interface. This function is used to get data from the interface.
+        """
         if not self.is_initialized:
             raise RuntimeError("Client is not initialized. Please call init_client() first.")
         self.get_device_data(get_frame=True)
         return True
 
     def init_client(self):
+        """
+        Initialize the client if it's not already done. This function has to be called before getting a frame.
+        """
         self.is_initialized = True
         for d, device in enumerate(self.devices):
             if device.device_type == DeviceType.Emg:

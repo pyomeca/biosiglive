@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. it contains the functions to save and read data.
+This file contains functions to save and read data efficiently in pickle file.
 """
 import pickle
 import numpy as np
@@ -8,7 +8,7 @@ from pathlib import Path
 
 def save(data_dict, data_path):
     """
-    This function adds data to a pickle file. It not open the file, but appends the data to the file.
+    This function adds data to a pickle file. It not open the file, but appends the data to the end, so it's fast.
 
     Parameters
     ----------
@@ -29,7 +29,8 @@ def save(data_dict, data_path):
 # TODO add dict merger
 def load(filename, number_of_line=None):
     """
-    This function reads data from a pickle file.
+    This function reads data from a pickle file to concatenate them into one dictionary.
+
     Parameters
     ----------
     filename : str
