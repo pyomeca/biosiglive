@@ -59,7 +59,7 @@ def test_real_time_processing(method):
     if method == RealTimeProcessingMethod.CalibrationMatrix:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.4959683, 0.3568878])
     elif method == RealTimeProcessingMethod.ProcessEmg:
-        np.testing.assert_almost_equal(processed_data[:, -1], [0.156469 , 0.1365517])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.156469, 0.1365517])
     elif method == RealTimeProcessingMethod.GetPeaks:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.0, 0.0])
         np.testing.assert_almost_equal(nb_peaks, 100)
