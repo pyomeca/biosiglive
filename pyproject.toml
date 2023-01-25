@@ -1,0 +1,24 @@
+# create a toml file with the following content
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "biosiglive"
+version = "2.0.0"
+authors = [
+  { name="Amedeo ceglia", email="amedeo.ceglia@umontreal.ca" },
+]
+description = "Biosignal processing and visualization in real-time."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = ["numpy", "scipy"]
+
+[project.urls]
+"Homepage" = "https://github.com/pyomeca/biosiglive"
+"Bug Tracker" = "https://github.com/pyomeca/biosiglive/issues"
