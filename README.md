@@ -151,6 +151,10 @@ A set of example is provided in the `examples` folder.
 Every example can be run without any data connection using the custom interface implemented in the example. 
 Be aware that if you want to run the example with a real interface, you will need to install the corresponding SDK and to connect to the device.
 
+## How to contribute
+You are welcome to contribute to this project by following the steps describes in the 
+[contributing.md](https://github.com/pyomeca/biosiglive/tree/main/docs/contributing.md) file.
+
 ## How to cite
 @misc{Ceglia2022biosiglive,
 author = {Ceglia, Amedeo, Felipe, Verdugo and Begon, Mickael},
