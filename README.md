@@ -20,12 +20,27 @@
 [Citing](#Citing)
 
 # How to install
-Biosiglive can be installed from anaconda or from the sources.
+Biosiglive can be installed from anaconda, pip or from the sources.
 ## Installing from anaconda
 You can install biosiglive from anaconda by running the following command :
 ```bash
 conda install -c conda-forge biosiglive
 ```
+## Installing from pip
+You can install biosiglive from pip by running the following command :
+```bash
+pip install biosiglive matplotlib
+```
+pyqtgraph, biorbd and bioviz will not be installed in the same time as they are not available on pip or optional.
+So you can install pyqtgraph running the following command :
+```bash
+pip install pyqtgraph
+```
+And you can install biorbd and bioviz running the following command :
+```bash
+conda install -c conda-forge bioviz
+```
+
 ## Installing from the sources
 If installing from the sources, you will need to install the following dependencies from conda (in that particular order):
 - [Python](https://www.python.org/)

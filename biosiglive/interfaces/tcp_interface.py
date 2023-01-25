@@ -143,7 +143,7 @@ class TcpClient(GenericInterface):
         Get the data from the server.
 
         Parameters
-        -------
+        ----------
         command: Union[str, list]
             Command to send to the server.
         nb_frame_to_get: int
@@ -174,7 +174,7 @@ class TcpClient(GenericInterface):
         Parameters
         ----------
         device_name:  Union[list, str]
-            Name of the device. all for all the devices.
+            Name of the device. All for all the devices.
         nb_frame_to_get: int
             Number of frame to get.
         down_sampling: dict
