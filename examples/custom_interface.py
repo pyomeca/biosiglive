@@ -1,3 +1,16 @@
+"""
+This example shows how to build a custom interface from the GenericInterface class.
+The custom interface is used to stream data from a source that is not supported by the library.
+If you create a new interface you are welcome to contribute to the library by creating a pull request following
+the contributing.md guidelines.
+Here the interface aims to stream data from a file, at each call of any get data function the data from the file
+will be sent. To see the functions to implement in this class please refer to the GenericInterface class.
+For this custom interface you have to give a file of .bio extension (biosiglive file format,
+please see the save _nd_load.py example) as argument. When creating the device you have to give the key of the device
+in teh dictionary read from the file using the argument *_data_file_key.
+Please look at any example to see how to use this interface.
+"""
+
 from typing import Union
 import numpy as np
 from biosiglive import (

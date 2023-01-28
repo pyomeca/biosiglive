@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "biosiglive"
-version = "2.0.0"
+version = "2.0.1"
 authors = [
   { name="Amedeo ceglia", email="amedeo.ceglia@umontreal.ca" },
 ]
@@ -17,7 +17,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = ["numpy", "scipy"]
+dependencies = ["numpy", "scipy", "matplotlib"]
 
 [project.urls]
 "Homepage" = "https://github.com/pyomeca/biosiglive"

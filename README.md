@@ -6,6 +6,7 @@
 
 [How to install](#how-to-install)
 - [From anaconda](#installing-from-anaconda)
+- [From pip](#installing-from-pip)
 - [From the sources](#installing-from-the-sources)
 
 [`biosiglive` API](#biosiglive-api)
@@ -29,7 +30,7 @@ conda install -c conda-forge biosiglive
 ## Installing from pip
 You can install biosiglive from pip by running the following command :
 ```bash
-pip install biosiglive matplotlib
+pip install biosiglive
 ```
 pyqtgraph, biorbd and bioviz will not be installed in the same time as they are not available on pip or optional.
 So you can install pyqtgraph running the following command :
@@ -59,7 +60,7 @@ Also, to stream data from Nexus (Vicon) or Trigno Community SDK, you will need t
 
 After you can install the package by running the following command in the root folder of the package:
 ```bash
-python setup.py install
+pip install .
 ```
 # `biosiglive` API
 ## GUI
@@ -150,6 +151,10 @@ An example of streaming is provided in the example folder.
 A set of example is provided in the `examples` folder.
 Every example can be run without any data connection using the custom interface implemented in the example. 
 Be aware that if you want to run the example with a real interface, you will need to install the corresponding SDK and to connect to the device.
+
+## How to contribute
+You are welcome to contribute to this project by following the steps describes in the 
+[contributing.md](https://github.com/pyomeca/biosiglive/tree/main/docs/contributing.md) file.
 
 ## How to cite
 @misc{Ceglia2022biosiglive,

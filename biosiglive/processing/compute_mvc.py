@@ -19,6 +19,7 @@ import numpy as np
 from typing import Union
 
 
+# TODO: Add the possibility to send a temporary file to append the data to it in case of former dysfunction.
 class ComputeMvc:
     def __init__(
         self,

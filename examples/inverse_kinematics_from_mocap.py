@@ -1,5 +1,22 @@
+"""
+This example shows how to apply a inverse kinematics method to a biorbd model and a marker set.
+To use this methods you will have to use and install the biorbd(https://github.com/pyomeca/biorbd)
+ and bioviz libraries (https://github.com/pyomeca/bioviz). More informations are available on the github page of the
+  projects. This example use a streaming of markers data from Vicon Nexus interface.
+Note that a custom interface is also available from the example 'custom_interface.py' and it allow the user
+to run the examples without any device connection by streaming data from a provided data file.
+For more informations about the
+way to do that please refer to marker_streaming.py example. Here the processing method used is the inverse kinematics
+method from the biorbd library. The implemented methods are avalable in the InverseKinematicsMethods class. This method
+take the biorbd model as argument in the initialization.
+The process method will return the joint angle and joint velocity of the model. You can display the result using the
+skeleton plot which use the bioviz library. In the initialization of the skeleton plot you can specify the arguments
+belonging to the bioviz.Viz function. For more informations about the arguments please refer to the bioviz documentation.
+Be aware that the skeleton plot might take some time and slow the loop. If you want to display the data in real time
+think about use light .vtp file inside the model.
+"""
 import time
-from biosiglive import ViconClient, InverseKinematicsMethods, save, LivePlot, PlotType, InterfaceType
+from biosiglive import ViconClient, InverseKinematicsMethods, LivePlot, PlotType, InterfaceType
 from custom_interface import MyInterface
 
 
@@ -8,7 +25,7 @@ if __name__ == "__main__":
     if interface == InterfaceType.Custom:
         interface = MyInterface(system_rate=100, data_path="abd.bio")
     else:
-        interface = ViconClient(ip="localhost", system_rate=100)
+        interface = ViconClient(ip="127.0.0.1", system_rate=100)
 
     interface.add_marker_set(
         nb_markers=16,
