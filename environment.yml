@@ -1,0 +1,13 @@
+name: biosiglive
+channels:
+- conda-forge
+- default
+dependencies:
+- python >=3.9
+- packaging
+- matplotlib-base
+- numpy
+- scipy
+- biorbd
+- bioviz
+- pyqtgraph

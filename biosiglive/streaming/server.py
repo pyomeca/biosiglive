@@ -1,5 +1,5 @@
 """
-This is part of the biosiglive project. It contains the connection class.
+This file contains a wrapper for the socket server to send data to the server.
 """
 import socket
 import numpy as np
@@ -89,6 +89,8 @@ class Server(Connection):
 
     def __init__(self, ip: str = "127.0.0.1", port: int = 50000, server_type: str = "TCP"):
         """
+        Initialize the server.
+
         Parameters
         ----------
         ip : str
@@ -131,7 +133,7 @@ class Server(Connection):
 
     def client_listening(self):
         """
-        Listen to the client.
+        Waiting for the client connection.
         """
         connection, ad = self.server.accept()
         message = pickle.loads(connection.recv(self.buff_size))  # Received message
@@ -204,6 +206,7 @@ class OscClient(Connection):
             The data to send.
         device_to_send : dict
             The device type to send the data to (emg or imu).
+
         Returns
         -------
         The data to send.
@@ -231,6 +234,7 @@ class OscClient(Connection):
     def send_data(self, data: dict, device_to_send: dict):
         """
         Send the data to the client.
+
         Parameters
         ----------
         data : dict

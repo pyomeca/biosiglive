@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. It is used to plot the data in live or offline mode.
+This file contains all the plot functions to plot the data in live or offline.
 """
 try:
     import pyqtgraph as pg
@@ -31,11 +31,11 @@ class LivePlot:
         Parameters
         ----------
         plot_type : Union[PlotType, str]
-            type of the plot (curve, spectrogram, ...)
+            type of the plot (curve, progress bar, 3D scatter, skeleton...).
         name : str
             name of the plot
         channel_names : list
-            list of the channel names
+            list of the channel names (subplots names)
         nb_subplots : int
             number of subplots
         """
@@ -76,12 +76,11 @@ class LivePlot:
     ):
         """
         This function is used to initialize the qt app.
+
         Parameters
         ----------
         plot_windows: Union[int, list]
             The number of frames ti plot. If is a list, the number of frames to plot for each subplot.
-        **kwargs:
-            The arguments of the bioviz plot.
         """
         self.plot_buffer = [None] * self.nb_subplot
         if isinstance(plot_windows, int):
@@ -105,10 +104,11 @@ class LivePlot:
     def update(self, data: Union[np.ndarray, list], **kwargs):
         """
         This function is used to update the qt app.
+
         Parameters
         ----------
         data: Union[np.ndarray, list]
-            The data to plot. if list, the data to plot for each subplot.
+            The data to plot. If it is a list, the data to plot for each subplot.
         """
         update = True
         if self.plot_type != PlotType.Scatter3D and self.plot_type != PlotType.Skeleton:
@@ -176,6 +176,7 @@ class LivePlot:
     ):
         """
         This function is used to initialize the curve plot.
+
         Parameters
         ----------
         figure_name: str
@@ -190,6 +191,8 @@ class LivePlot:
             The labels of the y axis.
         grid: bool
             If True, the grid is displayed.
+        colors: Union[list, tuple]
+            The colors of the curves.
         """
         # --- Curve graph --- #
         self.app = pg.mkQApp("Curve_plot")
@@ -257,6 +260,7 @@ class LivePlot:
     ):
         """
         This function is used to initialize the curve plot.
+
         Parameters
         ----------
         figure_name: str
@@ -292,12 +296,15 @@ class LivePlot:
     ):
         """
         This function is used to initialize the 3d scatter plot.
+
         Parameters
         ----------
         figure_name: str
             The name of the figure.
         colors: Union[list, tuple]
             The color of the scatter.
+        size: Union[int, list]
+            The size of the scatters.
         """
         # --- 3D scatter graph --- #
         self.app = pg.mkQApp("3D_scatter_plot")
@@ -321,6 +328,7 @@ class LivePlot:
     ):
         """
         This function is used to update the 3d scatter plot.
+
         Parameters
         ----------
         data: np.ndarray
@@ -348,6 +356,7 @@ class LivePlot:
     def _update_curve(self, data: list):
         """
         This function is used to update the curve plot.
+
         Parameters
         ----------
         data: list
@@ -368,6 +377,7 @@ class LivePlot:
     def _update_progress_bar(self, data: list):
         """
         This function is used to update the progress bar plot.
+
         Parameters
         ----------
         data: list
@@ -391,6 +401,7 @@ class LivePlot:
     def _update_skeleton(data: list, viz):
         """
         This function is used to update the skeleton plot.
+
         Parameters
         ----------
         data  : list
@@ -422,6 +433,7 @@ class LivePlot:
     def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
         """
         This function is used to initialize the qt app layout.
+
         Parameters
         ----------
         figure_name: str
@@ -471,6 +483,7 @@ class OfflinePlot:
     ):
         """
         This function is used to plot multiple data in one figure.
+
         Parameters
         ----------
         data: list or np.ndarray
@@ -489,8 +502,6 @@ class OfflinePlot:
             The title of the subplot.
         figure_name: str
             The name of the figure.
-        **kwargs
-            plot arguments
         """
 
         if not isinstance(data, list):
