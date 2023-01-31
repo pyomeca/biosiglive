@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. It contains a wrapper for the Vicon SDK for Python.
+This file contains a wrapper for the python Vicon SDK.
 """
 from .param import *
 from typing import Union
@@ -20,6 +20,7 @@ class ViconClient(GenericInterface):
     def __init__(self, system_rate: int, ip: str = "127.0.0.1", port: int = 801, init_now=True):
         """
         Initialize the ViconClient class.
+
         Parameters
         ----------
         system_rate: int
@@ -28,6 +29,9 @@ class ViconClient(GenericInterface):
             IP address of the nexus software.
         port: int
             Port of the nexus software.
+        init_now: bool
+            Whether to initialize the client now.
+            Usefull if you want to pickle the interface as the Vicon SDK is not pickable (swig).
         """
         super(ViconClient, self).__init__(ip=ip, system_rate=system_rate, interface_type=InterfaceType.ViconClient)
         self.address = f"{ip}:{port}"
@@ -40,12 +44,13 @@ class ViconClient(GenericInterface):
         self.marker_sets = []
         self.is_frame = False
         self.is_initialized = False
-
-        # Add possibility to initialize the client after, as swig objects are not pickable (multiprocessing).
         if init_now:
             self._init_client()
 
     def _init_client(self):
+        """
+        Initialize the Vicon client.
+        """
         print(f"Connection to ViconDataStreamSDK at : {self.address} ...")
         self.vicon_client = VDS.Client()
         self.vicon_client.Connect(self.address)
@@ -77,16 +82,17 @@ class ViconClient(GenericInterface):
     ):
         """
         Add a device to the Vicon system.
+
         Parameters
         ----------
         nb_channels: int
             Number of channels of the device.
+        device_type: Union[DeviceType, str]
+            Type of the device.
         data_buffer_size: int
             Size of the buffer for the device.
         name: str
             Name of the device.
-        device_type: Union[DeviceType, str]
-            Type of the device.
         rate: float
             Rate of the device.
         device_range: tuple
@@ -121,6 +127,7 @@ class ViconClient(GenericInterface):
     ):
         """
         Add markers set to stream from the Vicon system.
+
         Parameters
         ----------
         nb_markers: int
@@ -177,6 +184,7 @@ class ViconClient(GenericInterface):
     ):
         """
         Get the device data from Vicon.
+
         Parameters
         ----------
         device_name: str or list
@@ -231,6 +239,7 @@ class ViconClient(GenericInterface):
     ):
         """
         Get the markers data from Vicon.
+
         Parameters
         ----------
         subject_name: Union[str, list]
@@ -293,6 +302,10 @@ class ViconClient(GenericInterface):
         return all_markers_data, all_occluded_data
 
     def init_client(self):
+        """
+        Initialize the Vicon client if it is not already initialized.
+        This function has to be called before get frame from interface.
+        """
         if self.is_initialized:
             raise RuntimeError("Vicon client is already initialized.")
         else:
@@ -306,12 +319,28 @@ class ViconClient(GenericInterface):
                 if not marker_set.subject_name:
                     marker_set.subject_name = self.vicon_client.GetSubjectNames()[0]
 
-    def get_latency(self):
+    def get_latency(self) -> float:
+        """
+        Get the latency between the Vicon system and the Vicon SDK.
+
+        Returns
+        -------
+        latency: float
+            Latency between the Vicon system and the Vicon SDK.
+        """
         if not self.is_initialized:
             raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetLatencyTotal()
 
-    def get_frame(self, init=False):
+    def get_frame(self) -> bool:
+        """
+        Get a new frame from the Vicon system.
+
+        Returns
+        -------
+        bool
+            True if there is a frame, False otherwise.
+        """
         if not self.is_initialized:
             raise RuntimeError("Vicon client is not initialized.")
         self.is_frame = self.vicon_client.GetFrame()
@@ -319,7 +348,15 @@ class ViconClient(GenericInterface):
             self.is_frame = self.vicon_client.GetFrame()
         return self.is_frame
 
-    def get_frame_number(self):
+    def get_frame_number(self) -> int:
+        """
+        Get the last frame number.
+
+        Returns
+        -------
+        frame_number: int
+            Last frame number.
+        """
         if not self.is_initialized:
             raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetFrameNumber()
@@ -334,6 +371,7 @@ class ViconClient(GenericInterface):
     ):
         """
         Get the kinematics from markers.
+
         Parameters
         ----------
         marker_set_name: str
@@ -344,6 +382,7 @@ class ViconClient(GenericInterface):
             Method to use to get the kinematics. Can be "kalman" or "custom".
         custom_func: function
             Custom function to get the kinematics.
+
         Returns
         -------
         kinematics: list

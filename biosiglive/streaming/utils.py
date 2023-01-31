@@ -2,6 +2,21 @@ import numpy as np
 
 
 def dic_merger(dic_to_merge, new_dic=None):
+    """Merge two dictionaries.
+
+    Parameters
+    ----------
+    dic_to_merge : dict
+        Dictionary to merge.
+    new_dic : dict
+        Dictionary to merge with.
+
+    Returns
+    -------
+    dict
+        Merged dictionary.
+    """
+
     if not new_dic:
         new_dic = dic_to_merge
     else:

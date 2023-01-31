@@ -1,5 +1,5 @@
 """
-This file is part of biosiglive. It contains biorbd specific functions for musculoskeletal analysis.
+This file contains biorbd specific functions for musculoskeletal analysis such as inverse or direct kinematics.
 """
 try:
     import biorbd
@@ -16,14 +16,21 @@ import time
 class MskFunctions:
     def __init__(self, model: str, data_buffer_size: int = 1):
         """
-        Initialize the MskFunctions class.
+        The MskFunctions contains all function for some musculoskeletal methods.
+
         Parameters
         ----------
         model : str
             Path to the biorbd model used to compute the kinematics.
+        data_buffer_size: int
+            The size of the buffer used to store the data.
         """
         if not biordb_package:
-            raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
+            raise ModuleNotFoundError(
+                "Biorbd is not installed."
+                " Please install it via"
+                " 'conda install biorbd -cconda-forge' to use this function."
+            )
         if isinstance(model, str):
             self.model = biorbd.Model(model)
         else:
@@ -44,7 +51,8 @@ class MskFunctions:
         **kwargs,
     ) -> tuple:
         """
-        Function to apply the Kalman filter to the markers.
+        Function to apply the inverse kinematics using the markers data and a biorbd model type.
+
         Parameters
         ----------
         markers : numpy.array
@@ -57,6 +65,7 @@ class MskFunctions:
             The method to use to compute the inverse kinematics.
         custom_function : callable
             Custom function to use.
+
         Returns
         -------
         tuple
@@ -115,11 +124,13 @@ class MskFunctions:
 
     def compute_direct_kinematics(self, states: np.ndarray) -> np.ndarray:
         """
-        Compute the direct kinematics.
+        Compute the direct kinematics using the joint angle and a biorbd model type.
+
         Parameters
         ----------
         states : np.ndarray
             The states to compute the direct kinematics.
+
         Returns
         -------
         np.ndarray
@@ -127,7 +138,11 @@ class MskFunctions:
         """
         tic = time.time()
         if not biordb_package:
-            raise ModuleNotFoundError("Biorbd is not installed. Please install it to use this function.")
+            raise ModuleNotFoundError(
+                "Biorbd is not installed."
+                " Please install it via"
+                " 'conda install biorbd -cconda-forge' to use this function."
+            )
         if isinstance(states, list):
             states = np.array(states)
         if states.shape[0] != self.model.nbQ():
@@ -149,6 +164,7 @@ class MskFunctions:
     def get_mean_process_time(self):
         """
         Get the mean process time.
+
         Returns
         -------
         float

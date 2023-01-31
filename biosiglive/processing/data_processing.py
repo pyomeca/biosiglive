@@ -1,5 +1,6 @@
 """
-This file is part of biosiglive. it contains the functions for data processing (offline and in real-time).
+This file contains the functions for data processing (offline and in real-time). Both class herites
+ from the GenericProcessing class.
 """
 
 from scipy.signal import butter, lfilter, filtfilt, convolve
@@ -13,7 +14,7 @@ from ..file_io.save_and_load import save, load
 class GenericProcessing:
     def __init__(self):
         """
-        Initialize the class.
+        Initialize the GenericProcessing class.
         """
         self.bpf_lcut = 10
         self.bpf_hcut = 425
@@ -27,6 +28,7 @@ class GenericProcessing:
     def _butter_bandpass(lowcut: float, highcut: float, fs: float, order: int = 5) -> tuple:
         """
         Create a butter bandpass filter.
+
         Parameters
         ----------
         lowcut : float
@@ -53,6 +55,7 @@ class GenericProcessing:
     def _butter_lowpass(lowcut, fs, order=4) -> tuple:
         """
         Create a butter lowpass filter.
+
         Parameters
         ----------
         lowcut : float
@@ -75,6 +78,7 @@ class GenericProcessing:
     def _butter_bandpass_filter(self, data: np.ndarray, lowcut: float, highcut: float, fs: float, order: int = 5):
         """
         Apply a butter bandpass filter.
+
         Parameters
         ----------
         data: numpy.ndarray
@@ -101,6 +105,7 @@ class GenericProcessing:
     def butter_lowpass_filter(self, data: np.ndarray, lowcut: float, fs: float, order: int = 4) -> np.ndarray:
         """
         Apply a butter lowpass filter.
+
         Parameters
         ----------
         data: numpy.ndarray
@@ -125,12 +130,13 @@ class GenericProcessing:
     def _moving_average(data: np.ndarray, window: np.ndarray, empty_ma: np.ndarray) -> np.ndarray:
         """
         Apply moving average.
+
         Parameters
         ----------
         data: numpy.ndarray
             Data to process.
-        w: numpy.ndarray
-            Window.
+        window: numpy.ndarray
+            window to apply.
         empty_ma: numpy.ndarray
             Empty array to store the moving average.
 
@@ -147,6 +153,7 @@ class GenericProcessing:
     def center(emg_data: np.ndarray, center_value: float = None) -> np.ndarray:
         """
         Center the EMG data.
+
         Parameters
         ----------
         emg_data : numpy.ndarray
@@ -193,6 +200,7 @@ class GenericProcessing:
     def calibration_matrix(self, data: np.ndarray, matrix: np.ndarray) -> np.ndarray:
         """
         Apply a calibration matrix to the data.
+
         Parameters
         ----------
         data: numpy.ndarray
@@ -225,6 +233,7 @@ class GenericProcessing:
     ) -> np.ndarray:
         """
         Process EMG data.
+
         Parameters
         ----------
         data : numpy.ndarray
@@ -245,6 +254,7 @@ class GenericProcessing:
             Apply normalization.
         moving_average_window : int
             Moving average window.
+
         Returns
         -------
         numpy.ndarray
@@ -275,6 +285,7 @@ class GenericProcessing:
     def update_signal_processing_parameters(self, **kwargs):
         """
         update the signal processing parameters.
+
         Parameters
         ----------
         kwargs: dict
@@ -289,12 +300,13 @@ class RealTimeProcessing(GenericProcessing):
     def __init__(self, data_rate: Union[int, float], processing_window: int = None):
         """
         Initialize the class for real time processing.
+
         Parameters
         ----------
         data_rate : int
             Data rate.
         processing_window : int
-            Processing windows.
+            The window on which data will be processed.
         """
         super().__init__()
         self.data_rate = data_rate
@@ -318,6 +330,7 @@ class RealTimeProcessing(GenericProcessing):
     ) -> np.ndarray:
         """
         Process EMG data in real-time.
+
         Parameters
         ----------
         emg_data : numpy.ndarray
@@ -325,19 +338,20 @@ class RealTimeProcessing(GenericProcessing):
         mvc_list : list
             MVC values.
         band_pass_filter : bool
-            Apply band pass filter.
+            True if apply band pass filter.
         low_pass_filter : bool
-            Apply low pass filter.
+            True if apply low pass filter.
         moving_average : bool
-            Apply moving average.
+            True if apply moving average.
         centering : bool
-            Apply centering.
+            True if apply centering.
         absolute_value : bool
-            Apply absolute value.
+            True if apply absolute value.
         normalization : bool
-            Apply normalization.
+            True if apply normalization.
         moving_average_window : int
             Moving average window.
+
         Returns
         -------
         np.ndarray
@@ -420,14 +434,15 @@ class RealTimeProcessing(GenericProcessing):
     ) -> np.ndarray:
         """
         Process IMU data in real-time.
+
         Parameters
         ----------
         im_data : numpy.ndarray
             Temporary IMU data (nb_imu, im_sample).
         accel : bool
-            If current data is acceleration data to adapt the processing.
+            True if current data is acceleration data to adapt the processing.
         squared : bool
-            Apply squared.
+            True if apply squared.
         norm_min_bound : int
             Normalization minimum bound.
         norm_max_bound : int
@@ -498,6 +513,7 @@ class RealTimeProcessing(GenericProcessing):
     ) -> tuple:
         """
         Allow to get the number of peaks for an analog signal (to get cadence from treadmill for instance).
+
         Parameters
         ----------
         new_sample : numpy.ndarray
@@ -567,7 +583,22 @@ class RealTimeProcessing(GenericProcessing):
                     signal[j, -interval:][i] = 0
         return signal
 
-    def custom_processing(self, funct, data_tmp, **kwargs):
+    def custom_processing(self, funct: callable, data_tmp: np.ndarray, **kwargs) -> np.ndarray:
+        """
+        Allow to apply a custom processing function to the data.
+
+        Parameters
+        ----------
+        funct: callable
+            Function to apply to the data.
+        data_tmp: numpy.ndarray
+            Data to process.
+
+        Returns
+        -------
+        numpy.ndarray
+            Processed data.
+        """
         tic = time.time()
         data_tmp = funct(data_tmp, **kwargs)
         self.process_time.append(time.time() - tic)
@@ -581,6 +612,13 @@ class OfflineProcessing(GenericProcessing):
     def __init__(self, data_rate: float = None, processing_window: int = None):
         """
         Offline processing.
+
+        Parameters
+        ----------
+        data_rate : float
+            Data rate of the signal.
+        processing_window : int
+            Number of samples to process at once.
         """
         super(OfflineProcessing, self).__init__()
         self.data_rate = data_rate
@@ -589,6 +627,7 @@ class OfflineProcessing(GenericProcessing):
     def process_emg(self, data: np.ndarray, mvc_list: list = None, **kwargs) -> np.ndarray:
         """
         Process EMG data.
+
         Parameters
         ----------
         data : np.ndarray
@@ -600,7 +639,7 @@ class OfflineProcessing(GenericProcessing):
         -------
         np.ndarray
             Processed EMG data.
-        -------
+
         """
         return self.process_generic_signal(data, mvc_list, **kwargs)
 
@@ -612,7 +651,7 @@ class OfflineProcessing(GenericProcessing):
         tmp_file: str = None,
         output_file: str = None,
         save_file: bool = False,
-    ):
+    ) -> list:
         """
         Compute MVC from several mvc_trials.
 
@@ -623,13 +662,14 @@ class OfflineProcessing(GenericProcessing):
         mvc_trials : numpy.ndarray
             EMG data for all trials.
         window_size : int
-            Size of the window.
+            Size of the window to compute MVC. Usually it is 1 second so the data rate.
         tmp_file : str
             Name of the temporary file.
         output_file : str
             Name of the output file.
         save_file : bool
             If true, save the results.
+
         Returns
         -------
         list

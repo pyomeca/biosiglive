@@ -1,23 +1,27 @@
-"""
+# EMG streaming
+
 This example shows how to disseminate EMG data using biosiglive and a dedicated interface.
 First an interface is created, then a device is added to the interface. For EMG data, two interfaces are available:
 ViconClient to stream data from a vicon Nexus software via the Vicon Data Stream SDK (https://www.vicon.com/software/datastream-sdk/). The Pytrigno interface for streaming data from the Delsys trigno community SDK (https://delsys.com/sdk/).
 If you want to try this example offline, you can use the provided custom interface named 'MyInterface' which you can use as a standard interface.
 
 The EMG device taking as input argument :
-- the number of electrodes
-- the type of the device (the allowed types are listed in the DeviceType class)
-- the name of the device (for the Vicon system, it must be the same name as the device to stream).
-- the flow of the device.
-- the process method to use. Here, the process_emg method is used.
-- any other argument needed for the processing method. (you can see the possible arguments in the documentation of the process_emg method).
+
+-the number of electrodes
+-the type of the device (the allowed types are listed in the DeviceType class)
+-the name of the device (for the Vicon system, it must be the same name as the device to stream).
+-the flow of the device.
+-the process method to use. Here, the process_emg method is used.
+-any other argument needed for the processing method. (you can see the possible arguments in the documentation of the process_emg method).
 
 If you want to display the data in real time, you can use the biosiglive plot classes, please take a look at the live_plot.py example.
 After initializing the interface and the device, the data exchange is done in a loop.
 The data must first be received from the source by the get_device_data method.
 After that, the data can be used as is or processed using the process() method of the Device class.
 In this function you can pass a method if you want to use a different method than the default one and every needed argument for that function as well.
-"""
+
+
+```
 from examples.custom_interface import MyInterface
 from biosiglive.gui.plot import LivePlot
 from biosiglive import (
@@ -26,7 +30,6 @@ from biosiglive import (
     PlotType,
 )
 from time import sleep, time
-
 try:
     import biorbd
 except ImportError:
@@ -82,3 +85,4 @@ if __name__ == "__main__":
         real_time_to_sleep = time_to_sleep - loop_time
         if real_time_to_sleep > 0:
             sleep(real_time_to_sleep)
+```

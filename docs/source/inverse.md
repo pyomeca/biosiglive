@@ -1,11 +1,13 @@
-"""
+# Inverse kinematics from mocap data
+
 This example shows how to apply an inverse kinematics method to a biorbd model and a set of markers.
 To use these methods, you will need to use and install the biorbd(https://github.com/pyomeca/biorbd) and bioviz (https://github.com/pyomeca/bioviz) libraries. More information is available on the projects GitHub page. This example uses a marker data stream from the Vicon Nexus interface.
 If you want to try this example offline, you can use the provided custom interface, called 'MyInterface', which you can use as a standard interface.
 For more information on how to do this, please refer to the marker_streaming.py example. Here, the processing method used is the inverse kinematics method of the biorbd library. The implemented methods are available in the class InverseKinematicsMethods. This method takes the biorbd model as an argument in the initialization.
 The processing method will return the angle and velocity of the model joint. You can display the result using the skeleton plot which uses the bioviz library. In the skeleton plot initialization, you can specify the arguments belonging to the bioviz.Viz function. For more information about the arguments, please refer to the bioviz documentation.
 Be aware that the skeleton plot may take some time and slow down the loop. If you want to display the data in real time, consider using a lightweight *.vtp file inside the model.
-"""
+
+```
 import time
 from biosiglive import ViconClient, InverseKinematicsMethods, LivePlot, PlotType, InterfaceType
 from custom_interface import MyInterface
@@ -37,3 +39,4 @@ if __name__ == "__main__":
         marker_plot.update(Q)
         if interface == InterfaceType.Custom:
             time.sleep((1 / 100) - (time.time() - tic))
+```

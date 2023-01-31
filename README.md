@@ -6,6 +6,7 @@
 
 [How to install](#how-to-install)
 - [From anaconda](#installing-from-anaconda)
+- [From pip](#installing-from-pip)
 - [From the sources](#installing-from-the-sources)
 
 [`biosiglive` API](#biosiglive-api)
@@ -29,7 +30,7 @@ conda install -c conda-forge biosiglive
 ## Installing from pip
 You can install biosiglive from pip by running the following command :
 ```bash
-pip install biosiglive matplotlib
+pip install biosiglive
 ```
 pyqtgraph, biorbd and bioviz will not be installed in the same time as they are not available on pip or optional.
 So you can install pyqtgraph running the following command :
