@@ -319,7 +319,7 @@ class ViconClient(GenericInterface):
                 if not marker_set.subject_name:
                     marker_set.subject_name = self.vicon_client.GetSubjectNames()[0]
 
-    def get_latency(self)-> float:
+    def get_latency(self) -> float:
         """
         Get the latency between the Vicon system and the Vicon SDK.
 
@@ -332,7 +332,7 @@ class ViconClient(GenericInterface):
             raise RuntimeError("Vicon client is not initialized.")
         return self.vicon_client.GetLatencyTotal()
 
-    def get_frame(self)-> bool:
+    def get_frame(self) -> bool:
         """
         Get a new frame from the Vicon system.
 
@@ -348,7 +348,7 @@ class ViconClient(GenericInterface):
             self.is_frame = self.vicon_client.GetFrame()
         return self.is_frame
 
-    def get_frame_number(self)-> int:
+    def get_frame_number(self) -> int:
         """
         Get the last frame number.
 

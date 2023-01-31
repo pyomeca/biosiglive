@@ -13,6 +13,7 @@ class PytrignoClient(GenericInterface):
     """
     Class to wrap the Trigno community SDK.
     """
+
     def __init__(self, system_rate=100, ip: str = "127.0.0.1", init_now: bool = True):
         """
         Initialize the interface.
@@ -89,7 +90,9 @@ class PytrignoClient(GenericInterface):
         if self.init_now:
             self.init_client()
 
-    def get_device_data(self, device_name: str = "all", channel_idx: Union[int, list] = (), get_frame: bool = True) -> np.ndarray:
+    def get_device_data(
+        self, device_name: str = "all", channel_idx: Union[int, list] = (), get_frame: bool = True
+    ) -> np.ndarray:
         """
         Get data from the device.
 

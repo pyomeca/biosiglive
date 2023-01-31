@@ -1,13 +1,12 @@
 """
-This example shows how to save data in a pickle file (with a *.bio extension) using the preimplemented function. The particularity of this function is
-that the data are add to the file without reading all the file, so it is a fast way to save data in a binary file inside a loop.
-You might want to do that for online data streaming in case of disfunction and to not fill an array with to mch data.
-The file can then read using the load function wich will concatenate all the data in the file to return a dictionary with all the data.
-Keep in mind that the load function need to read each line one after the other so if you have a lot of line it migth take a while.
-The load function take the nuber of line that you want to read as argument in case of to slow oppening.
+This example shows how to save data in a pickle file (with a *.bio extension) using the pre-implemented function. The special feature of this function is that the data is added to the file without reading the whole file, so it is a fast way to save data to a binary file inside a loop.
+So it's a quick way to save data to a binary file inside a loop. You might want to do this for the online data stream in case of a malfunction and to not fill a table with too much data.
+The file can then be read using the load function which concatenates all the data in the file and returns a dictionary containing all the data.
+Keep in mind that the load function has to read each row one after the other, so if you have a lot of rows, it may take a while.
+The load function takes the number of lines you want to read as an argument in case it opens too slowly.
 """
-import os
 
+import os
 from biosiglive import save, load
 import numpy as np
 

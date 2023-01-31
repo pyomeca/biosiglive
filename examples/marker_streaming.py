@@ -1,27 +1,21 @@
 """
-This example shows how to retrieave markers data from a Vicon Nexus interface. Please note that the Vicon interface is
-the only implemented method able to retrieve markers data.
-First you have to create a ViconClient object. This object will be used to connect to the Vicon system and to retrieve the
-data. Then you have to add a marker set to the interface. For now only one marker set can be added.
-The marker set take the following arguments:
-    - nb_markers: int
+This example shows how to retrieve marker data from a Vicon Nexus interface. Please note that the Vicon interface is the only implemented method capable of retrieving marker data.
+First, you need to create a ViconClient object. This object will be used to connect to the Vicon system and retrieve data. Next, you need to add a set of markers to the interface. For now, only one marker set can be added.
+The marker set takes the following arguments:
+    - nb_markers : int
         Number of markers.
-    - name: str
-        Name of the markers set.
-    - marker_names: Union[list, str]
-        List of markers names.
-    subject_name: str
-        Name of the subject. If None, the subject will be the first one in Nexus.
-    rate : int
-        Rate of the camera set used to record marker trajectories.
+    - name : str
+        Name of the marker set.
+    - marker_names : Union [list, str]
+        List of marker names.
+    subject_name : str
+        Name of the subject. If None, the subject will be the first in Nexus.
+    rate: int
+        Rate of the camera used to record the marker trajectories.
     unit : str
         Unit of the marker trajectories ("mm" or "m").
-If you want to display the markers in a 3D scatter plot you can add a Scatter3D plot to the interface. You can pass
- the size and tho color of the marker through the marker_kwargs argument. Please take a look at the documentation of
- the Scatter3D plot for more information.
-Then the data streaming take place in a loop where the function get_marker_set_data() is used to retrieve the data from
-the interface. The data is then passed to the plot through the update() method by a matrix of (n_frame, n_markers, 3).
- Where the plot parameters can be updated.
+If you want to display the markers in a 3D scatter plot, you can add a Scatter3D plot to the interface. You can pass the size and color of the marker via size and color argument, respectively. Please see the Scatter3D documentation for more information.
+Next, the data flow runs in a loop where the get_marker_set_data() function is used to retrieve the data from the interface. The data is then passed to the graph via the update() method through an array of (n_frame, n_markers, 3) where the plot parameters can be updated.
 """
 from time import sleep, time
 from custom_interface import MyInterface

@@ -24,28 +24,20 @@ def save(data_dict, data_path):
 
 # TODO add dict merger
 def load(filename, number_of_line=None):
-    # """This function reads data from a pickle file to concatenate them into one dictionary.
-    #
-    # Parameters
-    # ----------
-    # filename : str
-    #     The path to the file.
-    # number_of_line : int
-    #     The number of lines to read. If None, all lines are read.
-    #
-    # Returns
-    # -------
-    # data : dict
-    #     The data read from the file.
-    # """
-    """This function adds data to a pickle file. It not open the file, but appends the data to the end, so it's fast.
+    """This function reads data from a pickle file to concatenate them into one dictionary.
 
     Parameters
     ----------
-    data_dict : dict
-        The data to be added to the file.
-    data_path : str
-        The path to the file. The file must exist.
+    filename : str
+        The path to the file.
+    number_of_line : int
+        The number of lines to read. If None, all lines are read.
+
+    Returns
+    -------
+    data : dict
+        The data read from the file.
+
     """
     if Path(filename).suffix != ".bio":
         raise ValueError("The file must be a .bio file.")
