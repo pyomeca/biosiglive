@@ -18,4 +18,5 @@ from .streaming.server import Server
 from .streaming.stream_data import StreamData
 
 from .enums import *
+
 __version__ = "2.0.0"

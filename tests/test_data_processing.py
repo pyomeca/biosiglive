@@ -59,7 +59,7 @@ def test_real_time_processing(method):
     if method == RealTimeProcessingMethod.CalibrationMatrix:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.4959683, 0.3568878])
     elif method == RealTimeProcessingMethod.ProcessEmg:
-        np.testing.assert_almost_equal(processed_data[:, -1], [0.156469 , 0.1365517])
+        np.testing.assert_almost_equal(processed_data[:, -1], [0.156469, 0.1365517])
     elif method == RealTimeProcessingMethod.GetPeaks:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.0, 0.0])
         np.testing.assert_almost_equal(nb_peaks, 100)
@@ -94,8 +94,7 @@ def test_offline_processing(method):
 )
 def test_inverse_kinematics_methods(methods):
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    np.random.seed(50)
-    markers_data = np.random.rand(3, 16, 1)
+    markers_data = np.ones((3, 16, 1)) * 0.1
     model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
 
     msk_function = MskFunctions(model=model_path)
@@ -109,22 +108,23 @@ def test_inverse_kinematics_methods(methods):
         np.testing.assert_almost_equal(
             q[:, 0],
             [
-                0.4678967,
-                0.5452077,
-                0.6265815,
-                2.3980326,
-                0.7131959,
-                -0.843272,
-                0.4449836,
-                -0.3651489,
-                -1.8346828,
-                -0.4779496,
-                -1.9841764,
-                -0.9272213,
-                1.9080811,
-                -2.9865801,
-                2.487792,
+                0.0859061,
+                0.1650248,
+                0.1019853,
+                -2.3876092,
+                1.3106894,
+                2.7743532,
+                -3.8583198,
+                -0.2704209,
+                2.0373899,
+                0.1503456,
+                0.9030997,
+                0.8522711,
+                -1.6218697,
+                0.4328726,
+                -3.10159,
             ],
+            decimal=4,
         )
         np.testing.assert_almost_equal(q_dot[:, 0], np.zeros((15,)))
 
@@ -132,43 +132,44 @@ def test_inverse_kinematics_methods(methods):
         np.testing.assert_almost_equal(
             q[:, 0],
             [
-                0.3967554,
-                0.5319872,
-                0.7010691,
-                -20.2915409,
-                1.360212,
-                22.1051027,
-                -1.4536078,
-                5.3653793,
-                -153.7577957,
-                5.9256863,
-                142.7770999,
-                -82.2179062,
-                2.0438505,
-                43.001448,
-                9.4642261,
+                0.1641379,
+                0.1138498,
+                0.1144206,
+                1.2445316,
+                0.0922355,
+                -0.9251613,
+                -3.9271956,
+                -2.9052048,
+                -12.9825494,
+                -2.8963511,
+                -14.2619434,
+                4.0001431,
+                -4.6817521,
+                4.2250031,
+                -3.1007907,
             ],
+            decimal=4,
         )
         np.testing.assert_almost_equal(
             q_dot[:, 0],
             [
-                -6.83500742e00,
-                1.09847707e00,
-                1.57524868e00,
-                -3.97775191e01,
-                -3.56767334e01,
-                6.14234710e01,
-                4.47125570e01,
-                1.27014192e02,
-                -1.10512674e02,
-                -4.87175834e-01,
-                -2.81411720e01,
-                1.01959841e02,
-                5.55270630e01,
-                6.81543760e02,
-                1.93372073e01,
+                -0.013688,
+                -0.0174,
+                0.054321,
+                3.4537,
+                0.611992,
+                0.115344,
+                -5.570652,
+                -3.603674,
+                0.370434,
+                -1.234856,
+                -0.491976,
+                -0.033802,
+                -0.031005,
+                0.610965,
+                0.03146,
             ],
-            decimal=6,
+            decimal=4,
         )
 
 

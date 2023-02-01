@@ -58,9 +58,7 @@ class Param:
         elif self.raw_data.shape[-1] < self.data_window:
             self.raw_data = np.append(self.raw_data, new_data, axis=-1)
         else:
-            self.raw_data = np.append(
-                self.raw_data[..., new_data.shape[-1] :], new_data, axis=-1
-            )
+            self.raw_data = np.append(self.raw_data[..., new_data.shape[-1] :], new_data, axis=-1)
 
 
 class Device(Param):

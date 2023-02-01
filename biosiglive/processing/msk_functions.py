@@ -26,9 +26,11 @@ class MskFunctions:
             The size of the buffer used to store the data.
         """
         if not biordb_package:
-            raise ModuleNotFoundError("Biorbd is not installed."
-                                      " Please install it via"
-                                      " 'conda install biorbd -cconda-forge' to use this function.")
+            raise ModuleNotFoundError(
+                "Biorbd is not installed."
+                " Please install it via"
+                " 'conda install biorbd -cconda-forge' to use this function."
+            )
         if isinstance(model, str):
             self.model = biorbd.Model(model)
         else:
@@ -136,9 +138,11 @@ class MskFunctions:
         """
         tic = time.time()
         if not biordb_package:
-            raise ModuleNotFoundError("Biorbd is not installed."
-                                      " Please install it via"
-                                      " 'conda install biorbd -cconda-forge' to use this function.")
+            raise ModuleNotFoundError(
+                "Biorbd is not installed."
+                " Please install it via"
+                " 'conda install biorbd -cconda-forge' to use this function."
+            )
         if isinstance(states, list):
             states = np.array(states)
         if states.shape[0] != self.model.nbQ():
