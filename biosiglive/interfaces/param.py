@@ -118,7 +118,7 @@ class Device(Param):
         self,
         method: Union[str, RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         custom_function: callable = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Process the data of the device. The raw data are stored in a buffer fill by the append data method.
@@ -291,7 +291,7 @@ class MarkerSet(Param):
         method: Union[InverseKinematicsMethods, str] = None,
         custom_function: callable = None,
         kin_data_window: int = None,
-        **kwargs
+        **kwargs,
     ) -> tuple:
         """
         Function to apply the Kalman filter to the markers.
