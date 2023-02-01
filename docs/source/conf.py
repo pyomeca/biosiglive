@@ -9,7 +9,8 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../../biosiglive"))
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath('../'))
 
 project = "biosiglive"
 copyright = "2023, aceglia"
