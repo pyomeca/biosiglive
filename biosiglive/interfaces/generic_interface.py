@@ -124,7 +124,6 @@ class GenericInterface:
         return markers_tmp
 
     def add_marker_set(self, **kwargs):
-
         """
         Add a marker set to stream from the interface system.
         """

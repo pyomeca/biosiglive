@@ -49,7 +49,7 @@ class PytrignoClient(GenericInterface):
         rate: float = 2000,
         device_range: tuple = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
-        **process_kwargs
+        **process_kwargs,
     ):
         """
         Add a device to the Pytrigno system.
