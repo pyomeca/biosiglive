@@ -18,6 +18,7 @@ The data must first be received from the source by the get_device_data method.
 After that, the data can be used as is or processed using the process() method of the Device class.
 In this function you can pass a method if you want to use a different method than the default one and every needed argument for that function as well.
 """
+
 from examples.custom_interface import MyInterface
 from biosiglive.gui.plot import LivePlot
 from biosiglive import (
