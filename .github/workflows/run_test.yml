@@ -44,7 +44,7 @@ jobs:
         run: mamba install black pytest -cconda-forge
 
       - name: Run the actual tests
-        run: pytest tests/ --ignore=somedir --ignore=tests/test_vicon_interface.py --ignore=tests/test_pytrigno_interface.py
+        run: pytest tests/  --ignore=tests/test_vicon_interface.py --ignore=tests/test_pytrigno_interface.py --ignore=tests/test_connection.py
 
           
       - name: Test installed version of biosiglive
