@@ -49,6 +49,6 @@ jobs:
           
       - name: Test installed version of biosiglive
         run: | 
-          python setup.py install
+          pip install .
           cd
           python -c "import biosiglive"
