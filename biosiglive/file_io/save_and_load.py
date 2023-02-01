@@ -1,14 +1,10 @@
-"""
-This file contains functions to save and read data efficiently in pickle file.
-"""
 import pickle
 import numpy as np
 from pathlib import Path
 
 
 def save(data_dict, data_path):
-    """
-    This function adds data to a pickle file. It not open the file, but appends the data to the end, so it's fast.
+    """This function adds data to a pickle file. It not open the file, but appends the data to the end, so it's fast.
 
     Parameters
     ----------
@@ -28,8 +24,7 @@ def save(data_dict, data_path):
 
 # TODO add dict merger
 def load(filename, number_of_line=None):
-    """
-    This function reads data from a pickle file to concatenate them into one dictionary.
+    """This function reads data from a pickle file to concatenate them into one dictionary.
 
     Parameters
     ----------
@@ -42,6 +37,7 @@ def load(filename, number_of_line=None):
     -------
     data : dict
         The data read from the file.
+
     """
     if Path(filename).suffix != ".bio":
         raise ValueError("The file must be a .bio file.")

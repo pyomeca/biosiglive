@@ -1,12 +1,13 @@
-"""
+# Custom interface
+
 This example shows how to build a custom interface from the GenericInterface class.
 The custom interface is used to distribute data from a source that is not supported by the library.
 If you create a new interface, you are welcome to contribute to the library by creating a pull request following the contributing.md directives.
 Here, the interface aims to distribute data from a file, each time the get data function is called, the data from the file will be sent. To see the functions to implement in this class, please refer to the GenericInterface class.
 For this custom interface, you need to provide a file with extension .bio (biosiglive file format, please refer to the save_and_load.py save example) as argument. When creating the device, you must specify the device key in the dictionary read from the file using the *_data_file_key argument.
 Please see any example to see how to use this interface.
-"""
 
+```
 from typing import Union
 import numpy as np
 from biosiglive import (
@@ -219,3 +220,5 @@ if __name__ == "__main__":
     )
 
     print(interface.get_kinematics_from_markers("My markers", get_markers_data=True))
+
+```

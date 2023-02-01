@@ -1,9 +1,10 @@
-"""
+# Cadence from treadmill
+
 This example shows how to use the biosiglive library to get the cadence of a treadmill.
 First, an interface is created (here Vicon) and then a device (here a treadmill) is added to the interface. If you want to try this example offline, you can use the provided custom interface named "MyInterface" and you can use it as a standard interface.
 The data can be plotted in real time at each loop, please see the live_plot.py example.
 
-"""
+```
 import numpy as np
 from biosiglive.interfaces.vicon_interface import ViconClient
 from time import time
@@ -58,3 +59,5 @@ if __name__ == "__main__":
         if interface_type == InterfaceType.Custom:
             loop_time = time() - tic
             real_time_to_sleep = (1 / interface.devices[-1].system_rate) - loop_time
+
+```

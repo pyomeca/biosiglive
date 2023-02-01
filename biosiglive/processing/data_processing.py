@@ -254,6 +254,7 @@ class GenericProcessing:
             Apply normalization.
         moving_average_window : int
             Moving average window.
+
         Returns
         -------
         numpy.ndarray
@@ -638,7 +639,7 @@ class OfflineProcessing(GenericProcessing):
         -------
         np.ndarray
             Processed EMG data.
-        -------
+
         """
         return self.process_generic_signal(data, mvc_list, **kwargs)
 
