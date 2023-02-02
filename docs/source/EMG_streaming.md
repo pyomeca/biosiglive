@@ -22,7 +22,8 @@ In this function you can pass a method if you want to use a different method tha
 
 
 ```
-from examples.custom_interface import MyInterface
+
+from custom_interface import MyInterface
 from biosiglive.gui.plot import LivePlot
 from biosiglive import (
     ViconClient,
@@ -30,10 +31,6 @@ from biosiglive import (
     PlotType,
 )
 from time import sleep, time
-try:
-    import biorbd
-except ImportError:
-    pass
 
 
 if __name__ == "__main__":

@@ -28,11 +28,6 @@ from biosiglive import (
 )
 from time import sleep, time
 
-try:
-    import biorbd
-except ImportError:
-    pass
-
 
 if __name__ == "__main__":
     try_offline = True

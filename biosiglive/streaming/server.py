@@ -61,12 +61,12 @@ class Connection:
             command = list(data.keys())
         for key in command:
             if key in data.keys():
-                if down_sampling and key in down_sampling.keys():
-                    if not isinstance(down_sampling[key], int):
-                        raise ValueError("The down sampling must be an integer.")
-                    data[key] = data[key][..., :: down_sampling[key]]
                 data_tmp[key] = []
                 for d in data[key]:
+                    if down_sampling and key in down_sampling.keys():
+                        if not isinstance(down_sampling[key], int):
+                            raise ValueError("The down sampling must be an integer.")
+                        d = d[..., :: down_sampling[key]]
                     if isinstance(d, np.ndarray):
                         if nb_frames_to_get:
                             data_tmp[key].append(d[..., -nb_frames_to_get:])

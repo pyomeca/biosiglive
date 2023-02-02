@@ -46,7 +46,8 @@ class MyInterface(GenericInterface):
         device_tmp = self._add_device(
             nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
         )
-        device_tmp.data_windows = data_buffer_size
+        if data_buffer_size:
+            device_tmp.data_window = data_buffer_size
         self.devices.append(device_tmp)
         if self.offline_data is not None:
             if not device_data_file_key:
