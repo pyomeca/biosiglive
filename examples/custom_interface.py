@@ -209,8 +209,9 @@ if __name__ == "__main__":
         nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000, device_data_file_key="emg"
     )
     interface.add_marker_set(
-        nb_channels=15,
+        nb_markers=16,
         name="My markers",
+        unit="mm",
         rate=100,
         data_buffer_size=100,
         marker_data_file_key="markers",

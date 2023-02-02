@@ -7,6 +7,9 @@ The processing method will return the angle and velocity of the model joint. You
 Be aware that the skeleton plot may take some time and slow down the loop. If you want to display the data in real time, consider using a lightweight *.vtp file inside the model.
 """
 import time
+
+import numpy as np
+
 from biosiglive import ViconClient, InverseKinematicsMethods, LivePlot, PlotType, InterfaceType
 from custom_interface import MyInterface
 

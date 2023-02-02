@@ -19,7 +19,7 @@ After that, the data can be used as is or processed using the process() method o
 In this function you can pass a method if you want to use a different method than the default one and every needed argument for that function as well.
 """
 
-from examples.custom_interface import MyInterface
+from custom_interface import MyInterface
 from biosiglive.gui.plot import LivePlot
 from biosiglive import (
     ViconClient,
