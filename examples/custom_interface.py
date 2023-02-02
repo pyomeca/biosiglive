@@ -46,7 +46,8 @@ class MyInterface(GenericInterface):
         device_tmp = self._add_device(
             nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
         )
-        device_tmp.data_windows = data_buffer_size
+        if data_buffer_size:
+            device_tmp.data_window = data_buffer_size
         self.devices.append(device_tmp)
         if self.offline_data is not None:
             if not device_data_file_key:
@@ -209,8 +210,9 @@ if __name__ == "__main__":
         nb_channels=8, device_type=DeviceType.Emg, name="My EMG device", rate=2000, device_data_file_key="emg"
     )
     interface.add_marker_set(
-        nb_channels=15,
+        nb_markers=16,
         name="My markers",
+        unit="mm",
         rate=100,
         data_buffer_size=100,
         marker_data_file_key="markers",
