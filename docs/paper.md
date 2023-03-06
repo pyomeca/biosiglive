@@ -102,11 +102,19 @@ interface.add_device(
 
 # Add plots
 emg_plot = LivePlot(
-    name="emg", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
+    name="emg",
+    rate=100,
+    plot_type=PlotType.Curve,
+    nb_subplots=n_electrodes,
+    channel_names=muscle_names
 )
 emg_plot.init(plot_windows=500, y_labels="Processed EMG (mV)")
 emg_raw_plot = LivePlot(
-    name="emg_raw", rate=100, plot_type=PlotType.Curve, nb_subplots=n_electrodes, channel_names=muscle_names
+    name="emg_raw",
+    rate=100,
+    plot_type=PlotType.Curve,
+    nb_subplots=n_electrodes,
+    channel_names=muscle_names
 )
 emg_raw_plot.init(plot_windows=10000, colors=(255, 0, 0), y_labels="EMG (mV)")
 
