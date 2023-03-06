@@ -54,7 +54,7 @@ The Python environment is, on the other hand, entirely free and allows anyone to
 However, real-time use of these signals is often required to provide task feedback to the user [@giggins2013biofeedback] or to control a device [@cozean1988biofeedback]. 
 In this type of use, access to biosignals easily and in real-time is a crucial point. 
 To our knowledge, no tool dedicated to biomechanical data is available to provide real-time access and processing of these signals. 
-Also, there is numerous platfroms where data can come from. 
+Also, there is numerous platforms where data can come from. 
 So, a package able to stream data from any of these sources should help the use of biosignals on a larger scale 
 (in clinical, rehabilitation, pedagogical, sport, and artistic activities). 
 We have developed `biosiglive` to facilitate the use of biosignals in real-time. 
