@@ -1,25 +1,6 @@
 # biosiglive
 `biosiglive` is a python library dedicated to streaming and processing biosignals in real time from Nexus or Delsys Trigno Community.
-Please have a look to the documentation for more information about [biosiglive](https://biosiglive.readthedocs.io/en/latest/index.html). 
-
-# Table of Contents  
-[Testing bioptim](#try-bioptim)
-
-[How to install](#how-to-install)
-- [From anaconda](#installing-from-anaconda)
-- [From pip](#installing-from-pip)
-- [From the sources](#installing-from-the-sources)
-
-[`biosiglive` API](#biosiglive-api)
-- [GUI](#gui)
-- [Interfaces](#interfaces)
-- [File I/O](#io)
-- [Processing](#processing)
-- [Streaming](#streaming)
-
-[Examples](#examples)
-
-[Citing](#Citing)
+Please have a look to the documentation for more information about [biosiglive](https://biosiglive.readthedocs.io/en/latest/index.html).
 
 # How to install
 Biosiglive can be installed from anaconda, pip or from the sources.
