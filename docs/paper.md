@@ -88,7 +88,12 @@ from biosiglive import LivePlot, save , ViconClient, RealTimeProcessingMethod, P
 interface = ViconClient(ip="localhost", system_rate=100)
 n_electrodes = 4
 raw_emg = None
-muscle_names = ["Pectoralis major", "Deltoid anterior", "Deltoid medial", "Deltoid posterior"]
+muscle_names = [
+    "Pectoralis major",
+    "Deltoid anterior",
+    "Deltoid medial",
+    "Deltoid posterior"
+]
 
 # Add device to Vicon interface
 interface.add_device(
