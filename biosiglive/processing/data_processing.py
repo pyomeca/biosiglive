@@ -568,9 +568,9 @@ class RealTimeProcessing(GenericProcessing):
             self.processed_data_buffer = RealTimeProcessing._check_and_adjust_interval(
                 self.processed_data_buffer, min_peaks_interval
             )
-
         if isinstance(nb_peaks, list):
-            nb_peaks.append(np.count_nonzero(self.processed_data_buffer))
+            for i in range(self.processed_data_buffer.shape[0]):
+                nb_peaks.append(np.count_nonzero(self.processed_data_buffer[i, :]))
         self.process_time.append(time.time() - tic)
         return nb_peaks, self.processed_data_buffer
 
