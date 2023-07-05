@@ -40,16 +40,14 @@ class StreamData:
 
         # Multiprocessing stuff
         manager = mp.Manager()
-        self.queue = manager.Queue
-        self.event = manager.Event
         self.device_queue_in = []
         self.device_queue_out = []
         self.kin_queue_in = []
         self.kin_queue_out = []
         self.plots_queue = []
         self.device_event = []
-        self.is_device_data = self.event()
-        self.is_kin_data = self.event()
+        self.is_device_data = []
+        self.is_kin_data = []
         self.interface_event = []
         self.kin_event = []
         self.custom_processes = []
@@ -87,9 +85,9 @@ class StreamData:
             Device to add.
         """
         self.devices.append(device)
-        self.device_queue_in.append(self.queue())
-        self.device_queue_out.append(self.queue())
-        self.device_event.append(self.event())
+        self.device_queue_in.append(mp.Manager().Queue())
+        self.device_queue_out.append(mp.Manager().Queue())
+        self.device_event.append(mp.Manager().Event())
 
     def add_interface(self, interface: GenericInterface()):
         """
@@ -104,11 +102,14 @@ class StreamData:
             raise Exception("Cannot add interface after the stream has started.")
         self.interfaces.append(interface)
         self.interfaces_type.append(interface.interface_type)
-        self.interface_event.append(self.event())
+        self.interface_event.append(mp.Manager().Event())
+        self.is_kin_data = mp.Manager().Event()
+        self.is_device_data = mp.Manager().Event()
         for device in interface.devices:
             self._add_device(device)
         for marker in interface.marker_sets:
             self._add_marker_set(marker)
+
         if len(self.interfaces) > 1:
             raise ValueError("Only one interface can be added for now.")
 
@@ -144,7 +145,7 @@ class StreamData:
             self.ports = [self.ports]
 
         for p in range(len(self.ports)):
-            self.server_queue.append(self.queue())
+            self.server_queue.append(mp.Manager().Queue())
         self.client_type = client_type
 
         if not device_buffer_size:
@@ -166,6 +167,8 @@ class StreamData:
             self.marker_set_buffer_size = marker_set_buffer_size
         elif isinstance(marker_set_buffer_size, int):
             self.marker_set_buffer_size = [marker_set_buffer_size] * len(self.marker_sets)
+        if len(self.ports) > 1:
+            raise ValueError("Only one server can be added for now.")
 
     def start(self, save_streamed_data: bool = False, save_path: str = None, save_frequency: int = None):
         """
@@ -195,9 +198,9 @@ class StreamData:
             Marker set to add from given interface.
         """
         self.marker_sets.append(marker)
-        self.kin_queue_in.append(self.queue())
-        self.kin_queue_out.append(self.queue())
-        self.kin_event.append(self.event())
+        self.kin_queue_in.append(mp.Manager().Queue())
+        self.kin_queue_out.append(mp.Manager().Queue())
+        self.kin_event.append(mp.Manager().Event())
 
     # TODO : add buffer directly in the server
     def device_processing(self, device_idx: int):

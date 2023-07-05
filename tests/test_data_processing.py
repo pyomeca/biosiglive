@@ -62,7 +62,7 @@ def test_real_time_processing(method):
         np.testing.assert_almost_equal(processed_data[:, -1], [0.156469, 0.1365517])
     elif method == RealTimeProcessingMethod.GetPeaks:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.0, 0.0])
-        np.testing.assert_almost_equal(nb_peaks, 100)
+        np.testing.assert_almost_equal(nb_peaks[-1], 100)
     elif method == RealTimeProcessingMethod.ProcessGenericSignal:
         np.testing.assert_almost_equal(processed_data[:, -1], [0.0164153, 0.0218168])
     elif method == RealTimeProcessingMethod.Custom:
