@@ -16,6 +16,7 @@ Then the streaming will be started with all the data streaming, processing and t
   at the save frequency specified in the start method.
 Please note that it is not yet possible to plot the data in real-time.
 """
+
 from custom_interface import MyInterface
 from biosiglive import (
     ViconClient,

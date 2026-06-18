@@ -11,3 +11,4 @@ dependencies:
 - biorbd
 - bioviz
 - pyqtgraph
+- PyQt6

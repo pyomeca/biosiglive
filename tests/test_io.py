@@ -18,7 +18,7 @@ def test_save_and_load(rt):
     i = 0
     while i != 50:
         if rt:
-            save(data, "test")
+            save(data, "test", add_data=True)
         i += 1
     if not rt:
         save(data, "test")
@@ -26,6 +26,7 @@ def test_save_and_load(rt):
     os.remove("test.bio")
     np.testing.assert_almost_equal(len(list(data_loaded.keys())), len(list(data.keys())))
     np.testing.assert_almost_equal(data_loaded["data_np"].shape, (2, shape_np))
-    np.testing.assert_almost_equal(len(data_loaded["data_int"]), shape)
-    np.testing.assert_almost_equal(len(data_loaded["data_list"]), shape)
-    np.testing.assert_almost_equal(len(data_loaded["data_dict"]), shape)
+    if rt:
+        np.testing.assert_almost_equal(len(data_loaded["data_int"]), shape)
+    np.testing.assert_almost_equal(len(data_loaded["data_list"]), shape * len(data["data_list"]))
+    np.testing.assert_almost_equal(len(data_loaded["data_dict"]), 1)

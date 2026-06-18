@@ -3,10 +3,11 @@ from .generic_interface import GenericInterface
 from ..enums import DeviceType, InterfaceType, RealTimeProcessingMethod, OfflineProcessingMethod
 from typing import Union
 
-try:
-    import pytrigno
-except ModuleNotFoundError:
-    pass
+# try:
+#     import pytrigno
+# except ModuleNotFoundError:
+#     pass
+from .trigno_sdk.sdk_client import TrignoSDKClient
 
 
 class PytrignoClient(GenericInterface):
@@ -14,7 +15,7 @@ class PytrignoClient(GenericInterface):
     Class to wrap the Trigno community SDK.
     """
 
-    def __init__(self, system_rate=100, ip: str = "127.0.0.1", init_now: bool = True):
+    def __init__(self, system_rate=74.074074, ip: str = "127.0.0.1", init_now: bool = True):
         """
         Initialize the interface.
 
@@ -39,6 +40,12 @@ class PytrignoClient(GenericInterface):
         self.is_frame = False
         self.is_initialized = False
         self.init_now = init_now
+        self.sdk_client = None
+        # if system_rate != 74.074074:
+        #     raise ValueError("System rate can not be changed for pytrigno interface for now." \
+        #     " 74 Hz mean that data will refresh every 13.5 ms but the EMG and IMU data are sampled at their own rate.")
+        if self.init_now:
+            self.sdk_client = TrignoSDKClient(host=ip, init_sensors=False, stream_rate=system_rate)
 
     def add_device(
         self,
@@ -47,7 +54,6 @@ class PytrignoClient(GenericInterface):
         data_buffer_size: int = None,
         name: str = None,
         rate: float = 2000,
-        device_range: tuple = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **process_kwargs,
     ):
@@ -57,7 +63,7 @@ class PytrignoClient(GenericInterface):
         Parameters
         ----------
         nb_channels: int
-            Number of channels of the device.
+            Number of channels of the device will be remove in futur version.
         device_type: Union[DeviceType, str]
             Type of the device.
         data_buffer_size: int
@@ -73,11 +79,7 @@ class PytrignoClient(GenericInterface):
         **process_kwargs
             Keyword arguments for the processing method.
         """
-        if not device_range:
-            device_range = (0, nb_channels - 1)
-        device_tmp = self._add_device(
-            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
-        )
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, processing_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         device_tmp.data_windows = data_buffer_size
         self.devices.append(device_tmp)
@@ -85,8 +87,13 @@ class PytrignoClient(GenericInterface):
             if device_type not in [t.value for t in DeviceType]:
                 raise ValueError("The type of the device is not valid.")
             device_type = DeviceType(device_type)
-        if device_type != DeviceType.Emg and device_type != DeviceType.Imu:
-            raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
+        if (
+            device_type != DeviceType.Emg
+            and device_type != DeviceType.Imu
+            and device_type != DeviceType.DelsysGogniometer
+        ):
+            raise RuntimeError("Device type must be 'emg', 'delsys_gogniometer' or 'imu' with pytrigno.")
+
         if self.init_now:
             self.init_client()
 
@@ -130,22 +137,12 @@ class PytrignoClient(GenericInterface):
 
         for device in devices:
             if get_frame:
-                if device.device_type == DeviceType.Emg:
-                    count = 0
-                    for device_tmp in devices:
-                        if device_tmp == device:
-                            break
-                        if device.device_type == DeviceType.Emg:
-                            count += 1
-                    device.new_data = self.emg_client[count].read()
-                else:
-                    count = 0
-                    for device_tmp in devices:
-                        if device_tmp == device:
-                            break
-                        if device.device_type == DeviceType.Imu:
-                            count += 1
-                    device.new_data = self.imu_client[count].read()
+                if device.device_type == DeviceType.Emg or device.device_type == DeviceType.DelsysGogniometer:
+                    queue_name = [key for key in self.sdk_client.all_queue if "emg" in key][0]
+                elif device.device_type == DeviceType.Imu or device.device_type == DeviceType.DelsysGogniometer:
+                    queue_name = [key for key in self.sdk_client.all_queue if "aux" in key][0]
+                device.new_data, _ = self.sdk_client.all_queue[queue_name].get()
+
             if channel_idx:
                 device_data = np.ndarray((len(channel_idx), device.new_data.shape[1]))
                 for i, idx in enumerate(channel_idx):
@@ -163,28 +160,31 @@ class PytrignoClient(GenericInterface):
         Get a frame from the interface. This function is used to get data from the interface.
         """
         if not self.is_initialized:
-            raise RuntimeError("Client is not initialized. Please call init_client() first.")
+            self.init_client()
+            # raise RuntimeError("Client is not initialized. Please call init_client() first.")
         self.get_device_data(get_frame=True)
         return True
+
+    def check_rate_devices(self):
+        for device in self.devices:
+            if "emg" in device.device_type.value:
+                device.rate = self.sdk_client.get_emg_streaming_rate()
+            if "imu" in device.device_type.value:
+                device.rate = self.sdk_client.get_aux_streaming_rate()
 
     def init_client(self):
         """
         Initialize the client if it's not already done. This function has to be called before getting a frame.
         """
         self.is_initialized = True
-        for d, device in enumerate(self.devices):
-            if device.device_type == DeviceType.Emg:
-                self.emg_client.append(
-                    pytrigno.TrignoEMG(
-                        channel_range=device.device_range, samples_per_read=device.sample, host=self.address
-                    )
+        device_types = np.unique(np.array([device.device_type.value for device in self.devices]))
+        self.sdk_client.initialize_sensors(device_types)
+        self.check_rate_devices()
+        if self.sdk_client._threads_to_run["avanti_emg"] and self.sdk_client._threads_to_run["legacy_emg"]:
+            raise (
+                RuntimeError(
+                    "Both avanti and legacy emg type are paired. "
+                    "It is not possible to use both at the same time in biosiglive for now."
                 )
-                self.emg_client[-1].start()
-            elif device.device_type == DeviceType.Imu:
-                imu_range = (device.device_range[0] * 9, device.device_range[1] * 9)
-                self.imu_client.append(
-                    pytrigno.TrignoIM(channel_range=imu_range, samples_per_read=device.sample, host=self.address)
-                )
-                self.imu_client[-1].start()
-            else:
-                raise RuntimeError("Device type must be 'emg' or 'imu' with pytrigno.")
+            )
+        self.sdk_client.start_streaming()

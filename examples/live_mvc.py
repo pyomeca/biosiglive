@@ -7,6 +7,7 @@ First the program will ask you the name of the test you are doing, then the numb
 You can plot the data (raw, processed or both) at the end of the processing.
 Then you can continue with other trials and do the same commands until you decide to stop the program at the end of a trial. In case of malfunction, a temporary file is saved after each trial with all previously recorded data (raw and processed). At the end of all trials, the MVC will be calculated by sorting the data and taking the highest values (for the specified MVC_window). You can then save the data to a file or simply terminate the program which will return a list of MVCs of the length of the number of muscles.
 """
+
 from biosiglive import ComputeMvc, InterfaceType
 from custom_interface import MyInterface
 

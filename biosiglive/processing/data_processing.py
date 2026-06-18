@@ -146,7 +146,7 @@ class GenericProcessing:
             Moving average.
         """
         for i in range(data.shape[0]):
-            empty_ma[i, :] = convolve(data[i, :], window, mode="same", method="fft")
+            empty_ma[i, :] = convolve(data[i, :], window, mode="same", method="auto")
         return empty_ma
 
     @staticmethod
@@ -326,6 +326,7 @@ class RealTimeProcessing(GenericProcessing):
         absolute_value=True,
         normalization=False,
         moving_average_window=200,
+        window_weights: list = None,
         **kwargs,
     ) -> np.ndarray:
         """
@@ -358,12 +359,13 @@ class RealTimeProcessing(GenericProcessing):
            processed EMG data.
 
         """
+        emg_data = emg_data.copy()
         self.update_signal_processing_parameters(**kwargs)
         tic = time.time()
         if low_pass_filter and moving_average:
             raise RuntimeError("Please choose between low-pass filter and moving average.")
         ma_win = moving_average_window
-        if ma_win > self.processing_window:
+        if ma_win > self.processing_window and moving_average:
             raise RuntimeError(f"Moving average windows ({ma_win}) higher than emg windows ({self.processing_window}).")
         emg_sample = emg_data.shape[1]
         if emg_sample == 0:
@@ -421,7 +423,7 @@ class RealTimeProcessing(GenericProcessing):
                 average = np.median(emg_proc_tmp[:, -ma_win:], axis=1).reshape(-1, 1)
                 self.processed_data_buffer = np.append(self.processed_data_buffer[:, 1:], average / quot, axis=1)
         self.process_time.append(time.time() - tic)
-        return self.processed_data_buffer
+        return self.processed_data_buffer.copy()
 
     def process_imu(
         self,

@@ -4,6 +4,7 @@ First, an interface is created (here Vicon) and then a device (here a treadmill)
 The data can be plotted in real time at each loop, please see the live_plot.py example.
 
 """
+
 from biosiglive.interfaces.vicon_interface import ViconClient
 from time import time, sleep
 from custom_interface import MyInterface

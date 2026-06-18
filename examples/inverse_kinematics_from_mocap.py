@@ -6,6 +6,7 @@ For more information on how to do this, please refer to the marker_streaming.py 
 The processing method will return the angle and velocity of the model joint. You can display the result using the skeleton plot which uses the bioviz library. In the skeleton plot initialization, you can specify the arguments belonging to the bioviz.Viz function. For more information about the arguments, please refer to the bioviz documentation.
 Be aware that the skeleton plot may take some time and slow down the loop. If you want to display the data in real time, consider using a lightweight *.vtp file inside the model.
 """
+
 import time
 
 import numpy as np

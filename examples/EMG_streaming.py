@@ -19,10 +19,13 @@ After that, the data can be used as is or processed using the process() method o
 In this function you can pass a method if you want to use a different method than the default one and every needed argument for that function as well.
 """
 
+from biosiglive.enums import DeviceType
 from custom_interface import MyInterface
 from biosiglive.gui.plot import LivePlot
 from biosiglive import (
     ViconClient,
+    PytrignoClient,
+    save,
     RealTimeProcessingMethod,
     PlotType,
 )
@@ -30,24 +33,24 @@ from time import sleep, time
 
 
 if __name__ == "__main__":
-    try_offline = True
+    try_offline = False
 
     output_file_path = "trial_x.bio"
     if try_offline:
         interface = MyInterface(system_rate=100, data_path="abd.bio")
     else:
-        interface = ViconClient(ip="localhost", system_rate=100)
+        interface = PytrignoClient(ip="127.0.0.1")  # or interface = ViconClient(ip="localhost", system_rate=100)
 
-    n_electrodes = 4
+    n_electrodes = 2
     muscle_names = [
         "Pectoralis major",
         "Deltoid anterior",
-        "Deltoid medial",
-        "Deltoid posterior",
+        # "Deltoid medial",
+        # "Deltoid posterior",
     ]
     interface.add_device(
         nb_channels=n_electrodes,
-        device_type="emg",
+        device_type=DeviceType.Emg,
         name="emg",
         rate=2000,
         device_data_file_key="emg",
@@ -67,6 +70,7 @@ if __name__ == "__main__":
 
     time_to_sleep = 1 / 100
     count = 0
+    file_path = "data_test.bio"
     while True:
         tic = time()
         raw_emg = interface.get_device_data(device_name="emg")
@@ -74,7 +78,9 @@ if __name__ == "__main__":
         emg_plot.update(emg_proc[:, -1:])
         emg_raw_plot.update(raw_emg)
         count += 1
-        loop_time = time() - tic
-        real_time_to_sleep = time_to_sleep - loop_time
-        if real_time_to_sleep > 0:
-            sleep(real_time_to_sleep)
+        # save({'emg_raw': raw_emg, 'proc_emg': emg_proc}, file_path, add_data=True)
+        # if try_offline:
+        #     loop_time = time() - tic
+        #     real_time_to_sleep = time_to_sleep - loop_time
+        #     if real_time_to_sleep > 0:
+        #         sleep(real_time_to_sleep)

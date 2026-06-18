@@ -9,6 +9,11 @@ __pycache__/
 # bio extensions
 *.bio
 
+# vs code settings
+*.env
+.vscode/
+
+
 # Distribution / packaging
 .idea
 .Python

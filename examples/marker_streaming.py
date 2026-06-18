@@ -17,6 +17,7 @@ The marker set takes the following arguments:
 If you want to display the markers in a 3D scatter plot, you can add a Scatter3D plot to the interface. You can pass the size and color of the marker via size and color argument, respectively. Please see the Scatter3D documentation for more information.
 Next, the data flow runs in a loop where the get_marker_set_data() function is used to retrieve the data from the interface. The data is then passed to the graph via the update() method through an array of (n_frame, n_markers, 3) where the plot parameters can be updated.
 """
+
 from time import sleep, time
 from custom_interface import MyInterface
 from biosiglive import LivePlot, PlotType, ViconClient

@@ -1,6 +1,7 @@
 """
 Groups the different enums used in the program. it is a good place to start to check what's available.
 """
+
 from enum import Enum
 
 
@@ -22,6 +23,7 @@ class DeviceType(Enum):
 
     Emg = "emg"
     Imu = "imu"
+    DelsysGogniometer = "delsys_gogniometer"
     Generic = "generic"
     ForcePlate = "force_plate"
 

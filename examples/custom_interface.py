@@ -38,14 +38,11 @@ class MyInterface(GenericInterface):
         name: str = None,
         data_buffer_size: int = None,
         rate: float = 2000,
-        device_range: tuple = None,
         device_data_file_key: str = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **process_kwargs,
     ):
-        device_tmp = self._add_device(
-            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
-        )
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, processing_method, **process_kwargs)
         if data_buffer_size:
             device_tmp.data_window = data_buffer_size
         self.devices.append(device_tmp)

@@ -1,6 +1,7 @@
 """
 This file contains a wrapper for the python Vicon SDK.
 """
+
 from .param import *
 from typing import Union
 from .generic_interface import GenericInterface
@@ -63,20 +64,22 @@ class ViconClient(GenericInterface):
         self.vicon_client.EnableMarkerData()
         self.vicon_client.EnableUnlabeledMarkerData()
         self.get_frame()
-        if self.system_rate != self.vicon_client.GetFrameRate():
+        if self.system_rate is None:
+            self.system_rate = self.vicon_client.GetFrameRate()
+        elif self.system_rate != self.vicon_client.GetFrameRate():
             raise ValueError(
                 f"Vicon system rate ({self.vicon_client.GetFrameRate()}) does not match the system rate "
                 f"({self.system_rate})."
             )
 
+    # TODO: Remove rate and get it from the Vicon system.
     def add_device(
         self,
         nb_channels: int,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
         data_buffer_size: int = None,
         name: str = None,
-        rate: float = 2000,
-        device_range: tuple = None,
+        rate: float = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **process_kwargs,
     ):
@@ -102,12 +105,23 @@ class ViconClient(GenericInterface):
         **process_kwargs
             Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(
-            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
-        )
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, processing_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         if self.vicon_client:
-            device_tmp.infos = self.vicon_client.GetDeviceOutputDetails(name)
+            for i in range(10):
+                try:
+                    device_tmp.infos = self.vicon_client.GetDeviceOutputDetails(name)
+                except:
+                    self.get_frame()
+                    pass
+            if device_tmp.infos is None:
+                raise RuntimeError(
+                    f"Device {name} not found on Vicon. Available devices are {self.vicon_client.GetDeviceNames()}."
+                )
+                # self.get_frame()
+                # device_tmp.infos = self.vicon_client.GetDeviceOutputDetails(name)
+
+                # raise RuntimeError(f"Device {name} not found on Vicon. Available devices are {self.vicon_client.GetDeviceNames()}.")
         else:
             device_tmp.infos = None
         device_tmp.data_windows = data_buffer_size
@@ -232,7 +246,14 @@ class ViconClient(GenericInterface):
                 all_device_data.append(device_data)
         if len(all_device_data) == 1:
             return all_device_data[0]
+        if len(all_device_data) == 0:
+            return None
         return all_device_data
+
+    def get_timestamp(self, get_frame=False):
+        if get_frame:
+            self.get_frame()
+        return self.vicon_client.GetTimecode()
 
     def get_marker_set_data(
         self, subject_name: Union[str, list] = None, marker_names: Union[str, list] = None, get_frame: bool = True
@@ -254,6 +275,9 @@ class ViconClient(GenericInterface):
         markers_data: list
             All asked markers data.
         """
+        if get_frame:
+            self.get_frame()
+
         if len(self.marker_sets) == 0:
             raise ValueError("No marker set has been added to the Vicon system.")
         if not self.is_initialized:

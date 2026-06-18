@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from biosiglive import (
     InterfaceType,
@@ -102,6 +104,9 @@ def test_devices(device_type):
 def test_marker_set():
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
+    if os.name == "nt":  # If the system is Windows, we need to replace the drive letter with an uppercase one
+        p = Path(model_path)
+        model_path = str(p).replace(f"{p.drive}", p.drive.upper(), 1)
     marker_set = MarkerSet(nb_channels=16, name="my_marker_set", rate=100, system_rate=100)
     marker_set.data_window = 100
     assert marker_set.sample == 100 / 100
@@ -116,6 +121,6 @@ def test_marker_set():
         i += 1
 
     raw_data = marker_set.raw_data
-    kin_data, _ = marker_set.get_kinematics(model_path=model_path, method=InverseKinematicsMethods.BiorbdKalman)
+    kin_data, _, _ = marker_set.get_kinematics(model_path=model_path, method=InverseKinematicsMethods.BiorbdKalman)
     assert raw_data.shape == (3, 16, 100)
     assert kin_data.shape == (15, 1)

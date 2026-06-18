@@ -1,21 +1,52 @@
 """
 This file contains all the plot functions to plot the data in live or offline.
 """
+
 try:
     import pyqtgraph as pg
     import pyqtgraph.opengl as gl
-    from PyQt5.QtWidgets import QProgressBar
+except ModuleNotFoundError:
+    pass
+
+import time
+
+try:
+    from PyQt5.QtCore import QTimer
+    from PyQt5.QtWidgets import QMainWindow, QApplication
+except ModuleNotFoundError:
+    pass
+
+try:
+    from PyQt6.QtWidgets import QProgressBar
 except ModuleNotFoundError:
     pass
 import numpy as np
 from typing import Union
-import matplotlib.pyplot as plt
+import sys
+
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    pass
+
 from math import ceil
 from ..enums import PlotType
-import time
+from ..streaming.utils import CircularBuffer
+
+pyqt_color_list = [
+    (31, 119, 180),  # muted blue
+    (255, 127, 14),  # soft orange
+    (44, 160, 44),  # soft green
+    (214, 39, 40),  # soft red
+    (148, 103, 189),  # purple
+    (140, 86, 75),  # brown
+    (227, 119, 194),  # pink
+    (127, 127, 127),  # gray
+    (188, 189, 34),  # olive
+    (23, 190, 207),  # cyan
+]
 
 
-# TODO: Add plot class to be able to plot several curves in the same plot. And do several plot in the same app.
 class LivePlot:
     def __init__(
         self,
@@ -23,7 +54,7 @@ class LivePlot:
         plot_type: Union[PlotType, str] = PlotType.Curve,
         name: str = None,
         channel_names: list = None,
-        rate: int = None,
+        rate: int = 60,
     ):
         """
         Initialize the plot class.
@@ -49,10 +80,18 @@ class LivePlot:
             if len(channel_names) != nb_subplots:
                 raise ValueError("The number of subplots is not equal to the number of channel names")
 
+        self.rate = rate
+
+        #
+        # self.app = pg.mkQApp("Curve_plot")
+        # self.app = QApplication([])
+
+        # self.timer = QTimer()
+        # self.timer.timeout.connect(self._update_plot)
+
         self.channel_names = channel_names
         self.figure_name = name
         self.nb_subplot = nb_subplots
-        self.rate = rate
         self.layout = None
         self.app = None
         self.viz = None
@@ -72,6 +111,7 @@ class LivePlot:
     def init(
         self,
         plot_windows: Union[int, list] = None,
+        create_app: bool = True,
         **kwargs,
     ):
         """
@@ -82,7 +122,9 @@ class LivePlot:
         plot_windows: Union[int, list]
             The number of frames ti plot. If is a list, the number of frames to plot for each subplot.
         """
-        self.plot_buffer = [None] * self.nb_subplot
+        self.create_app = create_app
+
+        # self.plot_buffer = [None] * self.nb_subplot
         if isinstance(plot_windows, int):
             plot_windows = [plot_windows] * self.nb_subplot
         self.plot_windows = plot_windows
@@ -101,6 +143,27 @@ class LivePlot:
         else:
             raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
 
+        # self.timer.start(int((1/self.rate) * 1000))
+        self.win.show()
+        # self.app.exec()
+
+    def _update_plot(self, **kwargs):
+
+        if not self.once_update:
+            return
+
+        if self.plot_type == PlotType.ProgressBar:
+            self._update_progress_bar(self.get_unflatten(self.plot_buffer.get()))
+        elif self.plot_type == PlotType.Curve:
+            self._update_curve(self.get_unflatten(self.plot_buffer.get()))
+        elif self.plot_type == PlotType.Skeleton:
+            self._update_skeleton(self.get_unflatten(self.plot_buffer.get()), self.viz)
+        elif self.plot_type == PlotType.Scatter3D:
+            self._update_3d_scatter(self.get_unflatten(self.plot_buffer.get()), **kwargs)
+        else:
+            raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+        self.app.processEvents()
+
     def update(self, data: Union[np.ndarray, list], **kwargs):
         """
         This function is used to update the qt app.
@@ -110,7 +173,6 @@ class LivePlot:
         data: Union[np.ndarray, list]
             The data to plot. If it is a list, the data to plot for each subplot.
         """
-        update = True
         if self.plot_type != PlotType.Scatter3D and self.plot_type != PlotType.Skeleton:
             if isinstance(data, list):
                 if len(data) != self.nb_subplot:
@@ -130,39 +192,33 @@ class LivePlot:
                     data.append(d[np.newaxis, :])
 
         if self.plot_windows:
-            for i in range(self.nb_subplot):
-                if self.plot_buffer[i] is None:
-                    self.plot_buffer[i] = data[i][..., -self.plot_windows[i] :]
-                    if self.plot_buffer[i].shape[1] < self.plot_windows[i]:
-                        size = self.plot_windows[i] - self.plot_buffer[i].shape[1]
-                        self.plot_buffer[i] = np.append(
-                            np.zeros((self.plot_buffer[i].shape[0], size)), self.plot_buffer[i], axis=-1
-                        )
-                elif self.plot_buffer[i].shape[1] < self.plot_windows[i]:
-                    self.plot_buffer[i] = np.append(self.plot_buffer[i], data[i], axis=-1)
-                elif self.plot_buffer[i].shape[1] >= self.plot_windows[i]:
-                    size = data[i].shape[1]
-                    self.plot_buffer[i] = np.append(self.plot_buffer[i][..., size:], data[i], axis=-1)
-            data = self.plot_buffer
+            if self.plot_buffer is None:
+                flat_data = self.get_flatten(data)
+                self.plot_buffer = CircularBuffer(flat_data.shape[0], self.plot_windows[0])
+                self.plot_buffer.append(flat_data)
+            else:
+                self.plot_buffer.append(self.get_flatten(data))
+
+        update = True
         if self.rate and self.once_update:
             plot_time = time.time() - self.last_plot
             if plot_time != 0 and 1 / plot_time > self.rate:
                 update = False
             else:
                 update = True
+
         if update:
             self.once_update = True
-            if self.plot_type == PlotType.ProgressBar:
-                self._update_progress_bar(data)
-            elif self.plot_type == PlotType.Curve:
-                self._update_curve(data)
-            elif self.plot_type == PlotType.Skeleton:
-                self._update_skeleton(data, self.viz)
-            elif self.plot_type == PlotType.Scatter3D:
-                self._update_3d_scatter(data, **kwargs)
-            else:
-                raise ValueError(f"The plot type ({self.plot_type}) is not supported.")
+            self._update_plot(**kwargs)
             self.last_plot = time.time()
+
+    def get_flatten(self, data):
+        sizes = np.array([len(d) for d in data])
+        self._offsets = np.concatenate(([0], np.cumsum(sizes)))
+        return np.vstack(data)
+
+    def get_unflatten(self, data):
+        return [data[self._offsets[i] : self._offsets[i + 1]] for i in range(len(self._offsets) - 1)]
 
     def _init_curve(
         self,
@@ -198,6 +254,7 @@ class LivePlot:
         self.app = pg.mkQApp("Curve_plot")
         pg.setConfigOption("background", "w")
         pg.setConfigOption("foreground", "k")
+
         self.win = pg.GraphicsLayoutWidget(show=True)
         self.win.setWindowTitle(figure_name)
         nb_line = 4
@@ -244,8 +301,11 @@ class LivePlot:
                 line_count = 0
             self.plots.append(self.win.addPlot(title=subplot_labels[subplot]))
             self.plots[-1].setDownsampling(mode="peak")
-            self.plots[-1].setClipToView(False)
-            self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
+            self.plots[-1].setClipToView(True)
+            self.plots[-1].enableAutoRange(False)
+            # self.curves.append(self.plots[-1].multiDataPlot(x=[], y=[], pen=colors[subplot], name="Blue curve"))
+
+            # self.curves.append(self.plots[-1].plot([], pen=colors[subplot], name="Blue curve"))
             self.plots[-1].setLabel("bottom", x_labels[subplot])
             self.plots[-1].setLabel("left", y_labels[subplot])
             self.plots[-1].showGrid(x=grid, y=grid)
@@ -275,7 +335,7 @@ class LivePlot:
         # --- Progress bar graph --- #
         if isinstance(unit, str):
             self.unit = [unit] * nb_subplot
-        self.layout, self.app = self._init_layout(figure_name, resize=self.resize, move=self.move)
+        self._init_layout(figure_name, resize=self.resize, move=self.move)
         row_count = 0
         if bar_graph_max_value is None:
             bar_graph_max_value = [100] * nb_subplot
@@ -351,7 +411,6 @@ class LivePlot:
                 raise ValueError("The number of size is not equal to the number of data.")
         for plot in self.plots:
             plot.setData(pos=data, color=colors, size=size)
-        self.app.processEvents()
 
     def _update_curve(self, data: list):
         """
@@ -362,17 +421,38 @@ class LivePlot:
         data: list
             The data to plot.
         """
-        if len(data) != len(self.curves):
-            raise ValueError(
-                f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)})."
-            )
+        # if len(data) != len(self.curves):
+        #     self._add_curve()
+        # raise ValueError(
+        #     f"The number of data ({len(data)}) is different from the number of curves ({len(self.curves)})."
+        # )
+        if len(self.curves) == 0:
+            for d, da in enumerate(data):
+                if da.shape[0] == 1:
+                    self.curves.append(
+                        self.plots[d].plot(
+                            da[0, :], pen=pg.mkPen(color=(0, 128, 232)), downsample=5, autoDownsample=True
+                        )
+                    )
+                else:
+                    self.curves.append(
+                        self.plots[d].multiDataPlot(
+                            x=np.arange(da.shape[1]),
+                            y=da,
+                            pen=[pg.mkPen(color=pyqt_color_list[k]) for k in range(da.shape[0])],
+                            downsample=[5 for k in range(da.shape[0])],
+                            autoDownsample=[True for k in range(da.shape[0])],
+                        )
+                    )
+
         for i in range(len(data)):
-            if self.ptr[i] == 0:
-                self.size_to_append[i] = data[i].shape[1]
-            self.ptr[i] += self.size_to_append[i] * 2
-            self.curves[i].setData(data[i][0, :])
-            # self.curves[i].setPos(self.ptr[i], 0)
-        self.app.processEvents()
+            if data[i].shape[0] == 1:
+                self.curves[i].setData(y=data[i][0, :], downsample=5, autoDownsample=True)
+            else:
+                [
+                    self.curves[i][j].setData(y=data[i][j], downsample=5, autoDownsample=True)
+                    for j in range(len(self.curves[i]))
+                ]
 
     def _update_progress_bar(self, data: list):
         """
@@ -395,7 +475,6 @@ class LivePlot:
             self.plots[i].setValue(int(value))
             name = self.channel_names[i] if self.channel_names else f"plot_{i}"
             self.plots[i].setFormat(f"{name}: {int(value)} {self.unit[i]}")
-        self.app.processEvents()
 
     @staticmethod
     def _update_skeleton(data: list, viz):
@@ -429,8 +508,7 @@ class LivePlot:
         plot = bioviz.Viz(**kwargs)
         return plot
 
-    @staticmethod
-    def _init_layout(figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
+    def _init_layout(self, figure_name: str = "Figure", resize: tuple = (400, 400), move: tuple = (0, 0)):
         """
         This function is used to initialize the qt app layout.
 
@@ -451,11 +529,11 @@ class LivePlot:
             The qt app.
 
         """
-        app = pg.mkQApp(figure_name)
-        layout = pg.LayoutWidget()
-        layout.resize(resize[0], resize[1])
-        layout.move(move[0], move[1])
-        return layout, app
+        self.graph_widget = pg.mkQApp(figure_name)
+        self.layout = pg.LayoutWidget()
+        self.layout.resize(resize[0], resize[1])
+        self.layout.move(move[0], move[1])
+        self.setCentralWidget(self.layout)
 
     def disconnect(self):
         self.app.disconnect()

@@ -1,6 +1,7 @@
 """
 This file contains a wrapper for the socket server to send data to the server.
 """
+
 import socket
 import numpy as np
 import struct

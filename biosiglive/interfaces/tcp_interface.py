@@ -1,6 +1,7 @@
 """
 This file contains a wrapper to use a tcp client more easily.
 """
+
 from ..streaming.client import Client, Message
 from .generic_interface import GenericInterface
 from ..enums import (
@@ -37,6 +38,7 @@ class TcpClient(GenericInterface):
         self.devices = []
         self.imu = []
         self.marker_sets = []
+        self.system_rate = read_frequency
         self.read_frequency = read_frequency
         self.ip = ip
         self.port = port
@@ -52,7 +54,6 @@ class TcpClient(GenericInterface):
         command_name: Union[str, list] = "",
         name: str = None,
         rate: float = 2000,
-        device_range: tuple = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **process_kwargs,
     ):
@@ -71,16 +72,12 @@ class TcpClient(GenericInterface):
             Name of the device.
         rate: float
             Frequency of the device.
-        device_range: tuple
-            Range of the device.
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod]
             Method to use to process the data.
         process_kwargs: dict
             Keyword arguments for the processing method.
         """
-        device_tmp = self._add_device(
-            nb_channels, device_type, name, rate, device_range, processing_method, **process_kwargs
-        )
+        device_tmp = self._add_device(nb_channels, device_type, name, rate, processing_method, **process_kwargs)
         device_tmp.interface = self.interface_type
         self.devices.append(device_tmp)
         self.device_cmd_names.append(command_name)

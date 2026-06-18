@@ -1,3 +1,5 @@
+from numpy import lib
+from numpy.compat import Path
 import pytest
 from biosiglive import (
     RealTimeProcessing,
@@ -76,7 +78,6 @@ def test_offline_processing(method):
     np.random.seed(50)
     data = np.random.rand(2, 4000)
     processing = OfflineProcessing(data_rate=2000, processing_window=1000)
-
     if method == OfflineProcessingMethod.ProcessEmg:
         processed_data = processing.process_emg(data)
         np.testing.assert_almost_equal(processed_data[:, 0], [0.1021941, 0.0959892])
@@ -95,13 +96,15 @@ def test_offline_processing(method):
 def test_inverse_kinematics_methods(methods):
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     markers_data = np.ones((3, 16, 1)) * 0.1
-    model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
-
+    model_path = os.path.join(parent_dir, "examples", "model", "Wu_Shoulder_Model_mod_wt_wrapp.bioMod")
+    if os.name == "nt":  # If the system is Windows, we need to replace the drive letter with an uppercase one
+        p = Path(model_path)
+        model_path = str(p).replace(f"{p.drive}", p.drive.upper(), 1)
     msk_function = MskFunctions(model=model_path)
-    q, q_dot = None, None
+    q, q_dot, qddot = None, None, None
     i = 0
     while i != 15:
-        q, q_dot = msk_function.compute_inverse_kinematics(markers_data, method=methods)
+        q, q_dot, qddot = msk_function.compute_inverse_kinematics(markers_data, method=methods)
         i += 1
 
     if methods == InverseKinematicsMethods.BiorbdLeastSquare:
@@ -127,6 +130,7 @@ def test_inverse_kinematics_methods(methods):
             decimal=4,
         )
         np.testing.assert_almost_equal(q_dot[:, 0], np.zeros((15,)))
+        np.testing.assert_almost_equal(qddot[:, 0], np.zeros((15,)))
 
     if methods == InverseKinematicsMethods.BiorbdKalman:
         np.testing.assert_almost_equal(
@@ -171,14 +175,37 @@ def test_inverse_kinematics_methods(methods):
             ],
             decimal=4,
         )
+        np.testing.assert_almost_equal(
+            qddot[:, 0],
+            [
+                -0.086063,
+                -0.6521736,
+                0.3024718,
+                27.344666,
+                3.5197842,
+                1.6759323,
+                -41.2854412,
+                -29.9048829,
+                6.6074331,
+                -8.3143703,
+                -4.7288301,
+                -0.6923808,
+                -0.4416418,
+                4.6232351,
+                -0.161266,
+            ],
+            decimal=4,
+        )
 
 
 def test_forward_kinematics():
     parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     np.random.seed(50)
     q_data = np.random.rand(15, 1)
-    model_path = parent_dir + "/examples/model/Wu_Shoulder_Model_mod_wt_wrapp.bioMod"
-
+    model_path = os.path.join(parent_dir, "examples", "model", "Wu_Shoulder_Model_mod_wt_wrapp.bioMod")
+    if os.name == "nt":  # If the system is Windows, we need to replace the drive letter with an uppercase one
+        p = Path(model_path)
+        model_path = str(p).replace(f"{p.drive}", p.drive.upper(), 1)
     msk_function = MskFunctions(model=model_path)
     markers = None
     i = 0

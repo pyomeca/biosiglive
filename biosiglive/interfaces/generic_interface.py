@@ -1,6 +1,7 @@
 """
 This file contains a generic interface class to use for any new implemented class.
 """
+
 from .param import *
 from typing import Union
 from ..enums import DeviceType, InverseKinematicsMethods, InterfaceType
@@ -12,7 +13,7 @@ class GenericInterface:
     """
 
     def __init__(
-        self, ip: str = "127.0.0.1", system_rate: float = 100, interface_type: Union[InterfaceType, str] = None
+        self, ip: str = "127.0.0.1", system_rate: float = None, interface_type: Union[InterfaceType, str] = None
     ):
         """
         Initialize the generic class.
@@ -45,8 +46,7 @@ class GenericInterface:
         nb_channels: int,
         device_type: Union[DeviceType, str] = DeviceType.Emg,
         name: str = None,
-        rate: float = 2000,
-        device_range: tuple = None,
+        rate: float = None,
         processing_method: Union[RealTimeProcessingMethod, OfflineProcessingMethod] = None,
         **kwargs,
     ):
@@ -75,7 +75,6 @@ class GenericInterface:
                 raise ValueError("The type of the device is not valid.")
             device_type = DeviceType(device_type)
         device_tmp = Device(device_type, nb_channels, name, rate, self.system_rate)
-        device_tmp.device_range = device_range if device_range else (0, nb_channels)
         device_tmp.interface = self.interface_type
         device_tmp.processing_method = processing_method
         device_tmp.processing_method_kwargs = kwargs
