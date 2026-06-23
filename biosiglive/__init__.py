@@ -2,6 +2,7 @@ from .gui.plot import LivePlot, OfflinePlot
 
 from .interfaces.pytrigno_interface import PytrignoClient
 from .interfaces.vicon_interface import ViconClient
+from .interfaces.qualisys_interface import QualisysClient
 from .interfaces.generic_interface import GenericInterface
 from .interfaces.tcp_interface import TcpClient
 from .interfaces.param import Param, Device, MarkerSet

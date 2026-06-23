@@ -14,7 +14,7 @@ class InterfaceType(Enum):
     PytrignoClient = "pytrigno_client"
     TcpClient = "tcp_client"
     Custom = "custom"
-
+    QualisysClient = "qualisys_client"
 
 class DeviceType(Enum):
     """
