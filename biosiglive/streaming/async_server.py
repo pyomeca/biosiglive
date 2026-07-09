@@ -46,12 +46,17 @@ class AsyncTCPServer:
         --------
         None
         """
+        self.loop = asyncio.get_running_loop()
         self.task = task
-        self.server = await asyncio.start_server(self.handle_client, self.host, self.port)
-        # print(f"Server started on {self.host}:{self.port}")
-
-        async with self.server:
+        self.server = await asyncio.start_server(
+            self.handle_client,
+            self.host,
+            self.port,
+        )
+        try:
             await self.server.serve_forever()
+        except asyncio.CancelledError:
+            pass
 
     async def handle_client(
         self,
@@ -129,22 +134,27 @@ class AsyncTCPServer:
 
         return array, t
 
-    async def stop(self) -> None:
-        """
-        Stop the TCP server.
+    # async def stop(self) -> None:
+    #     """
+    #     Stop the TCP server.
 
-        Parameters
-        ------------
-        None
+    #     Parameters
+    #     ------------
+    #     None
 
-        Returns
-        --------
-        None
-        """
-        if self.server:
-            self.server.close()
-            await self.server.wait_closed()
-            # print("Server stopped")
+    #     Returns
+    #     --------
+    #     None
+    #     """
+    async def stop(self):
+
+        self.server.close()
+
+        await self.server.wait_closed()
+
+        for task in asyncio.all_tasks(self.loop):
+            if task is not asyncio.current_task():
+                task.cancel()
 
     async def get_data(self) -> tuple:
         """
